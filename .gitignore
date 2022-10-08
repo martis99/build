@@ -1,0 +1,6 @@
+*.user
+*.lib
+*.pdb
+
+.vs/
+bin/
