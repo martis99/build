@@ -20,7 +20,7 @@ typedef struct mode_desc_s {
 	size_t len;
 } mode_desc_t;
 
-typedef int(*param_handler_fn)(const void *param, void *ret);
+typedef int (*param_handler_fn)(const void *param, void *ret);
 typedef struct arg_s {
 	char c;
 	const char *l;

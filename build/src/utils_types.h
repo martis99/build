@@ -10,7 +10,7 @@ typedef struct path_s {
 
 typedef struct pathv_s {
 	unsigned int len;
-	const char* path;
+	const char *path;
 } pathv_t;
 
 typedef struct prop_str_s {

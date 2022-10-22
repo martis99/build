@@ -32,7 +32,7 @@ int folder_exists_v(const char *format, va_list args);
 int folder_exists_f(const char *format, ...);
 int folder_create(const char *path);
 
-typedef int(*files_foreach_cb)(path_t *path, const char *folder, void *usr);
+typedef int (*files_foreach_cb)(path_t *path, const char *folder, void *usr);
 int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr);
 
 int path_init(path_t *path, const char *dir, unsigned int len);
@@ -41,12 +41,12 @@ int path_child(path_t *path, const char *dir, unsigned int len);
 int path_parent(path_t *path);
 int path_set_len(path_t *path, unsigned int len);
 int path_ends(const path_t *path, const char *str);
-int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out);;
+int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out);
+;
 
 int pathv_path(pathv_t *pathv, const path_t *path);
 int pathv_sub(pathv_t *pathv, const path_t *l, const path_t *r);
-int pathv_folder(pathv_t *pathv, const path_t* path);
-
+int pathv_folder(pathv_t *pathv, const path_t *path);
 
 int read_char(prop_str_t *str, char c);
 int read_name(prop_str_t *str);

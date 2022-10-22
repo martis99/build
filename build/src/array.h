@@ -1,8 +1,8 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct array_s {
 	int capacity;
@@ -10,7 +10,6 @@ typedef struct array_s {
 	size_t vsize;
 	void *data;
 } array_t;
-
 
 void array_init(array_t *arr, int capacity, size_t vsize);
 

@@ -1,9 +1,8 @@
 #ifndef SLN_H
 #define SLN_H
 
-#include "types.h"
-#include "utils_types.h"
 #include "hash_map.h"
+#include "types.h"
 #include "utils_types.h"
 
 typedef enum sln_prop_e {

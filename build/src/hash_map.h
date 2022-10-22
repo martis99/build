@@ -1,11 +1,10 @@
 #ifndef hash_map_h
 #define hash_map_h
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-struct bucket
-{
+struct bucket {
 	struct bucket *next;
 
 	void *key;
@@ -14,8 +13,7 @@ struct bucket
 	void *value;
 };
 
-typedef struct hashmap_s
-{
+typedef struct hashmap_s {
 	struct bucket *buckets;
 	int capacity;
 	int count;

@@ -12,8 +12,8 @@ typedef enum prop_dim_e {
 	__PROP_DIM_MAX,
 } prop_dim_t;
 
-typedef int(*prop_parse_fn)(prop_str_t *data, prop_t *prop);
-typedef void(*prop_print_fn)(const prop_t *prop);
+typedef int (*prop_parse_fn)(prop_str_t *data, prop_t *prop);
+typedef void (*prop_print_fn)(const prop_t *prop);
 
 typedef struct prop_pol_s {
 	const char *name;
@@ -35,7 +35,7 @@ typedef enum lang_shift_e {
 typedef enum lang_e {
 	LANG_UNKNOWN,
 	LANG_NONE,
-	LANG_C = 1 << LANG_SHIFT_C,
+	LANG_C	 = 1 << LANG_SHIFT_C,
 	LANG_ASM = 1 << LANG_SHIFT_ASM,
 } lang_t;
 

@@ -5,24 +5,29 @@
 #include <Windows.h>
 #include <memory.h>
 
-unsigned int cstr_len(const char *str) {
+unsigned int cstr_len(const char *str)
+{
 	unsigned int len = 0;
-	while (str[len++]);
+	while (str[len++])
+		;
 	return len - 1;
 }
 
-int cstr_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len) {
+int cstr_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len)
+{
 	return str1_len == str2_len && memcmp(str1, str2, str1_len * sizeof(char)) == 0;
 }
 
-void *cstr_cpy(char *dst, const char *src, unsigned int len) {
+void *cstr_cpy(char *dst, const char *src, unsigned int len)
+{
 	return memcpy(dst, src, len * sizeof(char));
 }
 
-int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *from, unsigned int from_len, const char *to, unsigned int to_len) {
-	src_len = src_len == 0 ? cstr_len(src) : src_len;
+int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *from, unsigned int from_len, const char *to, unsigned int to_len)
+{
+	src_len	 = src_len == 0 ? cstr_len(src) : src_len;
 	from_len = from_len == 0 ? cstr_len(from) : from_len;
-	to_len = to_len == 0 ? cstr_len(to) : to_len;
+	to_len	 = to_len == 0 ? cstr_len(to) : to_len;
 
 	unsigned int dst_i = 0;
 	for (unsigned int i = 0; i < src_len; i++) {
@@ -38,15 +43,16 @@ int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int 
 	return dst_i;
 }
 
-int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *const *from, const char *const *to, unsigned int len) {
+int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *const *from, const char *const *to, unsigned int len)
+{
 	src_len = src_len == 0 ? cstr_len(src) : src_len;
-	
+
 	unsigned int dst_i = 0;
 	for (unsigned int i = 0; i < src_len; i++) {
 		int found = 0;
 		for (unsigned int j = 0; j < len; j++) {
 			unsigned int from_len = cstr_len(from[j]);
-			unsigned int to_len = cstr_len(to[j]);
+			unsigned int to_len	  = cstr_len(to[j]);
 
 			if (src_len - i >= from_len && cstr_cmp(&src[i], from_len, from[j], from_len)) {
 				cstr_cpy(&dst[dst_i], to[j], to_len);
@@ -65,7 +71,8 @@ int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int
 	return dst_i;
 }
 
-int cstr_format_v(char *buf, size_t buf_len, const char *format, va_list args) {
+int cstr_format_v(char *buf, size_t buf_len, const char *format, va_list args)
+{
 	if (buf == NULL) {
 		ERR("buffer is null");
 		return -1;
@@ -95,7 +102,8 @@ int cstr_format_v(char *buf, size_t buf_len, const char *format, va_list args) {
 	return len;
 }
 
-int cstr_format_f(char *buf, size_t buf_len, const char *format, ...) {
+int cstr_format_f(char *buf, size_t buf_len, const char *format, ...)
+{
 	va_list args;
 	va_start(args, format);
 	int len = cstr_format_v(buf, buf_len, format, args);
@@ -103,7 +111,8 @@ int cstr_format_f(char *buf, size_t buf_len, const char *format, ...) {
 	return len;
 }
 
-FILE *file_open(const char *path, const char *mode, int exists) {
+FILE *file_open(const char *path, const char *mode, int exists)
+{
 	if (path == NULL) {
 		ERR("path is null");
 		return NULL;
@@ -132,7 +141,8 @@ FILE *file_open(const char *path, const char *mode, int exists) {
 	return file;
 }
 
-FILE *file_open_v(const char *format, const char *mode, int exists, va_list args) {
+FILE *file_open_v(const char *format, const char *mode, int exists, va_list args)
+{
 	char path[MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
@@ -142,7 +152,8 @@ FILE *file_open_v(const char *format, const char *mode, int exists, va_list args
 	return file_open(path, mode, exists);
 }
 
-FILE *file_open_f(const char *format, const char *mode, int exists, ...) {
+FILE *file_open_f(const char *format, const char *mode, int exists, ...)
+{
 	va_list args;
 	va_start(args, exists);
 	FILE *file = file_open_v(format, mode, exists, args);
@@ -150,12 +161,13 @@ FILE *file_open_f(const char *format, const char *mode, int exists, ...) {
 	return file;
 }
 
-size_t file_read(const char *path, int exists, char *data, size_t data_len) {
+size_t file_read(const char *path, int exists, char *data, size_t data_len)
+{
 	if (data == NULL) {
 		ERR("data is null");
 		return -1;
 	}
-	
+
 	FILE *file = file_open(path, "r", exists);
 	if (file == NULL) {
 		return -1;
@@ -182,7 +194,8 @@ size_t file_read(const char *path, int exists, char *data, size_t data_len) {
 	return len;
 }
 
-size_t file_read_v(const char *format, int exists, char *data, size_t data_len, va_list args) {
+size_t file_read_v(const char *format, int exists, char *data, size_t data_len, va_list args)
+{
 	char path[MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
@@ -192,7 +205,8 @@ size_t file_read_v(const char *format, int exists, char *data, size_t data_len, 
 	return file_read(path, exists, data, data_len);
 }
 
-size_t file_read_f(const char *format, int exists, char *data, size_t data_len, ...) {
+size_t file_read_f(const char *format, int exists, char *data, size_t data_len, ...)
+{
 	va_list args;
 	va_start(args, data_len);
 	size_t len = file_read_v(format, exists, data, data_len, args);
@@ -200,12 +214,14 @@ size_t file_read_f(const char *format, int exists, char *data, size_t data_len, 
 	return len;
 }
 
-int file_exists(const char *path) {
+int file_exists(const char *path)
+{
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-int file_exists_v(const char *format, va_list args) {
+int file_exists_v(const char *format, va_list args)
+{
 	char path[MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
@@ -215,7 +231,8 @@ int file_exists_v(const char *format, va_list args) {
 	return file_exists(path);
 }
 
-int file_exists_f(const char *format, ...) {
+int file_exists_f(const char *format, ...)
+{
 	va_list args;
 	va_start(args, format);
 	int exists = file_exists_v(format, args);
@@ -223,12 +240,14 @@ int file_exists_f(const char *format, ...) {
 	return exists;
 }
 
-int folder_exists(const char *path) {
+int folder_exists(const char *path)
+{
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-int folder_exists_v(const char *format, va_list args) {
+int folder_exists_v(const char *format, va_list args)
+{
 	char path[MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
@@ -238,7 +257,8 @@ int folder_exists_v(const char *format, va_list args) {
 	return folder_exists(path);
 }
 
-int folder_exists_f(const char *format, ...) {
+int folder_exists_f(const char *format, ...)
+{
 	va_list args;
 	va_start(args, format);
 	int exists = folder_exists_v(format, args);
@@ -246,13 +266,15 @@ int folder_exists_f(const char *format, ...) {
 	return exists;
 }
 
-int folder_create(const char *path) {
+int folder_create(const char *path)
+{
 	return CreateDirectoryA(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError();
 }
 
-int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr) {
+int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr)
+{
 	WIN32_FIND_DATA file = { 0 };
-	HANDLE find = NULL;
+	HANDLE find			 = NULL;
 
 	path_t cild_path = *path;
 	path_child(&cild_path, "*.*", 3);
@@ -275,7 +297,7 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 				continue;
 			}
 
-			int ret = cb(&cild_path, file.cFileName, usr);
+			int ret		  = cb(&cild_path, file.cFileName, usr);
 			cild_path.len = path->len;
 			if (ret < 0) {
 				return ret;
@@ -288,7 +310,8 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 	return 0;
 }
 
-int path_init(path_t *path, const char *dir, unsigned int len) {
+int path_init(path_t *path, const char *dir, unsigned int len)
+{
 	if (len + 1 > MAX_PATH) {
 		ERR("path too long");
 		return 1;
@@ -302,7 +325,8 @@ int path_init(path_t *path, const char *dir, unsigned int len) {
 	return 0;
 }
 
-int path_child_s(path_t *path, const char *dir, unsigned int len, char s) {
+int path_child_s(path_t *path, const char *dir, unsigned int len, char s)
+{
 	if (path->len + len + 2 > MAX_PATH) {
 		ERR("path too long");
 		return 1;
@@ -319,14 +343,17 @@ int path_child_s(path_t *path, const char *dir, unsigned int len, char s) {
 	return 0;
 }
 
-int path_child(path_t *path, const char *dir, unsigned int len) {
+int path_child(path_t *path, const char *dir, unsigned int len)
+{
 	return path_child_s(path, dir, len, '\\');
 }
 
-int path_parent(path_t *path) {
+int path_parent(path_t *path)
+{
 	unsigned int len = path->len;
 
-	while (len > 0 && path->path[len] != '\\' && path->path[len] != '/') len--;
+	while (len > 0 && path->path[len] != '\\' && path->path[len] != '/')
+		len--;
 
 	if (len == 0) {
 		return 1;
@@ -335,23 +362,26 @@ int path_parent(path_t *path) {
 	path->len = len;
 
 	path->path[path->len] = '\0';
-	
+
 	return 0;
 }
 
-int path_set_len(path_t *path, unsigned int len) {
-	path->len = len;
+int path_set_len(path_t *path, unsigned int len)
+{
+	path->len			  = len;
 	path->path[path->len] = '\0';
 	return 0;
 }
 
-int path_ends(const path_t *path, const char *str) {
+int path_ends(const path_t *path, const char *str)
+{
 	size_t len = strlen(str);
 	return path->len > len && memcmp(path->path + path->len - len, str, len) == 0;
 }
 
-int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out) {
-	int dif = 0;
+int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out)
+{
+	int dif		   = 0;
 	int last_slash = 0;
 
 	for (unsigned int i = 0; i < path_len; i++) {
@@ -383,36 +413,38 @@ int path_calc_rel(const char *path, unsigned int path_len, const char *dest, uns
 	return 0;
 }
 
-int pathv_path(pathv_t *pathv, const path_t *path) {
-	*pathv = (pathv_t){
-		.path = path->path,
-		.len = path->len
-	};
+int pathv_path(pathv_t *pathv, const path_t *path)
+{
+	*pathv = (pathv_t){ .path = path->path, .len = path->len };
 	return 0;
 }
 
-int pathv_sub(pathv_t *pathv, const path_t *l, const path_t *r) {
+int pathv_sub(pathv_t *pathv, const path_t *l, const path_t *r)
+{
 	*pathv = (pathv_t){
 		.path = l->path + r->len + 1,
-		.len = l->len - r->len - 1,
+		.len  = l->len - r->len - 1,
 	};
 	return 0;
 }
 
-int pathv_folder(pathv_t *pathv, const path_t *path) {
+int pathv_folder(pathv_t *pathv, const path_t *path)
+{
 	unsigned int len = path->len;
 
-	while (len > 0 && path->path[len] != '\\' && path->path[len] != '/') len--;
+	while (len > 0 && path->path[len] != '\\' && path->path[len] != '/')
+		len--;
 
 	*pathv = (pathv_t){
 		.path = path->path + len + 1,
-		.len = path->len - len - 1,
+		.len  = path->len - len - 1,
 	};
 
 	return 0;
 }
 
-int read_char(prop_str_t *str, char c) {
+int read_char(prop_str_t *str, char c)
+{
 	if (str->cur >= str->len) {
 		return 0;
 	}
@@ -421,17 +453,18 @@ int read_char(prop_str_t *str, char c) {
 	if (str->data[str->cur] == c) {
 		str->cur++;
 	}
-	
+
 	return str->cur - start;
 }
 
-int read_name(prop_str_t *str) {
+int read_name(prop_str_t *str)
+{
 	if (str->cur >= str->len) {
 		return 0;
 	}
 
 	unsigned int start = str->cur;
-	char c = str->data[str->cur];
+	char c			   = str->data[str->cur];
 	while (str->cur < str->len && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
 		c = str->data[++str->cur];
 	}
@@ -439,64 +472,69 @@ int read_name(prop_str_t *str) {
 	return str->cur - start;
 }
 
-int read_path(prop_str_t *str, prop_str_t *dst) {
+int read_path(prop_str_t *str, prop_str_t *dst)
+{
 	if (str->cur >= str->len) {
 		return 0;
 	}
 
 	unsigned int start = str->cur;
-	char c = str->data[str->cur];
-	while (str->cur < str->len && (c == '$' || c == '(' || c == ')' || c == '-' || c == '/' || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '\\' || c == '_' || (c >= 'a' && c <= 'z'))) {
+	char c			   = str->data[str->cur];
+	while (str->cur < str->len && (c == '$' || c == '(' || c == ')' || c == '-' || c == '/' || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '\\' ||
+								   c == '_' || (c >= 'a' && c <= 'z'))) {
 		c = str->data[++str->cur];
 	}
 
 	if (dst != NULL) {
 		*dst = (prop_str_t){
-		.path = str->path,
-		.data = &str->data[start],
-		.start = start,
-		.len = str->cur - start,
-		.line = str->line,
-		.line_start = str->line_start,
+			.path		= str->path,
+			.data		= &str->data[start],
+			.start		= start,
+			.len		= str->cur - start,
+			.line		= str->line,
+			.line_start = str->line_start,
 		};
 	}
 
 	return str->cur - start;
 }
 
-int read_upper(prop_str_t *str, prop_str_t *dst) {
+int read_upper(prop_str_t *str, prop_str_t *dst)
+{
 	if (str->cur >= str->len) {
 		return 0;
 	}
 
 	unsigned int start = str->cur;
-	char c = str->data[str->cur];
+	char c			   = str->data[str->cur];
 	while (str->cur < str->len && (c >= 'A' && c <= 'Z')) {
 		c = str->data[++str->cur];
 	}
 
 	if (dst != NULL) {
 		*dst = (prop_str_t){
-		.path = str->path,
-		.data = &str->data[start],
-		.start = start,
-		.len = str->cur - start,
-		.line = str->line,
-		.line_start = str->line_start,
+			.path		= str->path,
+			.data		= &str->data[start],
+			.start		= start,
+			.len		= str->cur - start,
+			.line		= str->line,
+			.line_start = str->line_start,
 		};
 	}
 
 	return str->cur - start;
 }
 
-int read_printable(prop_str_t *str) {
+int read_printable(prop_str_t *str)
+{
 	if (str->cur >= str->len) {
 		return 0;
 	}
 
 	unsigned int start = str->cur;
-	char c = str->data[str->cur];
-	while (str->cur < str->len && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c ==',' || c == ' ')) {
+	char c			   = str->data[str->cur];
+	while (str->cur < str->len &&
+		   ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c == ',' || c == ' ')) {
 		c = str->data[++str->cur];
 	}
 

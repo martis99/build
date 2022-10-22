@@ -3,30 +3,33 @@
 #include "proj.h"
 #include "prop.h"
 
-#include "utils.h"
 #include "md5.h"
+#include "utils.h"
 
 #include "defines.h"
 #include "mem.h"
 
+#include <Windows.h>
 #include <stdio.h>
 #include <string.h>
-#include <Windows.h>
 
 static const prop_pol_t s_dir_props[] = {
-	[DIR_PROP_DIRS] = {.name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
+	[DIR_PROP_DIRS] = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
 };
 
-static int add_dir(path_t *path, const char *folder, void *usr) {
+static int add_dir(path_t *path, const char *folder, void *usr)
+{
 	unsigned int folder_len = cstr_len(folder);
+
 	prop_str_t dir = {
-		.path = NULL,
-		.data = m_calloc(folder_len + 1, sizeof(char)),
-		.start = 0,
-		.len = folder_len,
-		.line = 0,
+		.path		= NULL,
+		.data		= m_calloc(folder_len + 1, sizeof(char)),
+		.start		= 0,
+		.len		= folder_len,
+		.line		= 0,
 		.line_start = 0,
 	};
+
 	memcpy(dir.data, folder, dir.len);
 	array_add(usr, &dir);
 	return 0;
@@ -37,9 +40,8 @@ typedef struct read_dir_data_s {
 	dir_t *parent;
 } read_dir_data_t;
 
-
-int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *usr) {
-
+int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *usr)
+{
 	dir->file_path = *path;
 	pathv_path(&dir->path, &dir->file_path);
 	pathv_sub(&dir->dir, &dir->file_path, sln_path);
@@ -60,7 +62,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 		dir->data.path = dir->file_path.path;
 		dir->data.data = dir->file;
-		dir->data.cur = 0;
+		dir->data.cur  = 0;
 
 		ret += props_parse_file(&dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
 
@@ -74,12 +76,12 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	array_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
-	path_t child_path = *path;
+	path_t child_path			= *path;
 	unsigned int child_path_len = child_path.len;
 
-	read_dir_data_t *data = usr;
+	read_dir_data_t *data		  = usr;
 	read_dir_data_t read_dir_data = {
-		.sln = data->sln,
+		.sln	= data->sln,
 		.parent = dir,
 	};
 
@@ -101,18 +103,15 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	return ret;
 }
 
-void dir_print(dir_t *dir) {
+void dir_print(dir_t *dir)
+{
 	INFP("Directory\n"
-		"    Path   : %.*s\n"
-		"    File   : %.*s\n"
-		"    Dir    : %.*s\n"
-		"    Folder : %.*s\n"
-		"    GUID   : %s",
-		dir->path.len, dir->path.path,
-		dir->file_path.len, dir->file_path.path,
-		dir->dir.len, dir->dir.path,
-		dir->folder.len, dir->folder.path,
-		dir->guid);
+		 "    Path   : %.*s\n"
+		 "    File   : %.*s\n"
+		 "    Dir    : %.*s\n"
+		 "    Folder : %.*s\n"
+		 "    GUID   : %s",
+		 dir->path.len, dir->path.path, dir->file_path.len, dir->file_path.path, dir->dir.len, dir->dir.path, dir->folder.len, dir->folder.path, dir->guid);
 
 	if (dir->parent) {
 		INFP("    Parent : %.*s", (unsigned int)dir->parent->folder.len, dir->parent->folder.path);
@@ -122,7 +121,8 @@ void dir_print(dir_t *dir) {
 	props_print(dir->props, s_dir_props, sizeof(s_dir_props));
 }
 
-int dir_gen_cmake(const dir_t *dir, const path_t *path) {
+int dir_gen_cmake(const dir_t *dir, const path_t *path)
+{
 	const array_t *dirs = &dir->props[DIR_PROP_DIRS].arr;
 
 	path_t cmake_path = *path;
@@ -147,7 +147,7 @@ int dir_gen_cmake(const dir_t *dir, const path_t *path) {
 
 	int ret = 0;
 
-	path_t child_path = *path;
+	path_t child_path	  = *path;
 	size_t child_path_len = child_path.len;
 
 	for (int i = 0; i < dirs->count; i++) {
@@ -165,12 +165,14 @@ int dir_gen_cmake(const dir_t *dir, const path_t *path) {
 	return ret;
 }
 
-static void free_dir(int index, void *value, void *usr) {
+static void free_dir(int index, void *value, void *usr)
+{
 	prop_str_t *dir = value;
 	m_free(dir->data, (size_t)dir->len + 1);
 }
 
-void dir_free(dir_t *dir) {
+void dir_free(dir_t *dir)
+{
 	if (!dir->props[DIR_PROP_DIRS].set) {
 		array_iterate(&dir->props[DIR_PROP_DIRS].arr, free_dir, NULL);
 	}

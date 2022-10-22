@@ -44,7 +44,6 @@ xml_attr_t *xml_add_child_val_f(xml_tag_t *tag, const char *name, unsigned int n
 
 xml_str_t *xml_set_val(xml_tag_t *tag, const char *val, unsigned int val_len);
 
-
 int xml_save(xml_t *xml, void *file);
 
 #endif

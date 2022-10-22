@@ -1,8 +1,8 @@
 #ifndef ENUMS_H
 #define ENUMS_H
 
-#include "utils_types.h"
 #include "array.h"
+#include "utils_types.h"
 
 typedef struct prop_s {
 	int set;

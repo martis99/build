@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-static inline int switch_int(char c) {
+static inline int switch_int(char c)
+{
 	switch (c) {
 	case '0':
 		return 0;
@@ -14,12 +15,14 @@ static inline int switch_int(char c) {
 	}
 }
 
-static int handle_string(const char *param, const void *ret) {
+static int handle_string(const char *param, const void *ret)
+{
 	*(const char **)ret = param;
 	return 0;
 }
 
-static int handle_switch(const char *param, void *ret) {
+static int handle_switch(const char *param, void *ret)
+{
 	if (param[1] != '\0' || (*(int *)ret = switch_int(param[0])) == -1) {
 		return 1;
 	}
@@ -27,14 +30,11 @@ static int handle_switch(const char *param, void *ret) {
 }
 
 static param_handler_fn s_handlers[] = {
-	[PARAM_NONE] = NULL,
-	[PARAM_INT] = NULL,
-	[PARAM_STR] = handle_string,
-	[PARAM_MODE] = NULL,
-	[PARAM_SWITCH] = handle_switch,
+	[PARAM_NONE] = NULL, [PARAM_INT] = NULL, [PARAM_STR] = handle_string, [PARAM_MODE] = NULL, [PARAM_SWITCH] = handle_switch,
 };
 
-static inline void header(const char *name, const char *description) {
+static inline void header(const char *name, const char *description)
+{
 	fprintf(stdout, "%s\n", description);
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Usage\n");
@@ -42,13 +42,15 @@ static inline void header(const char *name, const char *description) {
 	fprintf(stdout, "\n");
 }
 
-void args_usage(const char *name, const char *description) {
+void args_usage(const char *name, const char *description)
+{
 	header(name, description);
 	fprintf(stdout, "Run 'build --help' for more information\n");
 	fflush(stdout);
 }
 
-static inline void help(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size) {
+static inline void help(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size)
+{
 	header(name, description);
 	fprintf(stdout, "Options\n");
 
@@ -70,7 +72,8 @@ static inline void help(const char *name, const char *description, const arg_t *
 	fflush(stdout);
 }
 
-static inline int get_arg(const arg_t *args, size_t args_size, int argc, const char **argv, size_t *index, const char **param) {
+static inline int get_arg(const arg_t *args, size_t args_size, int argc, const char **argv, size_t *index, const char **param)
+{
 	int arg = -2;
 
 	if (*index > argc) {
@@ -115,7 +118,8 @@ static inline int get_arg(const arg_t *args, size_t args_size, int argc, const c
 	return arg;
 }
 
-static inline int handle_param(const arg_t *args, size_t arg, const char *param, void *ret) {
+static inline int handle_param(const arg_t *args, size_t arg, const char *param, void *ret)
+{
 	param_handler_fn handler = args[arg].handler ? args[arg].handler : s_handlers[args[arg].param];
 
 	if (handler != NULL) {
@@ -125,7 +129,9 @@ static inline int handle_param(const arg_t *args, size_t arg, const char *param,
 	return 1;
 }
 
-int args_handle(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size, int argc, const char *argv[], void **params) {
+int args_handle(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size, int argc, const char *argv[],
+				void **params)
+{
 	int ret = 0;
 
 	size_t i = 1;

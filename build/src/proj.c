@@ -1,34 +1,31 @@
 #include "proj.h"
 
 #include "dir.h"
-
 #include "prop.h"
 #include "utils.h"
 
-#include "utils.h"
-
-#include "xml.h"
-#include "md5.h"
 #include "defines.h"
+#include "md5.h"
 #include "mem.h"
+#include "xml.h"
 
 #include <string.h>
 
 #include <Windows.h>
 
 static const prop_pol_t s_proj_props[] = {
-	[PROJ_PROP_NAME] = {.name = "NAME", .parse = prop_parse_word},
-	[PROJ_PROP_TYPE] = {.name = "TYPE", .parse = prop_parse_word, .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX},
-	[PROJ_PROP_SOURCE] = {.name = "SOURCE", .parse = prop_parse_path},
-	[PROJ_PROP_INCLUDE] = {.name = "INCLUDE", .parse = prop_parse_path},
-	[PROJ_PROP_DEPENDS] = {.name = "DEPENDS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_INCLUDES] = {.name = "INCLUDES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_DEFINES] = {.name = "DEFINES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_LIBDIRS] = {.name = "LIBDIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_WDIR] = {.name = "WDIR", .parse = prop_parse_path },
-	[PROJ_PROP_CHARSET] = {.name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX},
-	[PROJ_PROP_OUTDIR] = {.name = "OUTDIR", .parse = prop_parse_path},
-	[PROJ_PROP_INTDIR] = {.name = "INTDIR", .parse = prop_parse_path},
+	[PROJ_PROP_NAME]	 = { .name = "NAME", .parse = prop_parse_word },
+	[PROJ_PROP_TYPE]	 = { .name = "TYPE", .parse = prop_parse_word, .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
+	[PROJ_PROP_SOURCE]	 = { .name = "SOURCE", .parse = prop_parse_path },
+	[PROJ_PROP_INCLUDE]	 = { .name = "INCLUDE", .parse = prop_parse_path },
+	[PROJ_PROP_DEPENDS]	 = { .name = "DEPENDS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_INCLUDES] = { .name = "INCLUDES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_DEFINES]	 = { .name = "DEFINES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_LIBDIRS]	 = { .name = "LIBDIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_WDIR]	 = { .name = "WDIR", .parse = prop_parse_path },
+	[PROJ_PROP_CHARSET]	 = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[PROJ_PROP_OUTDIR]	 = { .name = "OUTDIR", .parse = prop_parse_path },
+	[PROJ_PROP_INTDIR]	 = { .name = "INTDIR", .parse = prop_parse_path },
 };
 
 typedef struct var_pol_s {
@@ -66,14 +63,15 @@ static const var_pol_t vs_vars = {
 	},
 };
 
-int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent) {
+int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent)
+{
 	proj->file_path = *path;
 	pathv_path(&proj->path, &proj->file_path);
 	pathv_sub(&proj->rel_path, &proj->file_path, sln_path);
 	pathv_folder(&proj->folder, &proj->file_path);
 
 	proj->dir = (pathv_t){
-		.len = (proj->rel_path.len < (proj->folder.len + 1)) ? 0 : (proj->rel_path.len - proj->folder.len - 1),
+		.len  = (proj->rel_path.len < (proj->folder.len + 1)) ? 0 : (proj->rel_path.len - proj->folder.len - 1),
 		.path = proj->rel_path.path,
 	};
 
@@ -89,7 +87,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	proj->data.path = proj->file_path.path;
 	proj->data.data = proj->file;
-	proj->data.cur = 0;
+	proj->data.cur	= 0;
 
 	int ret = props_parse_file(&proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
 
@@ -102,7 +100,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
 		prop_str_t *source = &proj->props[PROJ_PROP_SOURCE].value;
-		path_t path = { 0 };
+		path_t path		   = { 0 };
 		path_init(&path, proj->path.path, proj->path.len);
 		if (path_child(&path, source->data, source->len)) {
 			ret++;
@@ -116,13 +114,14 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	if (proj->props[PROJ_PROP_INCLUDE].set) {
 		prop_str_t *include = &proj->props[PROJ_PROP_INCLUDE].value;
-		path_t path = { 0 };
+		path_t path			= { 0 };
 		path_init(&path, proj->path.path, proj->path.len);
 		if (path_child(&path, include->data, include->len)) {
 			ret++;
 		} else {
 			if (!folder_exists(path.path)) {
-				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line + 1, include->start - include->line_start + 1, include->len, include->data);
+				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line + 1, include->start - include->line_start + 1, include->len,
+						   include->data);
 				ret++;
 			}
 		}
@@ -131,20 +130,17 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	return ret;
 }
 
-void proj_print(proj_t *proj) {
+void proj_print(proj_t *proj)
+{
 	INFP("Project\n"
-		"    Path   : %.*s\n"
-		"    File   : %.*s\n"
-		"    Rel    : %.*s\n"
-		"    Dir    : %.*s\n"
-		"    Folder : %.*s\n"
-		"    GUID   : %s",
-		proj->path.len, proj->path.path,
-		proj->file_path.len, proj->file_path.path,
-		proj->rel_path.len, proj->rel_path.path,
-		proj->dir.len, proj->dir.path,
-		proj->folder.len, proj->folder.path,
-		proj->guid);
+		 "    Path   : %.*s\n"
+		 "    File   : %.*s\n"
+		 "    Rel    : %.*s\n"
+		 "    Dir    : %.*s\n"
+		 "    Folder : %.*s\n"
+		 "    GUID   : %s",
+		 proj->path.len, proj->path.path, proj->file_path.len, proj->file_path.path, proj->rel_path.len, proj->rel_path.path, proj->dir.len, proj->dir.path,
+		 proj->folder.len, proj->folder.path, proj->guid);
 
 	if (proj->parent) {
 		INFP("    Parent : %.*s", (unsigned int)proj->parent->folder.len, proj->parent->folder.path);
@@ -162,7 +158,8 @@ void proj_print(proj_t *proj) {
 	INFF();
 }
 
-static void convert_slash(char *dst, const char *src, size_t len) {
+static void convert_slash(char *dst, const char *src, size_t len)
+{
 	memcpy(dst, src, len);
 	for (int i = 0; i < len; i++) {
 		if (dst[i] == '\\') {
@@ -171,27 +168,27 @@ static void convert_slash(char *dst, const char *src, size_t len) {
 	}
 }
 
-static inline void print_rel_path(FILE *fp, proj_t *proj, const char *path, unsigned int path_len) {
+static inline void print_rel_path(FILE *fp, proj_t *proj, const char *path, unsigned int path_len)
+{
 	char path_b[MAX_PATH] = { 0 };
 	convert_slash(path_b, path, path_len);
 	char rel_path[MAX_PATH] = { 0 };
 	convert_slash(rel_path, proj->rel_path.path, proj->rel_path.len);
-	fprintf_s(fp, "${CMAKE_SOURCE_DIR}/%.*s/%.*s",
-		proj->rel_path.len, rel_path,
-		path_len, path_b);
+	fprintf_s(fp, "${CMAKE_SOURCE_DIR}/%.*s/%.*s", proj->rel_path.len, rel_path, path_len, path_b);
 }
 
-int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *path, int lang, charset_t charset) {
+int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *path, int lang, charset_t charset)
+{
 	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
-	proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+	proj_type_t type	   = proj->props[PROJ_PROP_TYPE].mask;
 
 	charset = proj->props[PROJ_PROP_CHARSET].set ? proj->props[PROJ_PROP_CHARSET].mask : charset;
 
-	char source[MAX_PATH] = { 0 };
+	char source[MAX_PATH]  = { 0 };
 	char include[MAX_PATH] = { 0 };
-	int source_len = 0;
-	int include_len = 0;
-	int include_diff = 0;
+	int source_len		   = 0;
+	int include_len		   = 0;
+	int include_diff	   = 0;
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
 		source_len = proj->props[PROJ_PROP_SOURCE].value.len;
@@ -238,10 +235,9 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 		fprintf_s(fp, ")\n\n");
 	}
 
-
 	if (proj->props[PROJ_PROP_DEFINES].set || charset == CHARSET_UNICODE) {
 		const array_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
-		
+
 		if (defines->count > 0 || charset == CHARSET_UNICODE) {
 			fprintf_s(fp, "add_definitions(");
 		}
@@ -266,15 +262,13 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
-		fprintf_s(fp, "add_library(%.*s STATIC ${%.*s_SOURCE})\n",
-			name->len, name->data,
-			name->len, name->data);
+		fprintf_s(fp, "add_library(%.*s STATIC ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
 		break;
 	case PROJ_TYPE_EXE: {
 		int first = 0;
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			prop_str_t **depend = array_get(&proj->all_depends, i);
-			proj_t *dproj = NULL;
+			proj_t *dproj		= NULL;
 			hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
 
 			if (dproj->props[PROJ_PROP_LIBDIRS].set && dproj->props[PROJ_PROP_LIBDIRS].arr.count > 0) {
@@ -288,7 +282,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 			first = 1;
 			for (int i = 0; i < proj->all_depends.count; i++) {
 				prop_str_t **depend = array_get(&proj->all_depends, i);
-				proj_t *dproj = NULL;
+				proj_t *dproj		= NULL;
 				hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
 
 				if (dproj->props[PROJ_PROP_LIBDIRS].set) {
@@ -310,9 +304,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 			fprintf_s(fp, ")\n");
 		}
 
-		fprintf_s(fp, "add_executable(%.*s ${%.*s_SOURCE})\n",
-			name->len, name->data,
-			name->len, name->data);
+		fprintf_s(fp, "add_executable(%.*s ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
 
 		fprintf_s(fp, "target_link_libraries(%.*s", name->len, name->data);
 
@@ -326,9 +318,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 		break;
 	}
 	case PROJ_TYPE_EXT:
-		fprintf_s(fp, "add_library(%.*s STATIC ${%.*s_SOURCE})\n",
-			name->len, name->data,
-			name->len, name->data);
+		fprintf_s(fp, "add_library(%.*s STATIC ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
 		break;
 	default:
 		ERR("unknown project type: %d", type);
@@ -350,7 +340,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 		const array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
 		for (int i = 0; i < includes->count; i++) {
 			prop_str_t *inc_str = array_get(includes, i);
-			proj_t *inc_proj = NULL;
+			proj_t *inc_proj	= NULL;
 			if (!hashmap_get(projects, inc_str->data, inc_str->len, &inc_proj)) {
 				ERR_LOGICS("project '%.*s' doesn't exists", inc_str->path, inc_str->line + 1, inc_str->start - inc_str->line_start + 1, inc_str->len, inc_str->data);
 				ret++;
@@ -382,7 +372,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 
 	if (proj->props[PROJ_PROP_WDIR].set) {
 		const prop_str_t *wdir = &proj->props[PROJ_PROP_WDIR].value;
-		char wdir_b[MAX_PATH] = { 0 };
+		char wdir_b[MAX_PATH]  = { 0 };
 		convert_slash(wdir_b, wdir->data, wdir->len);
 		if (wdir->len > 0) {
 			fprintf_s(fp, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data, wdir->len, wdir_b);
@@ -399,9 +389,10 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 	return ret;
 }
 
-int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *path) {
+int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *path)
+{
 	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
-	proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+	proj_type_t type	   = proj->props[PROJ_PROP_TYPE].mask;
 
 	int ret = 0;
 
@@ -425,8 +416,7 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 
 	MSG("generating project: %s", cmake_path.path);
 
-	switch (type)
-	{
+	switch (type) {
 	case PROJ_TYPE_EXE:
 		fprintf_s(fp, "BIN:=%.*s\n", name->len, name->data);
 		break;
@@ -435,17 +425,15 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 		break;
 	}
 
-	fprintf_s(fp,
-		"SRC:=$(shell find -name '*.c')\n"
-		"OBJS:=$(SRC:.c=.o)\n");
+	fprintf_s(fp, "SRC:=$(shell find -name '*.c')\n"
+				  "OBJS:=$(SRC:.c=.o)\n");
 
 	if (proj->all_depends.count > 0) {
-		fprintf_s(fp,
-			"DEPENDS =");
-		
+		fprintf_s(fp, "DEPENDS =");
+
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			prop_str_t **depend = array_get(&proj->all_depends, i);
-			proj_t *dproj = NULL;
+			proj_t *dproj		= NULL;
 			hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
 			char buf[MAX_PATH] = { 0 };
 			convert_slash(buf, dproj->rel_path.path, dproj->rel_path.len);
@@ -453,44 +441,41 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 		}
 	}
 
-	fprintf_s(fp,
-		"\n"
-		"\n"
-		".PHONY: all clean depends");
+	fprintf_s(fp, "\n"
+				  "\n"
+				  ".PHONY: all clean depends");
 
 	if (proj->all_depends.count > 0) {
-		fprintf_s(fp,
-			" $(DEPENDS)");
+		fprintf_s(fp, " $(DEPENDS)");
 	}
-	
-	fprintf_s(fp,
-		"\n"
-		"\n"
-		"all: $(BIN)");
-		
-	if (proj->all_depends.count > 0) {
-		fprintf_s(fp,
-			" $(DEPENDS)"
-		);
-	}
-		
-	fprintf_s(fp,
-		"\n"
-		"\n"
-		"$(BIN): $(OBJS)\n"
-		"\tar rcs $@ $^\n"
-		"\n"
-		"%%.o: %%.c\n"
-		"\t$(CC)");
 
-	int include_diff = proj->props[PROJ_PROP_INCLUDE].set && (!proj->props[PROJ_PROP_SOURCE].set || !(proj->props[PROJ_PROP_INCLUDE].value.len == proj->props[PROJ_PROP_SOURCE].value.len && memcmp(proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_SOURCE].value.len) == 0));
+	fprintf_s(fp, "\n"
+				  "\n"
+				  "all: $(BIN)");
+
+	if (proj->all_depends.count > 0) {
+		fprintf_s(fp, " $(DEPENDS)");
+	}
+
+	fprintf_s(fp, "\n"
+				  "\n"
+				  "$(BIN): $(OBJS)\n"
+				  "\tar rcs $@ $^\n"
+				  "\n"
+				  "%%.o: %%.c\n"
+				  "\t$(CC)");
+
+	int include_diff = proj->props[PROJ_PROP_INCLUDE].set &&
+					   (!proj->props[PROJ_PROP_SOURCE].set ||
+						!(proj->props[PROJ_PROP_INCLUDE].value.len == proj->props[PROJ_PROP_SOURCE].value.len &&
+						  memcmp(proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_SOURCE].value.len) == 0));
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
 		char buf[MAX_PATH] = { 0 };
 		convert_slash(buf, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_SOURCE].value.len, buf);
 	}
-	
+
 	if (include_diff) {
 		char buf[MAX_PATH] = { 0 };
 		convert_slash(buf, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
@@ -502,7 +487,7 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 
 		for (int k = 0; k < includes->count; k++) {
 			prop_str_t *include = array_get(includes, k);
-			proj_t *iproj = { 0 };
+			proj_t *iproj		= { 0 };
 			hashmap_get(projects, include->data, include->len, &iproj);
 			char buf[MAX_PATH] = { 0 };
 			convert_slash(buf, iproj->rel_path.path, iproj->rel_path.len);
@@ -510,21 +495,17 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 		}
 	}
 
-	fprintf_s(fp,
-		" -c -o $@ $^\n"
-		"\n");
+	fprintf_s(fp, " -c -o $@ $^\n"
+				  "\n");
 
 	if (proj->all_depends.count > 0) {
-		fprintf_s(fp,
-			"$(DEPENDS):\n"
-			"\t$(MAKE) -C $@\n"
-			"\n");
+		fprintf_s(fp, "$(DEPENDS):\n"
+					  "\t$(MAKE) -C $@\n"
+					  "\n");
 	}
 
-	fprintf_s(fp,
-		"clean:\n"
-		"\t$(RM) $(BIN) $(OBJS)\n"
-	);
+	fprintf_s(fp, "clean:\n"
+				  "\t$(RM) $(BIN) $(OBJS)\n");
 
 	fclose(fp);
 	if (ret == 0) {
@@ -541,7 +522,8 @@ typedef struct add_file_s {
 	xml_tag_t *xml_items;
 } add_file_t;
 
-static int add_src_file(path_t *path, const char *folder, void *usr) {
+static int add_src_file(path_t *path, const char *folder, void *usr)
+{
 	add_file_t *data = usr;
 
 	path_t new_path = data->path;
@@ -556,11 +538,12 @@ static int add_src_file(path_t *path, const char *folder, void *usr) {
 	return 0;
 }
 
-static int add_src_folder(path_t *path, const char *folder, void *usr) {
+static int add_src_folder(path_t *path, const char *folder, void *usr)
+{
 	add_file_t *data = usr;
 
 	add_file_t newdata = {
-		.path = data->path,
+		.path	   = data->path,
 		.xml_items = data->xml_items,
 	};
 
@@ -571,7 +554,8 @@ static int add_src_folder(path_t *path, const char *folder, void *usr) {
 	return 0;
 }
 
-static int add_inc_file(path_t *path, const char *folder, void *usr) {
+static int add_inc_file(path_t *path, const char *folder, void *usr)
+{
 	add_file_t *data = usr;
 
 	path_t new_path = data->path;
@@ -586,11 +570,12 @@ static int add_inc_file(path_t *path, const char *folder, void *usr) {
 	return 0;
 }
 
-static int add_inc_folder(path_t *path, const char *folder, void *usr) {
+static int add_inc_folder(path_t *path, const char *folder, void *usr)
+{
 	add_file_t *data = usr;
 
 	add_file_t newdata = {
-		.path = data->path,
+		.path	   = data->path,
 		.xml_items = data->xml_items,
 	};
 
@@ -601,9 +586,10 @@ static int add_inc_folder(path_t *path, const char *folder, void *usr) {
 	return 0;
 }
 
-static inline int print_includes(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects) {
+static inline int print_includes(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
+{
 	unsigned int len = 0;
-	int first = 1;
+	int first		 = 1;
 	if (proj->props[PROJ_PROP_INCLUDE].set) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "$(ProjectDir)%.*s", proj->props[PROJ_PROP_SOURCE].value.len, proj->props[PROJ_PROP_SOURCE].value.data);
 		first = 0;
@@ -614,10 +600,11 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 
 		for (int k = 0; k < depends->count; k++) {
 			prop_str_t *depend = array_get(depends, k);
-			proj_t *dproj = { 0 };
+			proj_t *dproj	   = { 0 };
 			hashmap_get(projects, depend->data, depend->len, &dproj);
 
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", dproj->rel_path.len, dproj->rel_path.path, dproj->props[PROJ_PROP_INCLUDE].value.len, dproj->props[PROJ_PROP_INCLUDE].value.data);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", dproj->rel_path.len,
+							dproj->rel_path.path, dproj->props[PROJ_PROP_INCLUDE].value.len, dproj->props[PROJ_PROP_INCLUDE].value.data);
 			first = 0;
 		}
 	}
@@ -625,15 +612,16 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 	return len;
 }
 
-static inline int print_defines(char* buf, unsigned int buf_size, const proj_t* proj, const hashmap_t* projects) {
+static inline int print_defines(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
+{
 	unsigned int len = 0;
-	int first = 1;
+	int first		 = 1;
 
 	if (proj->props[PROJ_PROP_DEFINES].set) {
-		const array_t* defines = &proj->props[PROJ_PROP_DEFINES].arr;
+		const array_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
 
 		for (int k = 0; k < defines->count; k++) {
-			prop_str_t* define = array_get(defines, k);
+			prop_str_t *define = array_get(defines, k);
 
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", define->len, define->data);
 			first = 0;
@@ -644,13 +632,15 @@ static inline int print_defines(char* buf, unsigned int buf_size, const proj_t* 
 }
 
 //TODO: Make proj const
-int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset, const prop_t *outdir, const prop_t *intdir) {
+int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset,
+				const prop_t *outdir, const prop_t *intdir)
+{
 	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
-	proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+	proj_type_t type	   = proj->props[PROJ_PROP_TYPE].mask;
 
 	charset = proj->props[PROJ_PROP_CHARSET].set ? &proj->props[PROJ_PROP_CHARSET] : charset;
-	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
-	intdir = proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
+	outdir	= proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
+	intdir	= proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
 
 	if (charset->mask == CHARSET_UNICODE) {
 		if (!proj->props[PROJ_PROP_DEFINES].set) {
@@ -660,12 +650,12 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 
 		prop_str_t unicode = {
 			.data = "UNICODE",
-			.len = 7,
+			.len  = 7,
 		};
 		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode);
 		prop_str_t unicode2 = {
 			.data = "_UNICODE",
-			.len = 8,
+			.len  = 8,
 		};
 		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode2);
 	}
@@ -681,11 +671,11 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	xml_add_attr(xml_proj_confs, "Label", 5, "ProjectConfigurations", 21);
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
-		prop_str_t *platform = array_get(platforms, i);
-		const char *platf = platform->data;
+		prop_str_t *platform   = array_get(platforms, i);
+		const char *platf	   = platform->data;
 		unsigned int platf_len = platform->len;
 		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
-			platf = "Win32";
+			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
@@ -713,32 +703,32 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		const char *name;
 		unsigned int len;
 	} config_types[] = {
-		[PROJ_TYPE_UNKNOWN] = { "", 0},
-		[PROJ_TYPE_LIB] = {"StaticLibrary", 13},
-		[PROJ_TYPE_EXE] = {"Application", 11},
-		[PROJ_TYPE_EXT] = {"StaticLibrary", 13},
+		[PROJ_TYPE_UNKNOWN] = { "", 0 },
+		[PROJ_TYPE_LIB]		= { "StaticLibrary", 13 },
+		[PROJ_TYPE_EXE]		= { "Application", 11 },
+		[PROJ_TYPE_EXT]		= { "StaticLibrary", 13 },
 	};
 
 	const struct {
 		const char *name;
 		unsigned int len;
 	} charsets[] = {
-		[CHARSET_UNKNOWN] = {"", 0},
-		[CHARSET_UNICODE] = {"Unicode", 7},
-		[CHARSET_MULTI_BYTE] = {"MultiByte", 9 },
+		[CHARSET_UNKNOWN]	 = { "", 0 },
+		[CHARSET_UNICODE]	 = { "Unicode", 7 },
+		[CHARSET_MULTI_BYTE] = { "MultiByte", 9 },
 	};
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
-		prop_str_t *platform = array_get(platforms, i);
-		const char *platf = platform->data;
+		prop_str_t *platform   = array_get(platforms, i);
+		const char *platf	   = platform->data;
 		unsigned int platf_len = platform->len;
 		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
-			platf = "Win32";
+			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
 			prop_str_t *config = array_get(configs, j);
-			int debug = 0;
+			int debug		   = 0;
 			if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
 				debug = 1;
 			}
@@ -755,7 +745,6 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			xml_add_child_val(xml_conf, "UseDebugLibraries", 17, debug ? "true" : "false", debug ? 4 : 5);
 			xml_add_child_val(xml_conf, "PlatformToolset", 15, "v143", 4);
 
-
 			if (release) {
 				xml_add_child_val(xml_conf, "WholeProgramOptimization", 24, "true", 4);
 			}
@@ -770,13 +759,12 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 0), "Label", 5, "ExtensionSettings", 17);
 	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 0), "Label", 5, "Shared", 6);
 
-
 	for (int i = platforms->count - 1; i >= 0; i--) {
-		prop_str_t *platform = array_get(platforms, i);
-		const char *platf = platform->data;
+		prop_str_t *platform   = array_get(platforms, i);
+		const char *platf	   = platform->data;
 		unsigned int platf_len = platform->len;
 		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
-			platf = "Win32";
+			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
@@ -796,11 +784,11 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	xml_add_attr(xml_macros, "Label", 5, "UserMacros", 10);
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
-		prop_str_t *platform = array_get(platforms, i);
-		const char *platf = platform->data;
+		prop_str_t *platform   = array_get(platforms, i);
+		const char *platf	   = platform->data;
 		unsigned int platf_len = platform->len;
 		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
-			platf = "Win32";
+			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
@@ -819,7 +807,7 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			if (outdir->set) {
-				char buf[MAX_PATH] = { 0 };
+				char buf[MAX_PATH]	 = { 0 };
 				unsigned int buf_len = cstr_replaces(outdir->value.data, outdir->value.len, buf, MAX_PATH, vs_vars.names, vs_vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
@@ -828,7 +816,7 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			if (intdir->set) {
-				char buf[MAX_PATH] = { 0 };
+				char buf[MAX_PATH]	 = { 0 };
 				unsigned int buf_len = cstr_replaces(intdir->value.data, intdir->value.len, buf, MAX_PATH, vs_vars.names, vs_vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
@@ -839,11 +827,11 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	}
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
-		prop_str_t *platform = array_get(platforms, i);
-		const char *platf = platform->data;
+		prop_str_t *platform   = array_get(platforms, i);
+		const char *platf	   = platform->data;
 		unsigned int platf_len = platform->len;
 		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
-			platf = "Win32";
+			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
@@ -874,16 +862,16 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 
 			if (proj->props[PROJ_PROP_INCLUDE].set || proj->props[PROJ_PROP_INCLUDES].set) {
 				xml_tag_t *xml_inc_dirs = xml_add_child(xml_comp, "AdditionalIncludeDirectories", 28);
-				xml_inc_dirs->val.len = print_includes(NULL, 0, proj, projects);
-				xml_inc_dirs->val.data = m_calloc((size_t)xml_inc_dirs->val.len + 1, sizeof(char));
+				xml_inc_dirs->val.len	= print_includes(NULL, 0, proj, projects);
+				xml_inc_dirs->val.data	= m_calloc((size_t)xml_inc_dirs->val.len + 1, sizeof(char));
 				print_includes(xml_inc_dirs->val.tdata, xml_inc_dirs->val.len + 1, proj, projects);
 				xml_inc_dirs->val.mem = 1;
 			}
 
 			if (proj->props[PROJ_PROP_DEFINES].set) {
-				xml_tag_t* xml_defines = xml_add_child(xml_comp, "PreprocessorDefinitions", 23);
-				xml_defines->val.len = print_defines(NULL, 0, proj, projects);
-				xml_defines->val.data = m_calloc((size_t)xml_defines->val.len + 1, sizeof(char));
+				xml_tag_t *xml_defines = xml_add_child(xml_comp, "PreprocessorDefinitions", 23);
+				xml_defines->val.len   = print_defines(NULL, 0, proj, projects);
+				xml_defines->val.data  = m_calloc((size_t)xml_defines->val.len + 1, sizeof(char));
 				print_defines(xml_defines->val.tdata, xml_defines->val.len + 1, proj, projects);
 				xml_defines->val.mem = 1;
 			}
@@ -905,7 +893,6 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	path_init(&afd.path, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
-
 		xml_tag_t *xml_srcs = xml_add_child(xml_proj, "ItemGroup", 9);
 
 		afd.xml_items = xml_srcs;
@@ -921,28 +908,27 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		const array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
 
 		if (depends->count > 0) {
-
 			xml_tag_t *xml_refs = xml_add_child(xml_proj, "ItemGroup", 9);
 
 			for (int i = 0; i < depends->count; i++) {
 				prop_str_t *depend = array_get(depends, i);
-				proj_t *dproj = { 0 };
+				proj_t *dproj	   = { 0 };
 				hashmap_get(projects, depend->data, depend->len, &dproj);
 
 				path_t rel_path = { 0 };
 				path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
 
 				xml_tag_t *xml_ref = xml_add_child(xml_refs, "ProjectReference", 16);
-				xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->props[PROJ_PROP_NAME].value.len, dproj->props[PROJ_PROP_NAME].value.data);
+				xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->props[PROJ_PROP_NAME].value.len,
+							   dproj->props[PROJ_PROP_NAME].value.data);
 				xml_add_child_val_f(xml_ref, "Project", 7, "{%s}", dproj->guid);
 			}
 		}
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].set) {
-
 		xml_tag_t *xml_incs = xml_add_child(xml_proj, "ItemGroup", 9);
-		afd.xml_items = xml_incs;
+		afd.xml_items		= xml_incs;
 
 		path_t inc = { 0 };
 		path_init(&inc, proj->path.path, proj->path.len);
@@ -951,7 +937,7 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
 	}
 
-	xml_add_attr(xml_add_child(xml_proj, "Import",6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.targets", 38);
+	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.targets", 38);
 	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "ExtensionTargets", 16);
 
 	path_t cmake_path = *path;
@@ -982,7 +968,7 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	fclose(fp);
 
 	xml_free(&xml);
-	
+
 	if (ret == 0) {
 		SUC("generating project: %s success", cmake_path.path);
 	} else {
@@ -992,7 +978,8 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	return ret;
 }
 
-void proj_free(proj_t *proj) {
+void proj_free(proj_t *proj)
+{
 	props_free(proj->props, s_proj_props, sizeof(s_proj_props));
 	array_free(&proj->all_depends);
 }

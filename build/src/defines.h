@@ -11,15 +11,9 @@ extern int G_ERR;
 extern int G_MSG;
 
 #define BYTE_TO_BIN_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BIN(byte)  \
-  (byte & 0x80 ? '1' : '0'), \
-  (byte & 0x40 ? '1' : '0'), \
-  (byte & 0x20 ? '1' : '0'), \
-  (byte & 0x10 ? '1' : '0'), \
-  (byte & 0x08 ? '1' : '0'), \
-  (byte & 0x04 ? '1' : '0'), \
-  (byte & 0x02 ? '1' : '0'), \
-  (byte & 0x01 ? '1' : '0') 
+#define BYTE_TO_BIN(byte)                                                                                                                                             \
+	(byte & 0x80 ? '1' : '0'), (byte & 0x40 ? '1' : '0'), (byte & 0x20 ? '1' : '0'), (byte & 0x10 ? '1' : '0'), (byte & 0x08 ? '1' : '0'), (byte & 0x04 ? '1' : '0'), \
+			(byte & 0x02 ? '1' : '0'), (byte & 0x01 ? '1' : '0')
 
 #define CL_BK "30"
 #define CL_RD "31"
@@ -30,22 +24,52 @@ extern int G_MSG;
 #define CL_CY "36"
 #define CL_WH "37"
 
-#define ERR(_format, ...) if (G_ERR) { fprintf(stderr, "\033[0;"CL_RD"m"_format"\033[0m\n", __VA_ARGS__); fflush(stderr); }
-#define SUC(_format, ...) if (G_SUC) { fprintf(stdout, "\033[0;"CL_GN"m"_format"\033[0m\n", __VA_ARGS__); fflush(stdout); }
-#define MSG(_format, ...) if (G_MSG) { fprintf(stdout, "\033[0;"CL_YL"m"_format"\033[0m\n", __VA_ARGS__); fflush(stdout); }
-#define WRN(_format, ...) if (G_WRN) { fprintf(stdout, "\033[0;"CL_PR"m"_format"\033[0m\n", __VA_ARGS__); fflush(stdout); }
-#define DBG(_format, ...) if (G_DBG) { fprintf(stdout, "\033[0;"CL_CY"m"_format"\033[0m\n", __VA_ARGS__); fflush(stdout); }
-#define INF(_format, ...) if (G_INF) { fprintf(stdout, "\033[0;"CL_WH"m"_format"\033[0m\n", __VA_ARGS__); fflush(stdout); }
+#define ERR(_format, ...)                                                      \
+	if (G_ERR) {                                                               \
+		fprintf(stderr, "\033[0;" CL_RD "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stderr);                                                        \
+	}
+#define SUC(_format, ...)                                                      \
+	if (G_SUC) {                                                               \
+		fprintf(stdout, "\033[0;" CL_GN "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stdout);                                                        \
+	}
+#define MSG(_format, ...)                                                      \
+	if (G_MSG) {                                                               \
+		fprintf(stdout, "\033[0;" CL_YL "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stdout);                                                        \
+	}
+#define WRN(_format, ...)                                                      \
+	if (G_WRN) {                                                               \
+		fprintf(stdout, "\033[0;" CL_PR "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stdout);                                                        \
+	}
+#define DBG(_format, ...)                                                      \
+	if (G_DBG) {                                                               \
+		fprintf(stdout, "\033[0;" CL_CY "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stdout);                                                        \
+	}
+#define INF(_format, ...)                                                      \
+	if (G_INF) {                                                               \
+		fprintf(stdout, "\033[0;" CL_WH "m" _format "\033[0m\n", __VA_ARGS__); \
+		fflush(stdout);                                                        \
+	}
 
-#define INFP(_format, ...) if (G_INF) { fprintf(stdout, "\033[0;"CL_WH"m"_format"\033[0m\n", __VA_ARGS__); }
-#define INFF() if (G_INF) { fflush(stdout); }
+#define INFP(_format, ...)                                                     \
+	if (G_INF) {                                                               \
+		fprintf(stdout, "\033[0;" CL_WH "m" _format "\033[0m\n", __VA_ARGS__); \
+	}
+#define INFF()          \
+	if (G_INF) {        \
+		fflush(stdout); \
+	}
 
-#define ERR_INPUT(_str, ...) ERR("%s: [input error]: "_str, __VA_ARGS__);
-#define ERR_OUPUT(_str, ...) ERR("%s: [ouput error]: "_str, __VA_ARGS__);
+#define ERR_INPUT(_str, ...) ERR("%s: [input error]: " _str, __VA_ARGS__);
+#define ERR_OUPUT(_str, ...) ERR("%s: [ouput error]: " _str, __VA_ARGS__);
 
-#define ERR_STRUCT(_str, ...) ERR("%s(%d,%2d): [struct error]: "_str, __VA_ARGS__);
-#define ERR_SYNTAX(_str, ...) ERR("%s(%d,%2d): [syntax error]: "_str, __VA_ARGS__);
-#define ERR_LOGICS(_str, ...) ERR("%s(%d,%2d): [logics error]: "_str, __VA_ARGS__);
+#define ERR_STRUCT(_str, ...) ERR("%s(%d,%2d): [struct error]: " _str, __VA_ARGS__);
+#define ERR_SYNTAX(_str, ...) ERR("%s(%d,%2d): [syntax error]: " _str, __VA_ARGS__);
+#define ERR_LOGICS(_str, ...) ERR("%s(%d,%2d): [logics error]: " _str, __VA_ARGS__);
 
 #define MAX(a, b) a > b ? a : b
 #define MIN(a, b) a < b ? a : b
