@@ -171,7 +171,7 @@ static void convert_slash(char *dst, const char *src, size_t len) {
 	}
 }
 
-static inline print_rel_path(FILE *fp, proj_t *proj, const char *path, unsigned int path_len) {
+static inline void print_rel_path(FILE *fp, proj_t *proj, const char *path, unsigned int path_len) {
 	char path_b[MAX_PATH] = { 0 };
 	convert_slash(path_b, path, path_len);
 	char rel_path[MAX_PATH] = { 0 };
@@ -618,19 +618,57 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 			hashmap_get(projects, depend->data, depend->len, &dproj);
 
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", dproj->rel_path.len, dproj->rel_path.path, dproj->props[PROJ_PROP_INCLUDE].value.len, dproj->props[PROJ_PROP_INCLUDE].value.data);
+			first = 0;
 		}
 	}
 
 	return len;
 }
 
-int proj_gen_vs(const proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset, const prop_t *outdir, const prop_t *intdir) {
+static inline int print_defines(char* buf, unsigned int buf_size, const proj_t* proj, const hashmap_t* projects) {
+	unsigned int len = 0;
+	int first = 1;
+
+	if (proj->props[PROJ_PROP_DEFINES].set) {
+		const array_t* defines = &proj->props[PROJ_PROP_DEFINES].arr;
+
+		for (int k = 0; k < defines->count; k++) {
+			prop_str_t* define = array_get(defines, k);
+
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", define->len, define->data);
+			first = 0;
+		}
+	}
+
+	return len;
+}
+
+//TODO: Make proj const
+int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset, const prop_t *outdir, const prop_t *intdir) {
 	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
 	proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
 	charset = proj->props[PROJ_PROP_CHARSET].set ? &proj->props[PROJ_PROP_CHARSET] : charset;
 	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir = proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
+
+	if (charset->mask == CHARSET_UNICODE) {
+		if (!proj->props[PROJ_PROP_DEFINES].set) {
+			array_init(&proj->props[PROJ_PROP_DEFINES].arr, 2, sizeof(prop_str_t));
+			proj->props[PROJ_PROP_DEFINES].set = 1;
+		}
+
+		prop_str_t unicode = {
+			.data = "UNICODE",
+			.len = 7,
+		};
+		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode);
+		prop_str_t unicode2 = {
+			.data = "_UNICODE",
+			.len = 8,
+		};
+		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode2);
+	}
 
 	int ret = 0;
 
@@ -834,12 +872,21 @@ int proj_gen_vs(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			xml_add_child_val(xml_comp, "SDLCheck", 8, "true", 4);
 			xml_add_child_val(xml_comp, "ConformanceMode", 15, "true", 4);
 
-			xml_tag_t *xml_inc_dirs = xml_add_child(xml_comp, "AdditionalIncludeDirectories", 28);
-			
-			xml_inc_dirs->val.len = print_includes(NULL, 0, proj, projects);
-			xml_inc_dirs->val.data = m_calloc((size_t)xml_inc_dirs->val.len + 1, sizeof(char));
-			print_includes(xml_inc_dirs->val.tdata, xml_inc_dirs->val.len + 1, proj, projects);
-			xml_inc_dirs->val.mem = 1;
+			if (proj->props[PROJ_PROP_INCLUDE].set || proj->props[PROJ_PROP_INCLUDES].set) {
+				xml_tag_t *xml_inc_dirs = xml_add_child(xml_comp, "AdditionalIncludeDirectories", 28);
+				xml_inc_dirs->val.len = print_includes(NULL, 0, proj, projects);
+				xml_inc_dirs->val.data = m_calloc((size_t)xml_inc_dirs->val.len + 1, sizeof(char));
+				print_includes(xml_inc_dirs->val.tdata, xml_inc_dirs->val.len + 1, proj, projects);
+				xml_inc_dirs->val.mem = 1;
+			}
+
+			if (proj->props[PROJ_PROP_DEFINES].set) {
+				xml_tag_t* xml_defines = xml_add_child(xml_comp, "PreprocessorDefinitions", 23);
+				xml_defines->val.len = print_defines(NULL, 0, proj, projects);
+				xml_defines->val.data = m_calloc((size_t)xml_defines->val.len + 1, sizeof(char));
+				print_defines(xml_defines->val.tdata, xml_defines->val.len + 1, proj, projects);
+				xml_defines->val.mem = 1;
+			}
 
 			xml_tag_t *xml_link = xml_add_child(xml_def, "Link", 4);
 			xml_add_child_val(xml_link, "SubSystem", 9, "Console", 7);
