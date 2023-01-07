@@ -20,14 +20,19 @@ typedef struct mode_desc_s {
 	size_t len;
 } mode_desc_t;
 
+#define ARG(_c, _l, _param, _name, _desc, _handler) \
+	{                                               \
+		_l, _name, _desc, _handler, _param, _c      \
+	}
+
 typedef int (*param_handler_fn)(const void *param, void *ret);
 typedef struct arg_s {
-	char c;
 	const char *l;
-	param_t param;
 	const char *name;
 	const char *desc;
 	param_handler_fn handler;
+	param_t param;
+	char c;
 } arg_t;
 
 #endif

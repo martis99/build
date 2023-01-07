@@ -118,8 +118,10 @@ xml_tag_t *xml_add_child_val(xml_tag_t *tag, const char *name, unsigned int name
 		.name	= { .data = name, .len = name_len, .mem = 0 },
 		.attrs	= { 0 },
 		.childs = { 0 },
-		.val	= { .data = val, .len = val_len, .mem = 0 },
+		.val	= { .data = NULL, .len = val_len, .mem = 1 },
 	};
+	child.val.data = m_calloc((size_t)child.val.len + 1, sizeof(char));
+	memcpy(child.val.data, val, val_len);
 	xml_init_tag(&child);
 	return array_add(&tag->childs, &child);
 }

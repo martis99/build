@@ -50,7 +50,18 @@ static int handle_gen(const char *param, void *ret)
 	return 0;
 }
 
-typedef enum arg_enum_e { ARG_S, ARG_B, ARG_G, ARG_D, ARG_C, ARG_I, ARG_W, ARG_E, ARG_M } arg_enum_t;
+typedef enum arg_enum_e {
+	ARG_S,
+	ARG_B,
+	ARG_G,
+	ARG_D,
+	ARG_C,
+	ARG_I,
+	ARG_W,
+	ARG_E,
+	ARG_M,
+	ARG_H,
+} arg_enum_t;
 
 typedef int (*gen_fn)(sln_t *sln, const path_t *path);
 
@@ -60,18 +71,19 @@ int main(int argc, char *argv[])
 	mem_init(&mem);
 
 	const char *name		= "build";
-	const char *description = "Build project";
+	const char *description = "Build solution";
 
 	arg_t args[] = {
-		[ARG_S] = { 'S', "solution", PARAM_STR, "<dir>", "Specify a solution directory" },
-		[ARG_B] = { 'B', "build", PARAM_STR, "<dir>", "Specify a build directory" },
-		[ARG_G] = { 'G', "generator", PARAM_MODE, "<name>", "Specify a build system generator", handle_gen },
-		[ARG_D] = { 'D', "debug", PARAM_SWITCH, "<switch>", "Turn on/off debug messages" },
-		[ARG_C] = { 'C', "succes", PARAM_SWITCH, "<switch>", "Turn on/off success messages" },
-		[ARG_I] = { 'I', "info", PARAM_SWITCH, "<switch>", "Turn on/off info messages" },
-		[ARG_W] = { 'W', "warning", PARAM_SWITCH, "<switch>", "Turn on/off warning messages" },
-		[ARG_E] = { 'E', "error", PARAM_SWITCH, "<switch>", "Turn on/off error messages" },
-		[ARG_M] = { 'M', "message", PARAM_SWITCH, "<switch>", "Turn on/off messages" },
+		[ARG_S] = ARG('S', "solution", PARAM_STR, "<dir>", "Specify a solution directory (default: .)", NULL),
+		[ARG_B] = ARG('B', "build", PARAM_STR, "<dir>", "Specify a build directory (default: <solution>)", NULL),
+		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: V)", handle_gen),
+		[ARG_D] = ARG('D', "debug", PARAM_SWITCH, "<0/1>", "Turn on/off debug messages (default: 0)", NULL),
+		[ARG_C] = ARG('C', "success", PARAM_SWITCH, "<0/1>", "Turn on/off success messages (default: 0)", NULL),
+		[ARG_I] = ARG('I', "info", PARAM_SWITCH, "<0/1>", "Turn on/off info messages (default: 0)", NULL),
+		[ARG_W] = ARG('W', "warning", PARAM_SWITCH, "<0/1>", "Turn on/off warning messages (default: 1)", NULL),
+		[ARG_E] = ARG('E', "error", PARAM_SWITCH, "<0/1>", "Turn on/off error messages (default: 1)", NULL),
+		[ARG_M] = ARG('M', "message", PARAM_SWITCH, "<0/1>", "Turn on/off messages (default: 1)", NULL),
+		[ARG_H] = ARG('H', "help", PARAM_NONE, "", "Show help message", NULL),
 	};
 
 	mode_t gen_modes[] = {
@@ -91,9 +103,9 @@ int main(int argc, char *argv[])
 		[GEN_VS]	= sln_gen_vs,
 	};
 
-	char *solution = NULL;
+	char *solution = ".";
 	char *build	   = NULL;
-	gen_t gen	   = GEN_NONE;
+	gen_t gen	   = GEN_VS;
 
 	void *params[] = {
 		[ARG_S] = &solution, [ARG_B] = &build, [ARG_G] = &gen, [ARG_D] = &G_DBG, [ARG_C] = &G_SUC, [ARG_I] = &G_INF, [ARG_W] = &G_WRN, [ARG_E] = &G_ERR, [ARG_M] = &G_MSG,
@@ -101,10 +113,6 @@ int main(int argc, char *argv[])
 
 	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params)) {
 		return 1;
-	}
-
-	if (solution == NULL) {
-		solution = "";
 	}
 
 	build = build ? build : solution;

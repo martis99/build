@@ -509,7 +509,7 @@ int sln_gen_vs(const sln_t *sln, const path_t *path)
 
 	fprintf_s(fp, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
 				  "# Visual Studio Version 17\n"
-				  "VisualStudioVersion = 17.3.32819.101\n"
+				  "VisualStudioVersion = 17.4.33205.214\n"
 				  "MinimumVisualStudioVersion = 10.0.40219.1\n");
 
 	hashmap_iterate_hc(&sln->dirs, add_dir_sln_vs, fp);

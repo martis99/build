@@ -158,9 +158,9 @@ void proj_print(proj_t *proj)
 	INFF();
 }
 
-static void convert_slash(char *dst, const char *src, size_t len)
+static void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len)
 {
-	memcpy(dst, src, len);
+	memcpy_s(dst, dst_len, src, len);
 	for (int i = 0; i < len; i++) {
 		if (dst[i] == '\\') {
 			dst[i] = '/';
@@ -171,9 +171,9 @@ static void convert_slash(char *dst, const char *src, size_t len)
 static inline void print_rel_path(FILE *fp, proj_t *proj, const char *path, unsigned int path_len)
 {
 	char path_b[MAX_PATH] = { 0 };
-	convert_slash(path_b, path, path_len);
+	convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
 	char rel_path[MAX_PATH] = { 0 };
-	convert_slash(rel_path, proj->rel_path.path, proj->rel_path.len);
+	convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
 	fprintf_s(fp, "${CMAKE_SOURCE_DIR}/%.*s/%.*s", proj->rel_path.len, rel_path, path_len, path_b);
 }
 
@@ -192,12 +192,12 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
 		source_len = proj->props[PROJ_PROP_SOURCE].value.len;
-		convert_slash(source, proj->props[PROJ_PROP_SOURCE].value.data, source_len);
+		convert_slash(source, sizeof(source) - 1, proj->props[PROJ_PROP_SOURCE].value.data, source_len);
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].set) {
 		include_len = proj->props[PROJ_PROP_INCLUDE].value.len;
-		convert_slash(include, proj->props[PROJ_PROP_INCLUDE].value.data, include_len);
+		convert_slash(include, sizeof(include) - 1, proj->props[PROJ_PROP_INCLUDE].value.data, include_len);
 
 		include_diff = !proj->props[PROJ_PROP_SOURCE].set || !(source_len == include_len && memcmp(source, include, source_len) == 0);
 	}
@@ -366,14 +366,14 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 
 	if (proj->dir.len > 0) {
 		char buf[MAX_PATH] = { 0 };
-		convert_slash(buf, proj->dir.path, proj->dir.len);
+		convert_slash(buf, sizeof(buf) - 1, proj->dir.path, proj->dir.len);
 		fprintf_s(fp, "set_target_properties(%.*s PROPERTIES FOLDER \"%.*s\")\n", name->len, name->data, (unsigned int)proj->dir.len, buf);
 	}
 
 	if (proj->props[PROJ_PROP_WDIR].set) {
 		const prop_str_t *wdir = &proj->props[PROJ_PROP_WDIR].value;
 		char wdir_b[MAX_PATH]  = { 0 };
-		convert_slash(wdir_b, wdir->data, wdir->len);
+		convert_slash(wdir_b, sizeof(wdir_b) - 1, wdir->data, wdir->len);
 		if (wdir->len > 0) {
 			fprintf_s(fp, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data, wdir->len, wdir_b);
 		}
@@ -436,7 +436,7 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 			proj_t *dproj		= NULL;
 			hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
 			char buf[MAX_PATH] = { 0 };
-			convert_slash(buf, dproj->rel_path.path, dproj->rel_path.len);
+			convert_slash(buf, sizeof(buf) - 1, dproj->rel_path.path, dproj->rel_path.len);
 			fprintf_s(fp, " $(SLNDIR)/%.*s", dproj->rel_path.len, buf);
 		}
 	}
@@ -472,13 +472,13 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
 		char buf[MAX_PATH] = { 0 };
-		convert_slash(buf, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
+		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_SOURCE].value.len, buf);
 	}
 
 	if (include_diff) {
 		char buf[MAX_PATH] = { 0 };
-		convert_slash(buf, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
+		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_INCLUDE].value.len, buf);
 	}
 
@@ -490,7 +490,7 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 			proj_t *iproj		= { 0 };
 			hashmap_get(projects, include->data, include->len, &iproj);
 			char buf[MAX_PATH] = { 0 };
-			convert_slash(buf, iproj->rel_path.path, iproj->rel_path.len);
+			convert_slash(buf, sizeof(buf) - 1, iproj->rel_path.path, iproj->rel_path.len);
 			fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buf, iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
 		}
 	}
@@ -590,8 +590,19 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 {
 	unsigned int len = 0;
 	int first		 = 1;
-	if (proj->props[PROJ_PROP_INCLUDE].set) {
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "$(ProjectDir)%.*s", proj->props[PROJ_PROP_SOURCE].value.len, proj->props[PROJ_PROP_SOURCE].value.data);
+
+	const prop_str_t *src = &proj->props[PROJ_PROP_SOURCE].value;
+	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
+
+	if (proj->props[PROJ_PROP_SOURCE].set) {
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "$(ProjectDir)%.*s", src->len, src->data);
+		first = 0;
+	}
+
+
+	if (proj->props[PROJ_PROP_INCLUDE].set && (!proj->props[PROJ_PROP_SOURCE].set || !cstr_cmp(src->data, src->len, inc->data, inc->len))) {
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(ProjectDir)%.*s" : ";$(ProjectDir)%.*s",
+						proj->props[PROJ_PROP_INCLUDE].value.len, proj->props[PROJ_PROP_INCLUDE].value.data);
 		first = 0;
 	}
 
@@ -926,15 +937,31 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		}
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDE].set) {
+	if (proj->props[PROJ_PROP_SOURCE].set || proj->props[PROJ_PROP_INCLUDE].set) {
 		xml_tag_t *xml_incs = xml_add_child(xml_proj, "ItemGroup", 9);
 		afd.xml_items		= xml_incs;
 
-		path_t inc = { 0 };
-		path_init(&inc, proj->path.path, proj->path.len);
-		path_child(&inc, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
+		const prop_str_t *srcv = &proj->props[PROJ_PROP_SOURCE].value;
+		const prop_str_t *incv = &proj->props[PROJ_PROP_INCLUDE].value;
 
-		files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
+		if (proj->props[PROJ_PROP_SOURCE].set) {
+			path_t src = { 0 };
+			path_init(&src, proj->path.path, proj->path.len);
+			path_child(&src, srcv->data, srcv->len);
+
+			files_foreach(&src, add_inc_folder, add_inc_file, &afd);
+		}
+
+		if (proj->props[PROJ_PROP_INCLUDE].set && (!proj->props[PROJ_PROP_SOURCE].set || !cstr_cmp(srcv->data, srcv->len, incv->data, incv->len))) {
+			path_init(&afd.path, incv->data, incv->len);
+
+			path_t inc = { 0 };
+			path_init(&inc, proj->path.path, proj->path.len);
+			path_child(&inc, incv->data, incv->len);
+
+			files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
+		}
+
 	}
 
 	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.targets", 38);
@@ -968,6 +995,41 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	fclose(fp);
 
 	xml_free(&xml);
+
+	xml_t xml_user = { 0 };
+	xml_init(&xml_user);
+	xml_tag_t *xml_proj_user = xml_add_child(&xml_user.root, "Project", 7);
+	xml_add_attr(xml_proj_user, "ToolsVersion", 14, "Current", 7);
+	xml_add_attr(xml_proj_user, "xmlns", 5, "http://schemas.microsoft.com/developer/msbuild/2003", 51);
+	xml_tag_t *xml_proj_props = xml_add_child(xml_proj_user, "PropertyGroup", 13);
+	xml_add_child_val(xml_proj_props, "ShowAllFiles", 12, "true", 4);
+
+
+	path_t cmake_path_user = *path;
+	if (path_child(&cmake_path_user, proj->rel_path.path, proj->rel_path.len)) {
+		return 1;
+	}
+
+	if (!folder_exists(cmake_path_user.path)) {
+		folder_create(cmake_path_user.path);
+	}
+
+	if (path_child(&cmake_path_user, name->data, name->len)) {
+		return 1;
+	}
+
+	if (path_child_s(&cmake_path_user, "vcxproj.user", 12, '.')) {
+		return 1;
+	}
+
+	FILE *fpu = file_open(cmake_path_user.path, "w", 1);
+	if (fpu == NULL) {
+		return 1;
+	}
+
+	xml_save(&xml_user, fpu);
+	fclose(fpu);
+	xml_free(&xml_user);
 
 	if (ret == 0) {
 		SUC("generating project: %s success", cmake_path.path);

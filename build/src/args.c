@@ -136,10 +136,11 @@ int args_handle(const char *name, const char *description, const arg_t *args, si
 
 	size_t i = 1;
 	while (i < argc) {
-		const char *param;
+		const char *param = NULL;
 		int arg = get_arg(args, args_size, argc, argv, &i, &param);
 		if (arg == -1) {
 			help(name, description, args, args_size, modes, modes_size);
+			ret = 2;
 		} else if (arg == -2) {
 			ret = 1;
 		}

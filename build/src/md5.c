@@ -58,10 +58,10 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 		return 1;
 	}
 
-	memcpy(buf, msg, msg_len);
+	memcpy_s(buf, buf_size, msg, msg_len);
 	buf[msg_len] = (unsigned char)0x80;
 	size_t bits	 = 8 * msg_len;
-	memcpy(buf + 64 * chunk_cnt - 8, &bits, 4);
+	memcpy_s(buf + 64 * chunk_cnt - 8, buf_size, &bits, 4);
 
 	for (size_t chunk = 0; chunk < chunk_cnt; chunk++) {
 		unsigned int *w = (unsigned int *)(buf + chunk * 64);
@@ -92,7 +92,7 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 		o.h[3] += D;
 	}
 
-	snprintf(out, out_size, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6], o.b[7],
+	_snprintf_s(out, out_size, 36, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6], o.b[7],
 			 o.b[8], o.b[9], o.b[10], o.b[11], o.b[12], o.b[13], o.b[14], o.b[15]);
 
 	return 0;

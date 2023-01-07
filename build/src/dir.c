@@ -23,14 +23,14 @@ static int add_dir(path_t *path, const char *folder, void *usr)
 
 	prop_str_t dir = {
 		.path		= NULL,
-		.data		= m_calloc(folder_len + 1, sizeof(char)),
+		.data		= m_calloc((size_t)folder_len + 1, sizeof(char)),
 		.start		= 0,
 		.len		= folder_len,
 		.line		= 0,
 		.line_start = 0,
 	};
 
-	memcpy(dir.data, folder, dir.len);
+	memcpy_s(dir.data, dir.len, folder, folder_len);
 	array_add(usr, &dir);
 	return 0;
 }
@@ -146,9 +146,6 @@ int dir_gen_cmake(const dir_t *dir, const path_t *path)
 	MSG("generating directories: %s", cmake_path.path);
 
 	int ret = 0;
-
-	path_t child_path	  = *path;
-	size_t child_path_len = child_path.len;
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
