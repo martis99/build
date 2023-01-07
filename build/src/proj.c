@@ -270,7 +270,10 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			prop_str_t **depend = array_get(&proj->all_depends, i);
 			proj_t *dproj	    = NULL;
-			hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
+			if(hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
+				ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
+				continue;
+			}
 
 			if (dproj->props[PROJ_PROP_LIBDIRS].set && dproj->props[PROJ_PROP_LIBDIRS].arr.count > 0) {
 				first = 1;
@@ -284,7 +287,10 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 			for (int i = 0; i < proj->all_depends.count; i++) {
 				prop_str_t **depend = array_get(&proj->all_depends, i);
 				proj_t *dproj	    = NULL;
-				hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
+				if(hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
+					ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
+					continue;
+				}
 
 				if (dproj->props[PROJ_PROP_LIBDIRS].set) {
 					array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
@@ -342,7 +348,7 @@ int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *
 		for (int i = 0; i < includes->count; i++) {
 			prop_str_t *inc_str = array_get(includes, i);
 			proj_t *inc_proj    = NULL;
-			if (!hashmap_get(projects, inc_str->data, inc_str->len, &inc_proj)) {
+			if (hashmap_get(projects, inc_str->data, inc_str->len, &inc_proj)) {
 				ERR_LOGICS("project '%.*s' doesn't exists", inc_str->path, inc_str->line + 1, inc_str->start - inc_str->line_start + 1, inc_str->len,
 					   inc_str->data);
 				ret++;
@@ -437,7 +443,10 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			prop_str_t **depend = array_get(&proj->all_depends, i);
 			proj_t *dproj	    = NULL;
-			hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj);
+			if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
+				ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
+				continue;
+			}
 			char buf[MAX_PATH] = { 0 };
 			convert_slash(buf, sizeof(buf) - 1, dproj->rel_path.path, dproj->rel_path.len);
 			fprintf_s(fp, " $(SLNDIR)/%.*s", dproj->rel_path.len, buf);
@@ -491,7 +500,10 @@ int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *p
 		for (int k = 0; k < includes->count; k++) {
 			prop_str_t *include = array_get(includes, k);
 			proj_t *iproj	    = { 0 };
-			hashmap_get(projects, include->data, include->len, &iproj);
+			if (hashmap_get(projects, include->data, include->len, &iproj)) {
+				ERR("project doesn't exists: '%.*s'", include->len, include->data);
+				continue;
+			}
 			char buf[MAX_PATH] = { 0 };
 			convert_slash(buf, sizeof(buf) - 1, iproj->rel_path.path, iproj->rel_path.len);
 			fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buf, iproj->props[PROJ_PROP_INCLUDE].value.len,
@@ -614,8 +626,11 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 
 		for (int k = 0; k < depends->count; k++) {
 			prop_str_t *depend = array_get(depends, k);
-			proj_t *dproj	   = { 0 };
-			hashmap_get(projects, depend->data, depend->len, &dproj);
+			proj_t *dproj	   = NULL;
+			if (hashmap_get(projects, depend->data, depend->len, &dproj)) {
+				ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
+				continue;
+			}
 
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", dproj->rel_path.len,
 					dproj->rel_path.path, dproj->props[PROJ_PROP_INCLUDE].value.len, dproj->props[PROJ_PROP_INCLUDE].value.data);
@@ -928,7 +943,10 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			for (int i = 0; i < depends->count; i++) {
 				prop_str_t *depend = array_get(depends, i);
 				proj_t *dproj	   = { 0 };
-				hashmap_get(projects, depend->data, depend->len, &dproj);
+				if(hashmap_get(projects, depend->data, depend->len, &dproj)) {
+					ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
+					continue;
+				}
 
 				path_t rel_path = { 0 };
 				path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);

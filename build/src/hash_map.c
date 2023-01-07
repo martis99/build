@@ -139,7 +139,7 @@ int hashmap_get(const hashmap_t *map, void *key, size_t ksize, void **out_val)
 		*out_val = entry->value;
 	}
 
-	return entry->key != NULL;
+	return entry->key == NULL;
 }
 
 void hashmap_iterate(hashmap_t *map, hashmap_callback callback, void *usr)

@@ -56,11 +56,11 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 		ret += proj_read(proj, &data->sln->path, path, data->parent);
 		prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
+			hashmap_set(&data->sln->projects, proj->props[PROJ_PROP_NAME].value.data, proj->props[PROJ_PROP_NAME].value.len, proj);
+		} else {
 			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len,
 				   name->data);
 			m_free(proj, sizeof(proj_t));
-		} else {
-			hashmap_set(&data->sln->projects, proj->props[PROJ_PROP_NAME].value.data, proj->props[PROJ_PROP_NAME].value.len, proj);
 		}
 
 		return ret;
@@ -73,11 +73,11 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 
 	dir_t *dir = m_calloc(1, sizeof(dir_t));
 	if (hashmap_get(&data->sln->dirs, path->path, path->len, NULL)) {
-		//ERR_LOGICS("Direcotry '%.*s' with the same path already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
-		m_free(dir, sizeof(dir_t));
-	} else {
 		hashmap_set(&data->sln->dirs, path->path, path->len, dir);
 		ret += dir_read(dir, &data->sln->path, path, read_dir, data->parent, data);
+	} else {
+		//ERR_LOGICS("Direcotry '%.*s' with the same path already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
+		m_free(dir, sizeof(dir_t));
 	}
 
 	return ret;
@@ -100,8 +100,11 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 		proj_t *dep_proj = NULL;
 		if (hashmap_get(projects, depend->data, depend->len, &dep_proj)) {
-			get_all_depends(arr, dep_proj, projects);
+			ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
+			continue;
 		}
+
+		get_all_depends(arr, dep_proj, projects);
 	}
 }
 
@@ -275,10 +278,10 @@ int sln_gen_cmake(const sln_t *sln, const path_t *path)
 	}
 
 	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
-		fprintf_s(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
-	} else {
 		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line + 1, startup->start - startup->line_start + 1, startup->len, startup->data);
 		ret = 1;
+	} else {
+		fprintf_s(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
 	}
 
 	fclose(fp);
