@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	size_t mem = 0;
 	mem_init(&mem);
 
-	const char *name		= "build";
+	const char *name	= "build";
 	const char *description = "Build solution";
 
 	arg_t args[] = {
@@ -87,10 +87,10 @@ int main(int argc, char *argv[])
 	};
 
 	mode_t gen_modes[] = {
-		[GEN_NONE]	= { .c = 'N', .desc = "None" },
+		[GEN_NONE]  = { .c = 'N', .desc = "None" },
 		[GEN_CMAKE] = { .c = 'C', .desc = "CMake" },
-		[GEN_MAKE]	= { .c = 'M', .desc = "Make" },
-		[GEN_VS]	= { .c = 'V', .desc = "Visual Studio 17 2022" },
+		[GEN_MAKE]  = { .c = 'M', .desc = "Make" },
+		[GEN_VS]    = { .c = 'V', .desc = "Visual Studio 17 2022" },
 	};
 
 	mode_desc_t modes[] = {
@@ -99,16 +99,17 @@ int main(int argc, char *argv[])
 
 	gen_fn gen_fns[] = {
 		[GEN_CMAKE] = sln_gen_cmake,
-		[GEN_MAKE]	= sln_gen_make,
-		[GEN_VS]	= sln_gen_vs,
+		[GEN_MAKE]  = sln_gen_make,
+		[GEN_VS]    = sln_gen_vs,
 	};
 
 	char *solution = ".";
-	char *build	   = NULL;
-	gen_t gen	   = GEN_VS;
+	char *build    = NULL;
+	gen_t gen      = GEN_VS;
 
 	void *params[] = {
-		[ARG_S] = &solution, [ARG_B] = &build, [ARG_G] = &gen, [ARG_D] = &G_DBG, [ARG_C] = &G_SUC, [ARG_I] = &G_INF, [ARG_W] = &G_WRN, [ARG_E] = &G_ERR, [ARG_M] = &G_MSG,
+		[ARG_S] = &solution, [ARG_B] = &build, [ARG_G] = &gen,	 [ARG_D] = &G_DBG, [ARG_C] = &G_SUC,
+		[ARG_I] = &G_INF,    [ARG_W] = &G_WRN, [ARG_E] = &G_ERR, [ARG_M] = &G_MSG,
 	};
 
 	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params)) {

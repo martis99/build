@@ -130,13 +130,14 @@ static inline int handle_param(const arg_t *args, size_t arg, const char *param,
 }
 
 int args_handle(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size, int argc, const char *argv[],
-				void **params)
+		void **params)
 {
 	int ret = 0;
 
 	size_t i = 1;
 	while (i < argc) {
 		const char *param = NULL;
+
 		int arg = get_arg(args, args_size, argc, argv, &i, &param);
 		if (arg == -1) {
 			help(name, description, args, args_size, modes, modes_size);

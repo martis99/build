@@ -62,7 +62,7 @@ IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: false
 IndentGotoLabels: false
 IndentPPDirectives: None
-IndentWidth: 4
+IndentWidth: 8
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
@@ -104,6 +104,6 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 Standard: Cpp03
-TabWidth: 4
+TabWidth: 8
 UseTab: Always
 ...

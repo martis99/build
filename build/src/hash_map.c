@@ -5,16 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HASHMAP_MAX_LOAD	  0.75f
+#define HASHMAP_MAX_LOAD      0.75f
 #define HASHMAP_RESIZE_FACTOR 2
 
 void hashmap_create(hashmap_t *map, int capacity)
 {
 	map->capacity = capacity;
-	map->count	  = 0;
+	map->count    = 0;
 
 	map->buckets = m_calloc(capacity, sizeof(struct bucket));
-	map->first	 = NULL;
+	map->first   = NULL;
 
 	map->last = (struct bucket *)&map->first;
 }
@@ -42,7 +42,7 @@ static struct bucket *resize_entry(hashmap_t *map, struct bucket *old_entry)
 static void hashmap_resize(hashmap_t *map)
 {
 	struct bucket *old_buckets = map->buckets;
-	int old_capacity		   = map->capacity;
+	int old_capacity	   = map->capacity;
 
 	map->capacity *= HASHMAP_RESIZE_FACTOR;
 	map->buckets = m_calloc(map->capacity, sizeof(struct bucket));
@@ -51,7 +51,7 @@ static void hashmap_resize(hashmap_t *map)
 
 	do {
 		map->last->next = resize_entry(map, map->last->next);
-		map->last		= map->last->next;
+		map->last	= map->last->next;
 	} while (map->last->next != NULL);
 
 	m_free(old_buckets, old_capacity * sizeof(struct bucket));
@@ -64,8 +64,8 @@ static inline uint32_t hash_data(const unsigned char *data, size_t size)
 	size_t nblocks = size / 8;
 	uint64_t hash  = HASHMAP_HASH_INIT;
 	for (size_t i = 0; i < nblocks; ++i) {
-		hash ^= (uint64_t)data[0] << 0 | (uint64_t)data[1] << 8 | (uint64_t)data[2] << 16 | (uint64_t)data[3] << 24 | (uint64_t)data[4] << 32 | (uint64_t)data[5] << 40 |
-				(uint64_t)data[6] << 48 | (uint64_t)data[7] << 56;
+		hash ^= (uint64_t)data[0] << 0 | (uint64_t)data[1] << 8 | (uint64_t)data[2] << 16 | (uint64_t)data[3] << 24 | (uint64_t)data[4] << 32 |
+			(uint64_t)data[5] << 40 | (uint64_t)data[6] << 48 | (uint64_t)data[7] << 56;
 		hash *= 0xbf58476d1ce4e5b9;
 		data += 8;
 	}
@@ -114,25 +114,25 @@ void hashmap_set(hashmap_t *map, void *key, size_t ksize, void *val)
 		hashmap_resize(map);
 	}
 
-	uint32_t hash		 = hash_data(key, ksize);
+	uint32_t hash	     = hash_data(key, ksize);
 	struct bucket *entry = find_entry(map, key, ksize, hash);
 	if (entry->key == NULL) {
 		map->last->next = entry;
-		map->last		= entry;
-		entry->next		= NULL;
+		map->last	= entry;
+		entry->next	= NULL;
 
 		++map->count;
 
-		entry->key	 = key;
+		entry->key   = key;
 		entry->ksize = ksize;
-		entry->hash	 = hash;
+		entry->hash  = hash;
 	}
 	entry->value = val;
 }
 
 int hashmap_get(const hashmap_t *map, void *key, size_t ksize, void **out_val)
 {
-	uint32_t hash		 = hash_data(key, ksize);
+	uint32_t hash	     = hash_data(key, ksize);
 	struct bucket *entry = find_entry(map, key, ksize, hash);
 
 	if (out_val != NULL) {

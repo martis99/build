@@ -34,9 +34,9 @@ typedef enum proj_type_e {
 
 static const str_t s_proj_types[] = {
 	[PROJ_TYPE_UNKNOWN] = { "", 0 },
-	[PROJ_TYPE_LIB]		= { "LIB", 3 },
-	[PROJ_TYPE_EXE]		= { "EXE", 3 },
-	[PROJ_TYPE_EXT]		= { "EXT", 3 },
+	[PROJ_TYPE_LIB]	    = { "LIB", 3 },
+	[PROJ_TYPE_EXE]	    = { "EXE", 3 },
+	[PROJ_TYPE_EXT]	    = { "EXT", 3 },
 };
 
 typedef enum charset_e {
@@ -48,8 +48,8 @@ typedef enum charset_e {
 } charset_t;
 
 static const str_t s_charsets[] = {
-	[CHARSET_UNKNOWN]	 = { "", 0 },
-	[CHARSET_UNICODE]	 = { "Unicode", 7 },
+	[CHARSET_UNKNOWN]    = { "", 0 },
+	[CHARSET_UNICODE]    = { "Unicode", 7 },
 	[CHARSET_MULTI_BYTE] = { "MultiByte", 9 },
 };
 
@@ -72,7 +72,7 @@ void proj_print(proj_t *proj);
 int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *path, int lang, charset_t charset);
 int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *path);
 int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset,
-				const prop_t *outdir, const prop_t *intdir);
+		const prop_t *outdir, const prop_t *intdir);
 void proj_free(proj_t *proj);
 
 #endif

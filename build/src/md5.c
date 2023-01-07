@@ -33,9 +33,9 @@ unsigned rol(unsigned r, short N)
 	return ((r >> (32 - N)) & mask1) | ((r << N) & ~mask1);
 }
 
-static dgst_fn ff[]		  = { func0, func1, func2, func3 };
-static short M[]		  = { 1, 5, 3, 7 };
-static short O[]		  = { 0, 1, 5, 0 };
+static dgst_fn ff[]	  = { func0, func1, func2, func3 };
+static short M[]	  = { 1, 5, 3, 7 };
+static short O[]	  = { 0, 1, 5, 0 };
 static short rots[4][4]	  = { { 7, 12, 17, 22 }, { 5, 9, 14, 20 }, { 4, 11, 16, 23 }, { 6, 10, 15, 21 } };
 static unsigned int k[64] = {
 	0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501, 0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122,
@@ -60,7 +60,7 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 
 	memcpy_s(buf, buf_size, msg, msg_len);
 	buf[msg_len] = (unsigned char)0x80;
-	size_t bits	 = 8 * msg_len;
+	size_t bits  = 8 * msg_len;
 	memcpy_s(buf + 64 * chunk_cnt - 8, buf_size, &bits, 4);
 
 	for (size_t chunk = 0; chunk < chunk_cnt; chunk++) {
@@ -72,11 +72,11 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 
 		for (int i = 0; i < 4; i++) {
 			dgst_fn fctn = ff[i];
-			short *rotn	 = rots[i];
-			short m		 = M[i];
-			short o		 = O[i];
+			short *rotn  = rots[i];
+			short m	     = M[i];
+			short o	     = O[i];
 			for (int j = 0; j < 16; j++) {
-				int g		   = (m * j + o) % 16;
+				int g	       = (m * j + o) % 16;
 				unsigned int f = B + rol(A + fctn(B, C, D) + k[j + 16 * i] + w[g], rotn[j % 4]);
 
 				A = D;
@@ -92,8 +92,8 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 		o.h[3] += D;
 	}
 
-	_snprintf_s(out, out_size, 36, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6], o.b[7],
-			 o.b[8], o.b[9], o.b[10], o.b[11], o.b[12], o.b[13], o.b[14], o.b[15]);
+	_snprintf_s(out, out_size, 36, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6],
+		    o.b[7], o.b[8], o.b[9], o.b[10], o.b[11], o.b[12], o.b[13], o.b[14], o.b[15]);
 
 	return 0;
 }

@@ -20,9 +20,9 @@ typedef struct mode_desc_s {
 	size_t len;
 } mode_desc_t;
 
-#define ARG(_c, _l, _param, _name, _desc, _handler) \
-	{                                               \
-		_l, _name, _desc, _handler, _param, _c      \
+#define ARG(_c, _l, _param, _name, _desc, _handler)    \
+	{                                              \
+		_l, _name, _desc, _handler, _param, _c \
 	}
 
 typedef int (*param_handler_fn)(const void *param, void *ret);

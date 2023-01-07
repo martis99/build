@@ -22,15 +22,15 @@
 #define CMAKE_VERSION_MINOR 16
 
 static const prop_pol_t s_sln_props[] = {
-	[SLN_PROP_NAME]		 = { .name = "NAME", .parse = prop_parse_word },
-	[SLN_PROP_LANGS]	 = { .name = "LANGS", .parse = prop_parse_langs, .print = prop_print_langs },
-	[SLN_PROP_DIRS]		 = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_STARTUP]	 = { .name = "STARTUP", .parse = prop_parse_word },
-	[SLN_PROP_CONFIGS]	 = { .name = "CONFIGS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
+	[SLN_PROP_NAME]	     = { .name = "NAME", .parse = prop_parse_word },
+	[SLN_PROP_LANGS]     = { .name = "LANGS", .parse = prop_parse_langs, .print = prop_print_langs },
+	[SLN_PROP_DIRS]	     = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
+	[SLN_PROP_STARTUP]   = { .name = "STARTUP", .parse = prop_parse_word },
+	[SLN_PROP_CONFIGS]   = { .name = "CONFIGS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_PLATFORMS] = { .name = "PLATFORMS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_CHARSET]	 = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[SLN_PROP_OUTDIR]	 = { .name = "OUTDIR", .parse = prop_parse_path },
-	[SLN_PROP_INTDIR]	 = { .name = "INTDIR", .parse = prop_parse_path },
+	[SLN_PROP_CHARSET]   = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[SLN_PROP_OUTDIR]    = { .name = "OUTDIR", .parse = prop_parse_path },
+	[SLN_PROP_INTDIR]    = { .name = "INTDIR", .parse = prop_parse_path },
 
 };
 
@@ -56,7 +56,8 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 		ret += proj_read(proj, &data->sln->path, path, data->parent);
 		prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
-			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
+			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len,
+				   name->data);
 			m_free(proj, sizeof(proj_t));
 		} else {
 			hashmap_set(&data->sln->projects, proj->props[PROJ_PROP_NAME].value.data, proj->props[PROJ_PROP_NAME].value.len, proj);
@@ -106,7 +107,7 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
 {
-	sln_t *sln	 = usr;
+	sln_t *sln   = usr;
 	proj_t *proj = value;
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
@@ -118,7 +119,7 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
 
 int sln_read(sln_t *sln, const path_t *path)
 {
-	sln->path	   = *path;
+	sln->path      = *path;
 	sln->file_path = *path;
 
 	if (path_child(&sln->file_path, "Solution.txt", 12)) {
@@ -142,8 +143,8 @@ int sln_read(sln_t *sln, const path_t *path)
 	unsigned char buf[256] = { 0 };
 	md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
 
-	array_t *dirs				= &sln->props[SLN_PROP_DIRS].arr;
-	path_t child_path			= sln->path;
+	array_t *dirs		    = &sln->props[SLN_PROP_DIRS].arr;
+	path_t child_path	    = sln->path;
 	unsigned int child_path_len = child_path.len;
 
 	hashmap_create(&sln->projects, 16);
@@ -187,10 +188,10 @@ static void print_dir(void *key, size_t ksize, void *value, void *usr)
 void sln_print(sln_t *sln)
 {
 	INFP("Solution\n"
-		 "    Path: %.*s\n"
-		 "    File: %.*s\n"
-		 "    GUID: %s",
-		 sln->path.len, sln->path.path, sln->file_path.len, sln->file_path.path, sln->guid);
+	     "    Path: %.*s\n"
+	     "    File: %.*s\n"
+	     "    GUID: %s",
+	     sln->path.len, sln->path.path, sln->file_path.len, sln->file_path.path, sln->guid);
 
 	props_print(sln->props, s_sln_props, sizeof(s_sln_props));
 
@@ -227,7 +228,7 @@ int sln_gen_cmake(const sln_t *sln, const path_t *path)
 	unsigned int languages	   = sln->props[SLN_PROP_LANGS].mask;
 	unsigned int properties	   = SLN_CMAKE_USER_FOLDERS;
 	const char *targets_folder = "CMake";
-	const array_t *dirs		   = &sln->props[SLN_PROP_DIRS].arr;
+	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
 	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
 
 	path_t cmake_path = *path;
@@ -335,10 +336,10 @@ static void add_target_make(void *key, size_t ksize, void *value, void *usr)
 	char buf[MAX_PATH] = { 0 };
 	convert_slash(buf, proj->rel_path.path, proj->rel_path.len);
 	fprintf_s(usr,
-			  "%.*s:\n"
-			  "\t$(MAKE) -C %.*s SLNDIR=$(SLNDIR)\n"
-			  "\n",
-			  proj->props[PROJ_PROP_NAME].value.len, proj->props[PROJ_PROP_NAME].value.data, proj->rel_path.len, buf);
+		  "%.*s:\n"
+		  "\t$(MAKE) -C %.*s SLNDIR=$(SLNDIR)\n"
+		  "\n",
+		  proj->props[PROJ_PROP_NAME].value.len, proj->props[PROJ_PROP_NAME].value.data, proj->rel_path.len, buf);
 }
 
 int sln_gen_make(const sln_t *sln, const path_t *path)
@@ -352,7 +353,7 @@ int sln_gen_make(const sln_t *sln, const path_t *path)
 	unsigned int languages	   = sln->props[SLN_PROP_LANGS].mask;
 	unsigned int properties	   = SLN_CMAKE_USER_FOLDERS;
 	const char *targets_folder = "CMake";
-	const array_t *dirs		   = &sln->props[SLN_PROP_DIRS].arr;
+	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
 	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
 
 	path_t cmake_path = *path;
@@ -375,8 +376,8 @@ int sln_gen_make(const sln_t *sln, const path_t *path)
 	};
 
 	fprintf_s(fp, "SLNDIR=$(CURDIR)\n"
-				  "\n"
-				  ".PHONY: ");
+		      "\n"
+		      ".PHONY: ");
 
 	hashmap_iterate_hc(&sln->projects, add_phony_make, fp);
 
@@ -398,21 +399,21 @@ int sln_gen_make(const sln_t *sln, const path_t *path)
 
 static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *usr)
 {
-	FILE *fp		= usr;
-	dir_t *dir		= value;
+	FILE *fp	= usr;
+	dir_t *dir	= value;
 	pathv_t *folder = &dir->folder;
 
 	fprintf_s(fp, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (unsigned int)folder->len, folder->path,
-			  (unsigned int)folder->len, folder->path, dir->guid);
+		  (unsigned int)folder->len, folder->path, dir->guid);
 }
 
 static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *usr)
 {
-	FILE *fp		 = usr;
+	FILE *fp	 = usr;
 	proj_t *proj	 = value;
 	prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
-	fprintf_s(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len, name->data,
-			  (unsigned int)proj->rel_path.len, proj->rel_path.path, (unsigned int)name->len, name->data, proj->guid);
+	fprintf_s(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
+		  name->data, (unsigned int)proj->rel_path.len, proj->rel_path.path, (unsigned int)name->len, name->data, proj->guid);
 }
 
 static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *usr)
@@ -427,7 +428,7 @@ static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *usr)
 
 static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *usr)
 {
-	FILE *fp	 = usr;
+	FILE *fp     = usr;
 	proj_t *proj = value;
 
 	if (proj->parent) {
@@ -444,13 +445,13 @@ typedef struct proj_config_plat_vs_s {
 static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *usr)
 {
 	proj_config_plat_vs_t *data = usr;
-	proj_t *proj				= value;
+	proj_t *proj		    = value;
 
 	for (int i = 0; i < data->configs->count; i++) {
 		prop_str_t *config = array_get(data->configs, i);
 		for (int j = 0; j < data->platforms->count; j++) {
 			prop_str_t *platform   = array_get(data->platforms, j);
-			const char *platf	   = platform->data;
+			const char *platf      = platform->data;
 			unsigned int platf_len = platform->len;
 			if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
 				platf	  = "Win32";
@@ -458,10 +459,10 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *usr)
 			}
 
 			fprintf_s(data->fp,
-					  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
-					  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
-					  proj->guid, config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf, proj->guid, config->len,
-					  config->data, platform->len, platform->data, config->len, config->data, platf_len, platf);
+				  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
+				  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
+				  proj->guid, config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf, proj->guid,
+				  config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf);
 		}
 	}
 }
@@ -508,18 +509,18 @@ int sln_gen_vs(const sln_t *sln, const path_t *path)
 	int ret = 0;
 
 	fprintf_s(fp, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
-				  "# Visual Studio Version 17\n"
-				  "VisualStudioVersion = 17.4.33205.214\n"
-				  "MinimumVisualStudioVersion = 10.0.40219.1\n");
+		      "# Visual Studio Version 17\n"
+		      "VisualStudioVersion = 17.4.33205.214\n"
+		      "MinimumVisualStudioVersion = 10.0.40219.1\n");
 
 	hashmap_iterate_hc(&sln->dirs, add_dir_sln_vs, fp);
 	hashmap_iterate_hc(&sln->projects, add_proj_sln_vs, fp);
 
 	fprintf_s(fp, "Global\n"
-				  "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
+		      "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
 	if (!sln->props[SLN_PROP_CONFIGS].set || !sln->props[SLN_PROP_PLATFORMS].set || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
-		sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
+	    sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
 		ERR("at least one config and platform must be set");
 		return ret + 1;
 	}
@@ -532,37 +533,37 @@ int sln_gen_vs(const sln_t *sln, const path_t *path)
 		for (int j = 0; j < platforms->count; j++) {
 			prop_str_t *platform = array_get(platforms, j);
 			fprintf_s(fp, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
-					  platform->data);
+				  platform->data);
 		}
 	}
 
 	fprintf_s(fp, "\tEndGlobalSection\n"
-				  "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
+		      "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
 
 	proj_config_plat_vs_t proj_config_plat_vs_data = {
 		.configs   = configs,
 		.platforms = platforms,
-		.fp		   = fp,
+		.fp	   = fp,
 	};
 
 	hashmap_iterate_hc(&sln->projects, proj_config_plat_vs, &proj_config_plat_vs_data);
 
 	fprintf_s(fp, "\tEndGlobalSection\n"
-				  "\tGlobalSection(SolutionProperties) = preSolution\n"
-				  "\t\tHideSolutionNode = FALSE\n"
-				  "\tEndGlobalSection\n"
-				  "\tGlobalSection(NestedProjects) = preSolution\n");
+		      "\tGlobalSection(SolutionProperties) = preSolution\n"
+		      "\t\tHideSolutionNode = FALSE\n"
+		      "\tEndGlobalSection\n"
+		      "\tGlobalSection(NestedProjects) = preSolution\n");
 
 	hashmap_iterate_hc(&sln->dirs, add_dir_nested_vs, fp);
 	hashmap_iterate_hc(&sln->projects, add_proj_nested_vs, fp);
 
 	fprintf_s(fp,
-			  "\tEndGlobalSection\n"
-			  "\tGlobalSection(ExtensibilityGlobals) = postSolution\n"
-			  "\t\tSolutionGuid = {%s}\n"
-			  "\tEndGlobalSection\n"
-			  "EndGlobal\n",
-			  sln->guid);
+		  "\tEndGlobalSection\n"
+		  "\tGlobalSection(ExtensibilityGlobals) = postSolution\n"
+		  "\t\tSolutionGuid = {%s}\n"
+		  "\tEndGlobalSection\n"
+		  "EndGlobal\n",
+		  sln->guid);
 
 	fclose(fp);
 	if (ret == 0) {

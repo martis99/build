@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ARRAY_MAX_LOAD		0.75f
+#define ARRAY_MAX_LOAD	    0.75f
 #define ARRAY_RESIZE_FACTOR 2
 
 void array_init(array_t *arr, int capacity, size_t vsize)
 {
 	arr->capacity = capacity;
-	arr->count	  = 0;
-	arr->vsize	  = vsize;
+	arr->count    = 0;
+	arr->vsize    = vsize;
 
 	arr->data = m_calloc(capacity, vsize);
 }

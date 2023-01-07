@@ -18,7 +18,7 @@ int parse_char(prop_str_t *data, char c)
 
 	if (data->data[data->cur] != c) {
 		if ((data->data[data->cur] >= 'A' && data->data[data->cur] <= 'Z') || (data->data[data->cur] >= 'a' && data->data[data->cur] <= 'z') ||
-			(data->data[data->cur] >= '0' && data->data[data->cur] <= '9')) {
+		    (data->data[data->cur] >= '0' && data->data[data->cur] <= '9')) {
 			if (c == '\n') {
 				ERR_SYNTAX("missing token: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1, '\n');
 			} else {
@@ -26,14 +26,14 @@ int parse_char(prop_str_t *data, char c)
 			}
 		} else {
 			if (c == '\n') {
-				ERR_SYNTAX("unexpected token: '%c' (%d), expected: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1, data->data[data->cur],
-						   data->data[data->cur], data->data[data->cur]);
+				ERR_SYNTAX("unexpected token: '%c' (%d), expected: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
+					   data->data[data->cur], data->data[data->cur], data->data[data->cur]);
 			} else if (data->data[data->cur] == '\n') {
-				ERR_SYNTAX("unexpected token: '\\n' (%d), expected: '%c' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1, data->data[data->cur], c,
-						   c);
+				ERR_SYNTAX("unexpected token: '\\n' (%d), expected: '%c' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
+					   data->data[data->cur], c, c);
 			} else {
-				ERR_SYNTAX("unexpected token: '%c' (%d), expected: '%c' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1, data->data[data->cur],
-						   data->data[data->cur], c, c);
+				ERR_SYNTAX("unexpected token: '%c' (%d), expected: '%c' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
+					   data->data[data->cur], data->data[data->cur], c, c);
 			}
 			data->cur++;
 		}
@@ -54,11 +54,11 @@ static int parse_prop_name(prop_str_t *data, prop_str_t *value)
 	}
 
 	*value = (prop_str_t){
-		.path		= data->path,
-		.data		= &data->data[start],
-		.start		= start,
-		.len		= data->cur - start,
-		.line		= data->line,
+		.path	    = data->path,
+		.data	    = &data->data[start],
+		.start	    = start,
+		.len	    = data->cur - start,
+		.line	    = data->line,
 		.line_start = data->line_start,
 	};
 
@@ -116,7 +116,7 @@ static int parse_prop(prop_str_t *data, prop_t *props, const prop_pol_t *props_p
 		return ret;
 	}
 
-	int found			 = 0;
+	int found	     = 0;
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
 	for (int i = 0; i < props_pol_len; i++) {
 		if (name.len == strlen(props_pol[i].name) && memcmp(name.data, props_pol[i].name, name.len) == 0) {
@@ -180,8 +180,8 @@ int props_parse_file(prop_str_t *data, prop_t *props, const prop_pol_t *props_po
 		} else if (data->data[data->cur] == '\0') {
 			break;
 		} else {
-			ERR_SYNTAX("unexpected token: '%c' (%d), expected: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1, data->data[data->cur],
-					   data->data[data->cur], data->data[data->cur]);
+			ERR_SYNTAX("unexpected token: '%c' (%d), expected: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
+				   data->data[data->cur], data->data[data->cur], data->data[data->cur]);
 		}
 	}
 
@@ -225,11 +225,11 @@ int prop_parse_word(prop_str_t *data, prop_t *prop)
 	}
 
 	prop->value = (prop_str_t){
-		.path		= data->path,
-		.data		= &data->data[start],
-		.start		= start,
-		.len		= data->cur - start,
-		.line		= data->line,
+		.path	    = data->path,
+		.data	    = &data->data[start],
+		.start	    = start,
+		.len	    = data->cur - start,
+		.line	    = data->line,
 		.line_start = data->line_start,
 	};
 
@@ -246,11 +246,11 @@ int prop_parse_path(prop_str_t *data, prop_t *prop)
 	}
 
 	prop->value = (prop_str_t){
-		.path		= data->path,
-		.data		= &data->data[start],
-		.start		= start,
-		.len		= data->cur - start,
-		.line		= data->line,
+		.path	    = data->path,
+		.data	    = &data->data[start],
+		.start	    = start,
+		.len	    = data->cur - start,
+		.line	    = data->line,
 		.line_start = data->line_start,
 	};
 

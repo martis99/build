@@ -22,11 +22,11 @@ static int add_dir(path_t *path, const char *folder, void *usr)
 	unsigned int folder_len = cstr_len(folder);
 
 	prop_str_t dir = {
-		.path		= NULL,
-		.data		= m_calloc((size_t)folder_len + 1, sizeof(char)),
-		.start		= 0,
-		.len		= folder_len,
-		.line		= 0,
+		.path	    = NULL,
+		.data	    = m_calloc((size_t)folder_len + 1, sizeof(char)),
+		.start	    = 0,
+		.len	    = folder_len,
+		.line	    = 0,
 		.line_start = 0,
 	};
 
@@ -76,10 +76,10 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	array_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
-	path_t child_path			= *path;
+	path_t child_path	    = *path;
 	unsigned int child_path_len = child_path.len;
 
-	read_dir_data_t *data		  = usr;
+	read_dir_data_t *data	      = usr;
 	read_dir_data_t read_dir_data = {
 		.sln	= data->sln,
 		.parent = dir,
@@ -106,12 +106,12 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 void dir_print(dir_t *dir)
 {
 	INFP("Directory\n"
-		 "    Path   : %.*s\n"
-		 "    File   : %.*s\n"
-		 "    Dir    : %.*s\n"
-		 "    Folder : %.*s\n"
-		 "    GUID   : %s",
-		 dir->path.len, dir->path.path, dir->file_path.len, dir->file_path.path, dir->dir.len, dir->dir.path, dir->folder.len, dir->folder.path, dir->guid);
+	     "    Path   : %.*s\n"
+	     "    File   : %.*s\n"
+	     "    Dir    : %.*s\n"
+	     "    Folder : %.*s\n"
+	     "    GUID   : %s",
+	     dir->path.len, dir->path.path, dir->file_path.len, dir->file_path.path, dir->dir.len, dir->dir.path, dir->folder.len, dir->folder.path, dir->guid);
 
 	if (dir->parent) {
 		INFP("    Parent : %.*s", (unsigned int)dir->parent->folder.len, dir->parent->folder.path);

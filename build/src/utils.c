@@ -52,7 +52,7 @@ int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int
 		int found = 0;
 		for (unsigned int j = 0; j < len; j++) {
 			unsigned int from_len = cstr_len(from[j]);
-			unsigned int to_len	  = cstr_len(to[j]);
+			unsigned int to_len   = cstr_len(to[j]);
 
 			if (src_len - i >= from_len && cstr_cmp(&src[i], from_len, from[j], from_len)) {
 				cstr_cpy(&dst[dst_i], to[j], to_len);
@@ -274,7 +274,7 @@ int folder_create(const char *path)
 int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr)
 {
 	WIN32_FIND_DATA file = { 0 };
-	HANDLE find			 = NULL;
+	HANDLE find	     = NULL;
 
 	path_t cild_path = *path;
 	path_child(&cild_path, "*.*", 3);
@@ -297,7 +297,7 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 				continue;
 			}
 
-			int ret		  = cb(&cild_path, file.cFileName, usr);
+			int ret	      = cb(&cild_path, file.cFileName, usr);
 			cild_path.len = path->len;
 			if (ret < 0) {
 				return ret;
@@ -368,7 +368,7 @@ int path_parent(path_t *path)
 
 int path_set_len(path_t *path, unsigned int len)
 {
-	path->len			  = len;
+	path->len	      = len;
 	path->path[path->len] = '\0';
 	return 0;
 }
@@ -381,7 +381,7 @@ int path_ends(const path_t *path, const char *str)
 
 int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out)
 {
-	int dif		   = 0;
+	int dif	       = 0;
 	int last_slash = 0;
 
 	for (unsigned int i = 0; i < path_len; i++) {
@@ -464,7 +464,7 @@ int read_name(prop_str_t *str)
 	}
 
 	unsigned int start = str->cur;
-	char c			   = str->data[str->cur];
+	char c		   = str->data[str->cur];
 	while (str->cur < str->len && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
 		c = str->data[++str->cur];
 	}
@@ -479,19 +479,19 @@ int read_path(prop_str_t *str, prop_str_t *dst)
 	}
 
 	unsigned int start = str->cur;
-	char c			   = str->data[str->cur];
+	char c		   = str->data[str->cur];
 	while (str->cur < str->len && (c == '$' || c == '(' || c == ')' || c == '-' || c == '/' || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '\\' ||
-								   c == '_' || (c >= 'a' && c <= 'z'))) {
+				       c == '_' || (c >= 'a' && c <= 'z'))) {
 		c = str->data[++str->cur];
 	}
 
 	if (dst != NULL) {
 		*dst = (prop_str_t){
-			.path		= str->path,
-			.data		= &str->data[start],
-			.start		= start,
-			.len		= str->cur - start,
-			.line		= str->line,
+			.path	    = str->path,
+			.data	    = &str->data[start],
+			.start	    = start,
+			.len	    = str->cur - start,
+			.line	    = str->line,
 			.line_start = str->line_start,
 		};
 	}
@@ -506,18 +506,18 @@ int read_upper(prop_str_t *str, prop_str_t *dst)
 	}
 
 	unsigned int start = str->cur;
-	char c			   = str->data[str->cur];
+	char c		   = str->data[str->cur];
 	while (str->cur < str->len && (c >= 'A' && c <= 'Z')) {
 		c = str->data[++str->cur];
 	}
 
 	if (dst != NULL) {
 		*dst = (prop_str_t){
-			.path		= str->path,
-			.data		= &str->data[start],
-			.start		= start,
-			.len		= str->cur - start,
-			.line		= str->line,
+			.path	    = str->path,
+			.data	    = &str->data[start],
+			.start	    = start,
+			.len	    = str->cur - start,
+			.line	    = str->line,
 			.line_start = str->line_start,
 		};
 	}
@@ -532,9 +532,9 @@ int read_printable(prop_str_t *str)
 	}
 
 	unsigned int start = str->cur;
-	char c			   = str->data[str->cur];
+	char c		   = str->data[str->cur];
 	while (str->cur < str->len &&
-		   ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c == ',' || c == ' ')) {
+	       ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c == ',' || c == ' ')) {
 		c = str->data[++str->cur];
 	}
 
