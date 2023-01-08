@@ -660,6 +660,43 @@ static inline int print_defines(char *buf, unsigned int buf_size, const proj_t *
 	return len;
 }
 
+static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
+{
+	unsigned int len = 0;
+	int first	 = 1;
+
+	for (int i = 0; i < proj->all_depends.count; i++) {
+		prop_str_t **depend = array_get(&proj->all_depends, i);
+		proj_t *dproj	    = NULL;
+		if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
+			ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
+			continue;
+		}
+
+		if (dproj->props[PROJ_PROP_LIBDIRS].set) {
+			array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+			for (int j = 0; j < libdirs->count; j++) {
+				prop_str_t *libdir = array_get(libdirs, j);
+				if (libdir->len > 0) {
+					char buff[MAX_PATH]  = { 0 };
+					unsigned int buf_len = cstr_replaces(libdir->data, libdir->len, buff, MAX_PATH, vs_vars.names, vs_vars.tos, __VAR_MAX);
+
+					path_t dir = { 0 };
+					path_init(&dir, "$(SolutionDir)", 14);
+					path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
+					path_child(&dir, buff, buf_len);
+
+					len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", dir.len, dir.path);
+
+					first = 0;
+				}
+			}
+		}
+	}
+
+	return len;
+}
+
 //TODO: Make proj const
 int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset,
 		const prop_t *outdir, const prop_t *intdir)
@@ -915,6 +952,17 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			xml_add_child_val(xml_link, "GenerateDebugInformation", 24, "true", 4);
+
+			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+				unsigned int len = print_libs(NULL, 0, proj, projects);
+				if (len > 0) {
+					xml_tag_t *xml_libs = xml_add_child(xml_link, "AdditionalLibraryDirectories", 28);
+					xml_libs->val.len   = len;
+					xml_libs->val.data  = m_calloc((size_t)xml_libs->val.len + 1, sizeof(char));
+					print_libs(xml_libs->val.tdata, xml_libs->val.len + 1, proj, projects);
+					xml_libs->val.mem = 1;
+				}
+			}
 		}
 	}
 
@@ -948,13 +996,15 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 					continue;
 				}
 
-				path_t rel_path = { 0 };
-				path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
+				if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
+					path_t rel_path = { 0 };
+					path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
 
-				xml_tag_t *xml_ref = xml_add_child(xml_refs, "ProjectReference", 16);
-				xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->props[PROJ_PROP_NAME].value.len,
-					       dproj->props[PROJ_PROP_NAME].value.data);
-				xml_add_child_val_f(xml_ref, "Project", 7, "{%s}", dproj->guid);
+					xml_tag_t *xml_ref = xml_add_child(xml_refs, "ProjectReference", 16);
+					xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->props[PROJ_PROP_NAME].value.len,
+						       dproj->props[PROJ_PROP_NAME].value.data);
+					xml_add_child_val_f(xml_ref, "Project", 7, "{%s}", dproj->guid);
+				}
 			}
 		}
 	}
