@@ -47,6 +47,7 @@ int prop_parse_word(prop_str_t *data, prop_t *prop);
 int prop_parse_path(prop_str_t *data, prop_t *prop);
 
 void prop_print_arr(const prop_t *prop);
+void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len);
 
 int prop_parse_langs(prop_str_t *data, prop_t *prop);
 void prop_print_langs(const prop_t *prop);

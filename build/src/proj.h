@@ -19,6 +19,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_CHARSET,
 	PROJ_PROP_OUTDIR,
 	PROJ_PROP_INTDIR,
+	PROJ_PROP_LDFLAGS,
 
 	__PROJ_PROP_MAX,
 } proj_prop_t;
@@ -29,7 +30,7 @@ typedef enum proj_type_e {
 	PROJ_TYPE_EXE,
 	PROJ_TYPE_EXT,
 
-	__PROJ_TYPE_MAX
+	__PROJ_TYPE_MAX,
 } proj_type_t;
 
 static const str_t s_proj_types[] = {
@@ -44,13 +45,25 @@ typedef enum charset_e {
 	CHARSET_UNICODE,
 	CHARSET_MULTI_BYTE,
 
-	__CHARSET_MAX
+	__CHARSET_MAX,
 } charset_t;
 
 static const str_t s_charsets[] = {
 	[CHARSET_UNKNOWN]    = { "", 0 },
 	[CHARSET_UNICODE]    = { "Unicode", 7 },
 	[CHARSET_MULTI_BYTE] = { "MultiByte", 9 },
+};
+
+typedef enum ldflag_e {
+	LDFLAG_UNKNOWN,
+	LDFLAG_WHOLEARCHIVE,
+
+	__LDFLAG_MAX,
+} ldflag_t;
+
+static const str_t s_ldflags[] = {
+	[LDFLAG_UNKNOWN]      = { "", 0 },
+	[LDFLAG_WHOLEARCHIVE] = { "WHOLEARCHIVE", 12 },
 };
 
 typedef struct proj_s {

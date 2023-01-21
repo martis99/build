@@ -65,16 +65,35 @@ static int parse_prop_name(prop_str_t *data, prop_str_t *value)
 	return 0;
 }
 
-static int prop_parse_arr(prop_str_t *data, prop_t *prop, prop_parse_fn parse)
+static int parse_str_table(prop_str_t *data, prop_t *prop, const str_t *table, size_t table_len)
+{
+	for (int i = 0; i < table_len; i++) {
+		if (table[i].len == prop->value.len && memcmp(table[i].data, prop->value.data, prop->value.len) == 0) {
+			return i;
+		}
+	}
+	return 0;
+}
+
+static int prop_parse_arr(prop_str_t *data, prop_t *prop, prop_parse_fn parse, const str_t *table, size_t table_len)
 {
 	int ret = 0;
-	array_init(&prop->arr, 8, sizeof(prop_str_t));
+
+	if (table) {
+		prop->mask = 0;
+	} else {
+		array_init(&prop->arr, 8, sizeof(prop_str_t));
+	}
 
 	while (data->cur < data->len && data->data[data->cur] != '\n') {
 		prop_t element = { 0 };
 		ret += parse(data, &element);
 		if (ret == 0) {
-			array_add(&prop->arr, &element.value);
+			if (table) {
+				prop->mask |= 1 << parse_str_table(data, &element, table, table_len);
+			} else {
+				array_add(&prop->arr, &element.value);
+			}
 		}
 
 		if (data->data[data->cur] == ',') {
@@ -86,16 +105,6 @@ static int prop_parse_arr(prop_str_t *data, prop_t *prop, prop_parse_fn parse)
 	}
 
 	return ret;
-}
-
-static inline int parse_str_table(prop_str_t *data, prop_t *prop, const str_t *table, size_t table_len)
-{
-	for (int i = 0; i < table_len; i++) {
-		if (table[i].len == prop->value.len && memcmp(table[i].data, prop->value.data, prop->value.len) == 0) {
-			return i;
-		}
-	}
-	return 0;
 }
 
 static int parse_prop(prop_str_t *data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
@@ -133,7 +142,7 @@ static int parse_prop(prop_str_t *data, prop_t *props, const prop_pol_t *props_p
 
 			switch (props_pol[i].dim) {
 			case PROP_DIM_ARRAY:
-				return prop_parse_arr(data, &props[i], props_pol[i].parse);
+				return prop_parse_arr(data, &props[i], props_pol[i].parse, props_pol[i].str_table, props_pol[i].str_table_len);
 			default: {
 				int r = props_pol[i].parse(data, &props[i]);
 				ret += r;
@@ -200,7 +209,11 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 			switch (props_pol[i].dim) {
 			case PROP_DIM_ARRAY:
 				INFP("    %s:", props_pol[i].name);
-				prop_print_arr(&props[i]);
+				if (props_pol[i].str_table) {
+					prop_print_flags(&props[i], props_pol[i].str_table, props_pol[i].str_table_len);
+				} else {
+					prop_print_arr(&props[i]);
+				}
 				break;
 			default:
 				if (props_pol[i].str_table) {
@@ -262,6 +275,15 @@ void prop_print_arr(const prop_t *prop)
 	for (int j = 0; j < prop->arr.count; j++) {
 		prop_str_t *val = array_get(&prop->arr, j);
 		INFP("        '%.*s'", val->len, val->data);
+	}
+}
+
+void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len)
+{
+	for (int i = 0; i < str_table_len; i++) {
+		if (prop->mask & (1 << i)) {
+			INFP("        '%.*s'", str_table[i].len, str_table[i].data);
+		}
 	}
 }
 

@@ -26,6 +26,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_CHARSET]  = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[PROJ_PROP_OUTDIR]   = { .name = "OUTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_INTDIR]   = { .name = "INTDIR", .parse = prop_parse_path },
+	[PROJ_PROP_LDFLAGS]  = { .name = "LDFLAGS", .parse = prop_parse_word, .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .dim = PROP_DIM_ARRAY },
 };
 
 typedef struct var_pol_s {
@@ -697,6 +698,24 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 	return len;
 }
 
+static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
+{
+	unsigned int len = 0;
+	int first	 = 0;
+
+	ldflag_t ldflags = proj->props[PROJ_PROP_LDFLAGS].mask;
+	if (ldflags & (1 << LDFLAG_WHOLEARCHIVE)) {
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s/WHOLEARCHIVE", first, "");
+		first = 1;
+	}
+
+	if (first) {
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s%%(AdditionalOptions)", first, "");
+	}
+
+	return len;
+}
+
 //TODO: Make proj const
 int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset,
 		const prop_t *outdir, const prop_t *intdir)
@@ -952,6 +971,17 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			xml_add_child_val(xml_link, "GenerateDebugInformation", 24, "true", 4);
+
+			if (proj->props[PROJ_PROP_LDFLAGS].set) {
+				unsigned int len = print_ldflags(NULL, 0, proj, projects);
+				if (len > 0) {
+					xml_tag_t *xml_ldflags = xml_add_child(xml_link, "AdditionalOptions", 17);
+					xml_ldflags->val.len   = len;
+					xml_ldflags->val.data  = m_calloc((size_t)xml_ldflags->val.len + 1, sizeof(char));
+					print_ldflags(xml_ldflags->val.tdata, xml_ldflags->val.len + 1, proj, projects);
+					xml_ldflags->val.mem = 1;
+				}
+			}
 
 			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 				unsigned int len = print_libs(NULL, 0, proj, projects);
