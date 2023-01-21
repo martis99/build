@@ -56,6 +56,7 @@ static const str_t s_charsets[] = {
 
 typedef enum ldflag_e {
 	LDFLAG_UNKNOWN,
+	LDFLAG_NONE,
 	LDFLAG_WHOLEARCHIVE,
 
 	__LDFLAG_MAX,
@@ -63,6 +64,7 @@ typedef enum ldflag_e {
 
 static const str_t s_ldflags[] = {
 	[LDFLAG_UNKNOWN]      = { "", 0 },
+	[LDFLAG_NONE]	      = { "NONE", 4 },
 	[LDFLAG_WHOLEARCHIVE] = { "WHOLEARCHIVE", 12 },
 };
 

@@ -981,6 +981,10 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 					print_ldflags(xml_ldflags->val.tdata, xml_ldflags->val.len + 1, proj, projects);
 					xml_ldflags->val.mem = 1;
 				}
+
+				if (proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_NONE)) {
+					xml_add_child(xml_link, "AdditionalDependencies", 22);
+				}
 			}
 
 			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
