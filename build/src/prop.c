@@ -274,7 +274,7 @@ int prop_parse_printable(prop_str_t *data, prop_t *prop)
 {
 	unsigned int start = data->cur;
 
-	if (read_printable(data, NULL) == 0) {
+	if (read_printable(data) == 0) {
 		ERR_STRUCT("value missing", data->path, data->line + 1, start - data->line_start + 1);
 		return 1;
 	}
