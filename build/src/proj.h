@@ -22,6 +22,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_OUTDIR,
 	PROJ_PROP_INTDIR,
 	PROJ_PROP_LDFLAGS,
+	PROJ_PROP_ARGS,
 
 	__PROJ_PROP_MAX,
 } proj_prop_t;

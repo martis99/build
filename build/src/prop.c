@@ -270,6 +270,27 @@ int prop_parse_path(prop_str_t *data, prop_t *prop)
 	return 0;
 }
 
+int prop_parse_printable(prop_str_t *data, prop_t *prop)
+{
+	unsigned int start = data->cur;
+
+	if (read_printable(data, NULL) == 0) {
+		ERR_STRUCT("value missing", data->path, data->line + 1, start - data->line_start + 1);
+		return 1;
+	}
+
+	prop->value = (prop_str_t){
+		.path	    = data->path,
+		.data	    = &data->data[start],
+		.start	    = start,
+		.len	    = data->cur - start,
+		.line	    = data->line,
+		.line_start = data->line_start,
+	};
+
+	return 0;
+}
+
 void prop_print_arr(const prop_t *prop)
 {
 	for (int j = 0; j < prop->arr.count; j++) {

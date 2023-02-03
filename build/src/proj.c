@@ -29,6 +29,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_OUTDIR]   = { .name = "OUTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_INTDIR]   = { .name = "INTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_LDFLAGS]  = { .name = "LDFLAGS", .parse = prop_parse_word, .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_ARGS]     = { .name = "ARGS", .parse = prop_parse_printable },
 };
 
 typedef struct var_pol_s {
@@ -1128,6 +1129,33 @@ int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	xml_tag_t *xml_proj_user = xml_add_child(&xml_user.root, "Project", 7);
 	xml_add_attr(xml_proj_user, "ToolsVersion", 14, "Current", 7);
 	xml_add_attr(xml_proj_user, "xmlns", 5, "http://schemas.microsoft.com/developer/msbuild/2003", 51);
+
+	if (proj->props[PROJ_PROP_ARGS].set) {
+		for (int i = platforms->count - 1; i >= 0; i--) {
+			prop_str_t *platform   = array_get(platforms, i);
+			const char *platf      = platform->data;
+			unsigned int platf_len = platform->len;
+			if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+				platf	  = "Win32";
+				platf_len = 5;
+			}
+			for (int j = 0; j < configs->count; j++) {
+				prop_str_t *config = array_get(configs, j);
+
+				int debug = 0;
+				if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
+					debug = 1;
+				}
+
+				xml_tag_t *xml_group = xml_add_child(xml_proj_user, "PropertyGroup", 13);
+				xml_add_attr_f(xml_group, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+
+				xml_add_child_val(xml_group, "LocalDebuggerCommandArguments", 29, proj->props[PROJ_PROP_ARGS].value.data,
+						  proj->props[PROJ_PROP_ARGS].value.len);
+			}
+		}
+	}
+
 	xml_tag_t *xml_proj_props = xml_add_child(xml_proj_user, "PropertyGroup", 13);
 	xml_add_child_val(xml_proj_props, "ShowAllFiles", 12, "true", 4);
 

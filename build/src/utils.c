@@ -539,7 +539,7 @@ int read_printable(prop_str_t *str)
 	unsigned int start = str->cur;
 	char c		   = str->data[str->cur];
 	while (str->cur < str->len &&
-	       ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c == ',' || c == ' ')) {
+	       ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '\\' || c == '/' || c == ',' || c == ' ' || c == '-')) {
 		c = str->data[++str->cur];
 	}
 

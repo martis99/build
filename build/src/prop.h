@@ -30,6 +30,7 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 int parse_char(prop_str_t *data, char c);
 int prop_parse_word(prop_str_t *data, prop_t *prop);
 int prop_parse_path(prop_str_t *data, prop_t *prop);
+int prop_parse_printable(prop_str_t *data, prop_t *prop);
 
 void prop_print_arr(const prop_t *prop);
 void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len);
