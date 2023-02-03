@@ -1,0 +1,4 @@
+NAME: lib1
+TYPE: LIB
+SOURCE: src
+INCLUDE: inc

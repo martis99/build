@@ -1,0 +1,6 @@
+NAME: slib
+TYPE: LIB
+SOURCE: src
+INCLUDE: inc
+OUTDIR: bin\$(CONFIG)-$(PLATFORM)\
+INTDIR: bin\$(CONFIG)-$(PLATFORM)\int\

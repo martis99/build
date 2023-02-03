@@ -1,0 +1,4 @@
+NAME: elib
+TYPE: EXT
+ENCLUDE: $(SLN_DIR)\libs\slib\inc
+LIBDIRS: $(SLN_DIR)\libs\slib\bin\$(CONFIG)-$(PLATFORM)\
