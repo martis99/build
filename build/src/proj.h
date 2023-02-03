@@ -9,8 +9,10 @@
 typedef enum proj_prop_e {
 	PROJ_PROP_NAME,
 	PROJ_PROP_TYPE,
+	PROJ_PROP_LANGS,
 	PROJ_PROP_SOURCE,
 	PROJ_PROP_INCLUDE,
+	PROJ_PROP_ENCLUDE,
 	PROJ_PROP_DEPENDS,
 	PROJ_PROP_INCLUDES,
 	PROJ_PROP_DEFINES,
@@ -39,6 +41,26 @@ static const str_t s_proj_types[] = {
 	[PROJ_TYPE_EXE]	    = { "EXE", 3 },
 	[PROJ_TYPE_EXT]	    = { "EXT", 3 },
 };
+
+typedef enum lang_e {
+	LANG_UNKNOWN,
+	LANG_NONE,
+	LANG_C,
+	LANG_ASM,
+	LANG_CPP,
+
+	__LANG_MAX,
+} lang_t;
+
+// clang-format off
+static const str_t s_langs[] = {
+	[LANG_UNKNOWN] = { "", 0 },
+	[LANG_NONE]    = { "NONE", 4 },
+	[LANG_C]       = { "C", 1 },
+	[LANG_ASM]     = { "ASM", 3 },
+	[LANG_CPP]     = { "CPP", 3 },
+};
+// clang-format on
 
 typedef enum charset_e {
 	CHARSET_UNKNOWN,
@@ -86,7 +108,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 void proj_print(proj_t *proj);
 int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *path, int lang, charset_t charset);
 int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *path);
-int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *charset,
+int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
 		const prop_t *outdir, const prop_t *intdir);
 void proj_free(proj_t *proj);
 

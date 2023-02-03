@@ -287,63 +287,6 @@ void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_tab
 	}
 }
 
-static inline int prop_parse_lang(prop_str_t *data, prop_t *prop)
-{
-	prop_str_t value = { 0 };
-	if (read_upper(data, &value) == 0 || value.data == NULL) {
-		return 1;
-	}
-
-	if (cstr_cmp(value.data, value.len, "C", 1)) {
-		prop->mask = LANG_C;
-	} else if (cstr_cmp(value.data, value.len, "ASM", 3)) {
-		prop->mask = LANG_ASM;
-	} else {
-		prop->mask = LANG_UNKNOWN;
-		ERR_LOGICS("unknown language '%.*s'", data->path, data->line + 1, value.start - data->line_start + 1, value.len, value.data);
-		return 1;
-	}
-
-	return 0;
-}
-
-int prop_parse_langs(prop_str_t *data, prop_t *prop)
-{
-	int ret = 0;
-
-	while (data->cur < data->len && data->data[data->cur] != '\n') {
-		prop_t element = { 0 };
-		ret += prop_parse_lang(data, &element);
-		if (ret == 0) {
-			prop->mask |= element.mask;
-		}
-
-		if (data->cur == data->len || data->data[data->cur] == '\n') {
-			break;
-		}
-
-		ret += parse_char(data, ',');
-		ret += parse_char(data, ' ');
-	}
-
-	return ret;
-}
-
-void prop_print_langs(const prop_t *prop)
-{
-	const char *langs[] = {
-		[LANG_SHIFT_NONE] = "",
-		[LANG_SHIFT_C]	  = "C",
-		[LANG_SHIFT_ASM]  = "ASM",
-	};
-
-	for (int i = 0; i < __LANG_SHIFT_MAX; i++) {
-		if (prop->mask & (1 << i)) {
-			INF("        %s", langs[i]);
-		}
-	}
-}
-
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 {
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);

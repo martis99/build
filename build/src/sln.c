@@ -23,7 +23,7 @@
 
 static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_NAME]	     = { .name = "NAME", .parse = prop_parse_word },
-	[SLN_PROP_LANGS]     = { .name = "LANGS", .parse = prop_parse_langs, .print = prop_print_langs },
+	[SLN_PROP_LANGS]     = { .name = "LANGS", .parse = prop_parse_word, .str_table = s_langs, .str_table_len = __LANG_MAX, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_DIRS]	     = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_STARTUP]   = { .name = "STARTUP", .parse = prop_parse_word },
 	[SLN_PROP_CONFIGS]   = { .name = "CONFIGS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
@@ -248,13 +248,17 @@ int sln_gen_cmake(const sln_t *sln, const path_t *path)
 
 	fprintf_s(fp, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
 
+	// clang-format off
 	const char *langs[] = {
-		[LANG_SHIFT_NONE] = "",
-		[LANG_SHIFT_C]	  = " C",
-		[LANG_SHIFT_ASM]  = " ASM",
+		[LANG_UNKNOWN] = "",
+		[LANG_NONE]    = "",
+		[LANG_C]       = " C",
+		[LANG_ASM]     = " ASM",
+		[LANG_CPP]     = " CPP",
 	};
+	// clang-format on
 
-	for (int i = 0; i < __LANG_SHIFT_MAX; i++) {
+	for (int i = 0; i < __LANG_MAX; i++) {
 		if (languages & (1 << i)) {
 			fprintf_s(fp, langs[i]);
 		}
@@ -475,6 +479,7 @@ typedef struct gen_proj_vs_data_s {
 	const hashmap_t *projects;
 	const array_t *configs;
 	const array_t *platforms;
+	const prop_t *langs;
 	const prop_t *charset;
 	const prop_t *outdir;
 	const prop_t *intdir;
@@ -483,7 +488,7 @@ typedef struct gen_proj_vs_data_s {
 static void gen_proj_vs(void *key, size_t ksize, void *value, const void *usr)
 {
 	const gen_proj_vs_data_t *data = usr;
-	proj_gen_vs(value, data->projects, data->path, data->configs, data->platforms, data->charset, data->outdir, data->intdir);
+	proj_gen_vs(value, data->projects, data->path, data->configs, data->platforms, data->langs, data->charset, data->outdir, data->intdir);
 }
 
 int sln_gen_vs(const sln_t *sln, const path_t *path)
@@ -580,6 +585,7 @@ int sln_gen_vs(const sln_t *sln, const path_t *path)
 		.projects  = &sln->projects,
 		.configs   = &sln->props[SLN_PROP_CONFIGS].arr,
 		.platforms = &sln->props[SLN_PROP_PLATFORMS].arr,
+		.langs	   = &sln->props[SLN_PROP_LANGS],
 		.charset   = &sln->props[SLN_PROP_CHARSET],
 		.outdir	   = &sln->props[SLN_PROP_OUTDIR],
 		.intdir	   = &sln->props[SLN_PROP_INTDIR],

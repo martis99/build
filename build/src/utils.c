@@ -18,6 +18,11 @@ int cstr_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned
 	return str1_len == str2_len && memcmp(str1, str2, str1_len * sizeof(char)) == 0;
 }
 
+int cstrn_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len, unsigned int len)
+{
+	return str1_len >= len && str2_len >= len && memcmp(str1, str2, len * sizeof(char)) == 0;
+}
+
 void *cstr_cpy(char *dst, const char *src, unsigned int len)
 {
 	return memcpy(dst, src, len * sizeof(char));
