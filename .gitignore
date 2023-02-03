@@ -1,3 +1,5 @@
+*.sln
+*.vcxproj
 *.user
 *.lib
 *.pdb

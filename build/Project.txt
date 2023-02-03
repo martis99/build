@@ -1,0 +1,3 @@
+NAME: build
+TYPE: EXE
+SOURCE: src

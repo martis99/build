@@ -1,0 +1,8 @@
+NAME: build
+LANGS: C
+DIRS: build
+STARTUP: build
+CONFIGS: Debug, Release
+PLATFORMS: x64, x86
+OUTDIR: $(SLN_DIR)\bin\$(PROJ_NAME)\$(CONFIG)-$(PLATFORM)\
+INTDIR: $(SLN_DIR)\bin\$(PROJ_NAME)\$(CONFIG)-$(PLATFORM)\int\
