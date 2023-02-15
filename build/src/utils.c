@@ -55,7 +55,12 @@ int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int
 	unsigned int dst_i = 0;
 	for (unsigned int i = 0; i < src_len; i++) {
 		int found = 0;
+
 		for (unsigned int j = 0; j < len; j++) {
+			if (!from[j] || !to[j]) {
+				continue;
+			}
+
 			unsigned int from_len = cstr_len(from[j]);
 			unsigned int to_len   = cstr_len(to[j]);
 
@@ -543,4 +548,14 @@ int read_printable(prop_str_t *str)
 	}
 
 	return str->cur - start;
+}
+
+void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len)
+{
+	memcpy_s(dst, dst_len, src, len);
+	for (int i = 0; i < len; i++) {
+		if (dst[i] == '\\') {
+			dst[i] = '/';
+		}
+	}
 }

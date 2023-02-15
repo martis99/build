@@ -43,7 +43,6 @@ int path_parent(path_t *path);
 int path_set_len(path_t *path, unsigned int len);
 int path_ends(const path_t *path, const char *str);
 int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out);
-;
 
 int pathv_path(pathv_t *pathv, const path_t *path);
 int pathv_sub(pathv_t *pathv, const path_t *l, const path_t *r);
@@ -54,5 +53,7 @@ int read_name(prop_str_t *str);
 int read_path(prop_str_t *str, prop_str_t *dst);
 int read_upper(prop_str_t *str, prop_str_t *dst);
 int read_printable(prop_str_t *str);
+
+void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len);
 
 #endif

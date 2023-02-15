@@ -3,6 +3,5 @@ TYPE: EXE
 SOURCE: src
 DEPENDS: lib1, lib2, elib
 INCLUDES: lib1, lib2, elib
-WDIR: data
 LDFLAGS: NONE, WHOLEARCHIVE
 ARGS: test -a 1, -c 6

@@ -107,10 +107,7 @@ typedef struct proj_s {
 
 int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent);
 void proj_print(proj_t *proj);
-int proj_gen_cmake(const proj_t *proj, const hashmap_t *projects, const path_t *path, int lang, charset_t charset);
-int proj_gen_make(const proj_t *proj, const hashmap_t *projects, const path_t *path);
-int proj_gen_vs(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
-		const prop_t *outdir, const prop_t *intdir);
+
 void proj_free(proj_t *proj);
 
 #endif

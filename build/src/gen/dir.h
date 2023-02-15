@@ -33,8 +33,6 @@ typedef int (*on_dir_cb)(path_t *path, const char *folder, void *usr);
 int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *usr);
 void dir_print(dir_t *dir);
 
-int dir_gen_cmake(const dir_t *dir, const path_t *path);
-
 void dir_free(dir_t *dir);
 
 #endif

@@ -1,4 +1,7 @@
-#include "sln.h"
+#include "gen/cm/cm_sln.h"
+#include "gen/mk/mk_sln.h"
+#include "gen/vs/vs_sln.h"
+
 #include "utils.h"
 
 #include "args.h"
@@ -98,9 +101,9 @@ int main(int argc, char *argv[])
 	};
 
 	gen_fn gen_fns[] = {
-		[GEN_CMAKE] = sln_gen_cmake,
-		[GEN_MAKE]  = sln_gen_make,
-		[GEN_VS]    = sln_gen_vs,
+		[GEN_CMAKE] = cm_sln_gen,
+		[GEN_MAKE]  = mk_sln_gen,
+		[GEN_VS]    = vs_sln_gen,
 	};
 
 	char *solution = ".";

@@ -4,5 +4,7 @@
 *.lib
 *.pdb
 
+CMakeLists.txt
+
 .vs/
 bin/

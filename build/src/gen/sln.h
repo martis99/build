@@ -32,9 +32,6 @@ typedef struct sln_s {
 
 int sln_read(sln_t *sln, const path_t *path);
 void sln_print(sln_t *sln);
-int sln_gen_cmake(const sln_t *sln, const path_t *path);
-int sln_gen_make(const sln_t *sln, const path_t *path);
-int sln_gen_vs(const sln_t *sln, const path_t *path);
 void sln_free(sln_t *sln);
 
 #endif
