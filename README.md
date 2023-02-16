@@ -11,7 +11,7 @@ build - cross-platform build system generator
 ### Build systems
 - [x] MSBuild
 - [x] CMake
-- [ ] GNU Make
+- [x] Make
 - [ ] QMake
 - [ ] Ninja
 - [ ] Premake

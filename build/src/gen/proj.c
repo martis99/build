@@ -28,6 +28,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_OUTDIR]   = { .name = "OUTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_INTDIR]   = { .name = "INTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_LDFLAGS]  = { .name = "LDFLAGS", .parse = prop_parse_word, .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .dim = PROP_DIM_ARRAY },
+	[PROJ_PROP_LINK]     = { .name = "LINK", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
 	[PROJ_PROP_ARGS]     = { .name = "ARGS", .parse = prop_parse_printable },
 };
 

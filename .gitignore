@@ -5,6 +5,7 @@
 *.pdb
 
 CMakeLists.txt
+Makefile
 
 .vs/
 bin/

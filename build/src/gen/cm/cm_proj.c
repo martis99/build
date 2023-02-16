@@ -288,7 +288,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, inc_proj->props[PROJ_PROP_NAME].value.data,
 							inc_proj->props[PROJ_PROP_NAME].value.len);
 
-				print_rel_path(fp, inc_proj, buff, buf_len);
+				print_rel_path(fp, inc_proj, buff2, buf2_len);
 				first = 0;
 			}
 		}
