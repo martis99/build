@@ -2,7 +2,6 @@
 
 #include "defines.h"
 
-#include <Windows.h>
 #include <memory.h>
 
 unsigned int cstr_len(const char *str)
@@ -226,8 +225,10 @@ size_t file_read_f(const char *format, int exists, char *data, size_t data_len, 
 
 int file_exists(const char *path)
 {
+#ifdef B_WIN
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+#endif
 }
 
 int file_exists_v(const char *format, va_list args)
@@ -252,8 +253,10 @@ int file_exists_f(const char *format, ...)
 
 int folder_exists(const char *path)
 {
+#ifdef B_WIN
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+#endif
 }
 
 int folder_exists_v(const char *format, va_list args)
@@ -278,11 +281,14 @@ int folder_exists_f(const char *format, ...)
 
 int folder_create(const char *path)
 {
+#ifdef B_WIN
 	return CreateDirectoryA(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError();
+#endif
 }
 
 int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *priv)
 {
+#ifdef B_WIN
 	WIN32_FIND_DATA file = { 0 };
 	HANDLE find	     = NULL;
 
@@ -316,6 +322,7 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 	} while (FindNextFileA(find, &file));
 
 	FindClose(find);
+#endif
 
 	return 0;
 }

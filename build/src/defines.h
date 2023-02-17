@@ -1,6 +1,17 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+	#define B_WIN
+	#ifdef _WIN64
+		#define B_WIN64
+	#else
+		#define B_WIN32
+	#endif
+#else
+	#error "Platform not supported"
+#endif
+
 #include <stdio.h>
 
 extern int G_DBG;
@@ -98,6 +109,9 @@ extern int G_MSG;
 
 #define DATA_LEN 1024
 
-#define B_MAX_PATH 256
+#ifdef B_WIN
+	#include <Windows.h>
+	#define B_MAX_PATH MAX_PATH
+#endif
 
 #endif
