@@ -2,10 +2,11 @@
 
 #include "gen/var.h"
 
+#include "data/xml.h"
+
 #include "defines.h"
 #include "mem.h"
 #include "utils.h"
-#include "xml.h"
 
 static const var_pol_t vars = {
 	.names = {

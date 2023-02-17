@@ -1,7 +1,8 @@
 #ifndef SLN_H
 #define SLN_H
 
-#include "hash_map.h"
+#include "data/hash_map.h"
+
 #include "types.h"
 #include "utils_types.h"
 

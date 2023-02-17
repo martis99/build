@@ -1,8 +1,9 @@
 #ifndef PROJ_H
 #define PROJ_H
 
-#include "array.h"
-#include "hash_map.h"
+#include "data/array.h"
+#include "data/hash_map.h"
+
 #include "types.h"
 #include "utils_types.h"
 
