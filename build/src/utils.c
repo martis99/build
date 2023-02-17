@@ -1,8 +1,16 @@
 #include "utils.h"
 
 #include "defines.h"
+#include "mem.h"
+#include "print.h"
 
-#include <memory.h>
+#if defined(B_LINUX)
+	#include <dirent.h>
+	#include <sys/stat.h>
+	#include <errno.h>
+#endif
+
+#include <string.h>
 
 unsigned int cstr_len(const char *str)
 {
@@ -14,17 +22,17 @@ unsigned int cstr_len(const char *str)
 
 int cstr_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len)
 {
-	return str1_len == str2_len && memcmp(str1, str2, str1_len * sizeof(char)) == 0;
+	return str1_len == str2_len && m_cmp(str1, str2, str1_len * sizeof(char)) == 0;
 }
 
 int cstrn_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len, unsigned int len)
 {
-	return str1_len >= len && str2_len >= len && memcmp(str1, str2, len * sizeof(char)) == 0;
+	return str1_len >= len && str2_len >= len && m_cmp(str1, str2, len * sizeof(char)) == 0;
 }
 
-void *cstr_cpy(char *dst, const char *src, unsigned int len)
+void *cstr_cpy(char *dst, unsigned int dst_len, const char *src, unsigned int src_len)
 {
-	return memcpy(dst, src, len * sizeof(char));
+	return m_cpy(dst, dst_len, src, src_len * sizeof(char));
 }
 
 int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *from, unsigned int from_len, const char *to, unsigned int to_len)
@@ -36,7 +44,7 @@ int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int 
 	unsigned int dst_i = 0;
 	for (unsigned int i = 0; i < src_len; i++) {
 		if (src_len - i > from_len && cstr_cmp(&src[i], from_len, from, from_len)) {
-			cstr_cpy(&dst[dst_i], to, to_len);
+			cstr_cpy(&dst[dst_i], dst_len, to, to_len);
 			i += from_len - 1;
 			dst_i += to_len;
 		} else {
@@ -64,7 +72,7 @@ int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int
 			unsigned int to_len   = cstr_len(to[j]);
 
 			if (src_len - i >= from_len && cstr_cmp(&src[i], from_len, from[j], from_len)) {
-				cstr_cpy(&dst[dst_i], to[j], to_len);
+				cstr_cpy(&dst[dst_i], dst_len, to[j], to_len);
 				i += from_len - 1;
 				dst_i += to_len;
 				found = 1;
@@ -83,23 +91,23 @@ int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int
 int cstr_format_v(char *buf, size_t buf_len, const char *format, va_list args)
 {
 	if (buf == NULL) {
-		ERR("buffer is null");
+		ERR("%s", "buffer is null");
 		return -1;
 	}
 
 	if (format == NULL) {
-		ERR("format is null");
+		ERR("%s", "format is null");
 		return -1;
 	}
 
 	if (buf_len <= 0) {
-		ERR("buffer length is less or equal to zero");
+		ERR("%s", "buffer length is less or equal to zero");
 		return -1;
 	}
 
-	int len = vsnprintf_s(buf, buf_len, buf_len - 1, format, args);
+	int len = p_vsnprintf(buf, buf_len, format, args);
 	if (len < 0) {
-		ERR("failed to format");
+		ERR("%s", "failed to format");
 		return -1;
 	}
 
@@ -123,19 +131,25 @@ int cstr_format_f(char *buf, size_t buf_len, const char *format, ...)
 FILE *file_open(const char *path, const char *mode, int exists)
 {
 	if (path == NULL) {
-		ERR("path is null");
+		ERR("%s", "path is null");
 		return NULL;
 	}
 
 	if (mode == NULL) {
-		ERR("mode is null");
+		ERR("%s", "mode is null");
 		return NULL;
 	}
 
 	DBG("opening file: %s", path);
 
 	FILE *file = NULL;
+
+#if defined(B_WIN)
 	fopen_s(&file, path, mode);
+#else
+	file = fopen(path, mode);
+#endif
+
 	if (file == NULL) {
 		if (exists) {
 			ERR("failed to open file: %s", path);
@@ -173,7 +187,7 @@ FILE *file_open_f(const char *format, const char *mode, int exists, ...)
 size_t file_read(const char *path, int exists, char *data, size_t data_len)
 {
 	if (data == NULL) {
-		ERR("data is null");
+		ERR("%s", "data is null");
 		return -1;
 	}
 
@@ -186,7 +200,7 @@ size_t file_read(const char *path, int exists, char *data, size_t data_len)
 	size_t len = ftell(file);
 	fseek(file, 0L, SEEK_SET);
 
-	DBG("file length: %s %llu/%llu", path, len, data_len);
+	DBG("file length: %s %zu/%zu", path, len, data_len);
 
 	if (len >= data_len) {
 		ERR("file too large: %s", path);
@@ -197,7 +211,21 @@ size_t file_read(const char *path, int exists, char *data, size_t data_len)
 
 	DBG("reading file: %s", path);
 
+#if defined(B_WIN)
 	fread_s(data, data_len, sizeof(char), len, file);
+#else
+	fread(data, sizeof(char), len, file);
+#endif
+
+	unsigned int dst = 0;
+	for (unsigned int i = 0; i < len; i++) {
+		data[dst] = data[i];
+		if (data[i] != '\r') {
+			dst++;
+		}
+	}
+	len = dst;
+
 	fclose(file);
 	DBG("file closed: %s", path);
 	return len;
@@ -225,9 +253,16 @@ size_t file_read_f(const char *format, int exists, char *data, size_t data_len, 
 
 int file_exists(const char *path)
 {
-#ifdef B_WIN
+#if defined(B_WIN)
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+#else
+	struct stat buffer;
+	if (stat(path, &buffer)) {
+		return 0;
+	} else {
+		return 1;
+	}
 #endif
 }
 
@@ -253,9 +288,17 @@ int file_exists_f(const char *format, ...)
 
 int folder_exists(const char *path)
 {
-#ifdef B_WIN
+#if defined(B_WIN)
 	int dwAttrib = GetFileAttributesA(path);
 	return dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+#else
+	DIR *dir = opendir(path);
+	if (dir) {
+		closedir(dir);
+		return 1;
+	} else {
+		return 0;
+	}
 #endif
 }
 
@@ -281,25 +324,31 @@ int folder_exists_f(const char *format, ...)
 
 int folder_create(const char *path)
 {
-#ifdef B_WIN
+#if defined(B_WIN)
 	return CreateDirectoryA(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError();
+#else
+	struct stat st = { 0 };
+	if (stat(path, &st) == -1) {
+		mkdir(path, 0700);
+	}
+	return 1;
 #endif
 }
 
 int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *priv)
 {
-#ifdef B_WIN
+#if defined(B_WIN)
 	WIN32_FIND_DATA file = { 0 };
 	HANDLE find	     = NULL;
 
-	path_t cild_path = *path;
-	path_child(&cild_path, "*.*", 3);
+	path_t child_path = *path;
+	path_child(&child_path, "*.*", 3);
 
-	if ((find = FindFirstFileA(cild_path.path, &file)) == INVALID_HANDLE_VALUE) {
-		ERR("folder not found: %s\n", cild_path.path);
+	if ((find = FindFirstFileA(child_path.path, &file)) == INVALID_HANDLE_VALUE) {
+		ERR("folder not found: %s\n", child_path.path);
 		return 1;
 	}
-	cild_path.len = path->len;
+	child_path.len = path->len;
 
 	do {
 		if (strcmp(file.cFileName, ".") == 0 || strcmp(file.cFileName, "..") == 0) {
@@ -308,13 +357,14 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 
 		files_foreach_cb cb = file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ? on_folder : on_file;
 		if (cb) {
-			if (path_child(&cild_path, file.cFileName, cstr_len(file.cFileName))) {
-				cild_path.len = path->len;
+			if (path_child(&child_path, file.cFileName, cstr_len(file.cFileName))) {
+				child_path.len = path->len;
 				continue;
 			}
 
-			int ret	      = cb(&cild_path, file.cFileName, priv);
-			cild_path.len = path->len;
+			int ret = cb(&child_path, file.cFileName, priv);
+
+			child_path.len = path->len;
 			if (ret < 0) {
 				return ret;
 			}
@@ -322,6 +372,47 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 	} while (FindNextFileA(find, &file));
 
 	FindClose(find);
+
+#else
+
+	DIR *dir = opendir(path->path);
+	if (!dir) {
+		ERR("folder not found: %.*s\n", path->len, path->path);
+		return 1;
+	}
+
+	path_t child_path = *path;
+	struct dirent *dp;
+
+	while ((dp = readdir(dir))) {
+		struct stat stbuf = { 0 };
+
+		if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0) {
+			goto next;
+		}
+
+		if (path_child(&child_path, dp->d_name, cstr_len(dp->d_name))) {
+			goto next;
+		}
+
+		if (stat(child_path.path, &stbuf)) {
+			ERR("failed to check file: %.*s\n", child_path.len, child_path.path);
+			goto next;
+		}
+
+		files_foreach_cb cb = folder_exists(child_path.path) ? on_folder : on_file;
+		if (cb) {
+			int ret = cb(&child_path, dp->d_name, priv);
+
+			child_path.len = path->len;
+			if (ret < 0) {
+				return ret;
+			}
+		}
+next:
+		child_path.len = path->len;
+	}
+
 #endif
 
 	return 0;
@@ -330,11 +421,11 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 int path_init(path_t *path, const char *dir, unsigned int len)
 {
 	if (len + 1 > B_MAX_PATH) {
-		ERR("path too long");
+		ERR("%s", "path too long");
 		return 1;
 	}
 
-	memcpy(path->path, dir, len);
+	m_cpy(path->path, len, dir, len);
 	path->len = (unsigned int)len;
 
 	path->path[path->len] = '\0';
@@ -345,14 +436,14 @@ int path_init(path_t *path, const char *dir, unsigned int len)
 int path_child_s(path_t *path, const char *dir, unsigned int len, char s)
 {
 	if (path->len + len + 2 > B_MAX_PATH) {
-		ERR("path too long");
+		ERR("%s", "path too long");
 		return 1;
 	}
 
 	if (s != 0) {
 		path->path[path->len++] = s;
 	}
-	memcpy(path->path + path->len, dir, len);
+	m_cpy(path->path + path->len, len, dir, len);
 	path->len += (unsigned int)len;
 
 	path->path[path->len] = '\0';
@@ -362,7 +453,13 @@ int path_child_s(path_t *path, const char *dir, unsigned int len, char s)
 
 int path_child(path_t *path, const char *dir, unsigned int len)
 {
-	return path_child_s(path, dir, len, '\\');
+	char c;
+#if defined(B_WIN)
+	c = '\\';
+#else
+	c = '/';
+#endif
+	return path_child_s(path, dir, len, c);
 }
 
 int path_parent(path_t *path)
@@ -390,10 +487,9 @@ int path_set_len(path_t *path, unsigned int len)
 	return 0;
 }
 
-int path_ends(const path_t *path, const char *str)
+int path_ends(const path_t *path, const char *str, unsigned int len)
 {
-	size_t len = strlen(str);
-	return path->len > len && memcmp(path->path + path->len - len, str, len) == 0;
+	return path->len > len && m_cmp(path->path + path->len - len, str, (size_t)len) == 0;
 }
 
 int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out)
@@ -559,7 +655,7 @@ int read_printable(prop_str_t *str)
 
 void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len)
 {
-	memcpy_s(dst, dst_len, src, len);
+	m_cpy(dst, dst_len, src, len);
 	for (int i = 0; i < len; i++) {
 		if (dst[i] == '\\') {
 			dst[i] = '/';

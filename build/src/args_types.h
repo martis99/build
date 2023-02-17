@@ -1,6 +1,8 @@
 #ifndef ARGS_TYPES_H
 #define ARGS_TYPES_H
 
+#include <stddef.h>
+
 typedef enum param_e {
 	PARAM_NONE,
 	PARAM_INT,
@@ -25,7 +27,7 @@ typedef struct mode_desc_s {
 		_l, _name, _desc, _handler, _param, _c \
 	}
 
-typedef int (*param_handler_fn)(const void *param, void *ret);
+typedef int (*param_handler_fn)(const char *param, void *ret);
 typedef struct arg_s {
 	const char *l;
 	const char *name;

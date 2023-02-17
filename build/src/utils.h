@@ -9,7 +9,7 @@
 unsigned int cstr_len(const char *str);
 int cstr_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len);
 int cstrn_cmp(const char *str1, unsigned int str1_len, const char *str2, unsigned int str2_len, unsigned int len);
-void *cstr_cpy(char *dst, const char *src, unsigned int len);
+void *cstr_cpy(char *dst, unsigned int dst_len, const char *src, unsigned int src_len);
 int cstr_replace(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *from, unsigned int from_len, const char *to, unsigned int to_len);
 int cstr_replaces(const char *src, unsigned int src_len, char *dst, unsigned int dst_len, const char *const *from, const char *const *to, unsigned int len);
 
@@ -41,7 +41,7 @@ int path_child_s(path_t *path, const char *dir, unsigned int len, char s);
 int path_child(path_t *path, const char *dir, unsigned int len);
 int path_parent(path_t *path);
 int path_set_len(path_t *path, unsigned int len);
-int path_ends(const path_t *path, const char *str);
+int path_ends(const path_t *path, const char *str, unsigned int len);
 int path_calc_rel(const char *path, unsigned int path_len, const char *dest, unsigned int dest_len, path_t *out);
 
 int pathv_path(pathv_t *pathv, const path_t *path);

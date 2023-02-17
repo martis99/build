@@ -1,8 +1,8 @@
 #include "md5.h"
 
 #include "defines.h"
+#include "mem.h"
 
-#include <memory.h>
 #include <stdio.h>
 
 unsigned func0(unsigned int B, unsigned int C, unsigned int D)
@@ -54,14 +54,14 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 
 	size_t chunk_cnt = 1 + (msg_len + 8) / 64;
 	if (64 * chunk_cnt > buf_size) {
-		ERR("md5: buffer too small\n");
+		ERR("%s", "md5: buffer too small\n");
 		return 1;
 	}
 
-	memcpy_s(buf, buf_size, msg, msg_len);
+	m_cpy(buf, buf_size, msg, msg_len);
 	buf[msg_len] = (unsigned char)0x80;
 	size_t bits  = 8 * msg_len;
-	memcpy_s(buf + 64 * chunk_cnt - 8, buf_size, &bits, 4);
+	m_cpy(buf + 64 * chunk_cnt - 8, buf_size, &bits, 4);
 
 	for (size_t chunk = 0; chunk < chunk_cnt; chunk++) {
 		unsigned int *w = (unsigned int *)(buf + chunk * 64);
@@ -92,8 +92,8 @@ int md5(const char *msg, size_t msg_len, unsigned char *buf, size_t buf_size, ch
 		o.h[3] += D;
 	}
 
-	_snprintf_s(out, out_size, 36, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6],
-		    o.b[7], o.b[8], o.b[9], o.b[10], o.b[11], o.b[12], o.b[13], o.b[14], o.b[15]);
+	snprintf(out, out_size, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X", o.b[0], o.b[1], o.b[2], o.b[3], o.b[4], o.b[5], o.b[6], o.b[7],
+		 o.b[8], o.b[9], o.b[10], o.b[11], o.b[12], o.b[13], o.b[14], o.b[15]);
 
 	return 0;
 }

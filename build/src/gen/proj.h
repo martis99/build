@@ -22,6 +22,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_CHARSET,
 	PROJ_PROP_OUTDIR,
 	PROJ_PROP_INTDIR,
+	PROJ_PROP_CFLAGS,
 	PROJ_PROP_LDFLAGS,
 	PROJ_PROP_LINK,
 	PROJ_PROP_ARGS,
@@ -77,6 +78,20 @@ static const str_t s_charsets[] = {
 	[CHARSET_UNKNOWN]    = { "", 0 },
 	[CHARSET_UNICODE]    = { "Unicode", 7 },
 	[CHARSET_MULTI_BYTE] = { "MultiByte", 9 },
+};
+
+typedef enum cflag_e {
+	CFLAG_UNKNOWN,
+	CFLAG_NONE,
+	CFLAG_STD_C99,
+
+	__CFLAG_MAX,
+} cflag_t;
+
+static const str_t s_cflags[] = {
+	[CFLAG_UNKNOWN] = { "", 0 },
+	[CFLAG_NONE]	= { "NONE", 4 },
+	[CFLAG_STD_C99] = { "STD_C99", 7 },
 };
 
 typedef enum ldflag_e {

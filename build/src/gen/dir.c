@@ -29,7 +29,7 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 		.line_start = 0,
 	};
 
-	memcpy_s(dir.data, dir.len, folder, folder_len);
+	m_cpy(dir.data, dir.len, folder, folder_len);
 	array_add(priv, &dir);
 	return 0;
 }
@@ -115,7 +115,7 @@ void dir_print(dir_t *dir)
 	if (dir->parent) {
 		INFP("    Parent : %.*s", (unsigned int)dir->parent->folder.len, dir->parent->folder.path);
 	} else {
-		INFP("    Parent :");
+		INFP("%s", "    Parent :");
 	}
 	props_print(dir->props, s_dir_props, sizeof(s_dir_props));
 }

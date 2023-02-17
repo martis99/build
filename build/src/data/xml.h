@@ -3,6 +3,8 @@
 
 #include "array.h"
 
+#include <stdarg.h>
+
 typedef struct xml_str_s {
 	union {
 		const char *data;

@@ -37,13 +37,13 @@ void *array_add(array_t *arr, const void *value)
 	}
 
 	void *ptr = (void *)((uintptr_t)arr->data + arr->vsize * arr->count++);
-	memcpy_s(ptr, arr->vsize, value, arr->vsize);
+	m_cpy(ptr, arr->vsize, value, arr->vsize);
 	return ptr;
 }
 
 void array_set(array_t *arr, int index, const void *value)
 {
-	memcpy_s((void *)((uintptr_t)arr->data + arr->vsize * index), arr->vsize, value, arr->vsize);
+	m_cpy((void *)((uintptr_t)arr->data + arr->vsize * index), arr->vsize, value, arr->vsize);
 }
 
 void *array_get(const array_t *arr, int index)
@@ -61,7 +61,7 @@ void array_iterate(array_t *arr, array_callback callback, void *priv)
 int array_index(const array_t *arr, const void *value)
 {
 	for (int i = 0; i < arr->count; i++) {
-		if (memcmp((void *)((uintptr_t)arr->data + arr->vsize * i), value, arr->vsize) == 0) {
+		if (m_cmp((void *)((uintptr_t)arr->data + arr->vsize * i), value, arr->vsize) == 0) {
 			return i;
 		}
 	}

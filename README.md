@@ -5,8 +5,8 @@ build - cross-platform build system generator
 ***
 
 ### Platforms
-- [X] Windows
-- [ ] Linux
+- [x] Windows
+- [x] Linux
 
 ### Build systems
 - [x] MSBuild

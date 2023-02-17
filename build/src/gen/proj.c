@@ -25,6 +25,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_CHARSET]  = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[PROJ_PROP_OUTDIR]   = { .name = "OUTDIR", .parse = prop_parse_path },
 	[PROJ_PROP_INTDIR]   = { .name = "INTDIR", .parse = prop_parse_path },
+	[PROJ_PROP_CFLAGS]   = { .name = "CFLAGS", .parse = prop_parse_word, .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .dim = PROP_DIM_ARRAY },
 	[PROJ_PROP_LDFLAGS]  = { .name = "LDFLAGS", .parse = prop_parse_word, .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .dim = PROP_DIM_ARRAY },
 	[PROJ_PROP_LINK]     = { .name = "LINK", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
 	[PROJ_PROP_ARGS]     = { .name = "ARGS", .parse = prop_parse_printable },
@@ -122,18 +123,18 @@ void proj_print(proj_t *proj)
 	if (proj->parent) {
 		INFP("    Parent : %.*s", (unsigned int)proj->parent->folder.len, proj->parent->folder.path);
 	} else {
-		INFP("    Parent :");
+		INFP("%s", "    Parent :");
 	}
 
 	props_print(proj->props, s_proj_props, sizeof(s_proj_props));
 
-	INFP("    Depends:");
+	INFP("%s", "    Depends:");
 	for (int i = 0; i < proj->all_depends.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
 	}
 
-	INFP("    Includes:");
+	INFP("%s", "    Includes:");
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->includes, i);
 		INFP("        '%.*s'", dproj->name->len, dproj->name->data);

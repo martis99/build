@@ -66,9 +66,9 @@ typedef enum arg_enum_e {
 	ARG_H,
 } arg_enum_t;
 
-typedef int (*gen_fn)(sln_t *sln, const path_t *path);
+typedef int (*gen_fn)(const sln_t *sln, const path_t *path);
 
-int main(int argc, char *argv[])
+int main(int argc, const char **argv)
 {
 	size_t mem = 0;
 	mem_init(&mem);
@@ -79,7 +79,11 @@ int main(int argc, char *argv[])
 	arg_t args[] = {
 		[ARG_S] = ARG('S', "solution", PARAM_STR, "<dir>", "Specify a solution directory (default: .)", NULL),
 		[ARG_B] = ARG('B', "build", PARAM_STR, "<dir>", "Specify a build directory (default: <solution>)", NULL),
+#if defined(B_WIN)
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: V)", handle_gen),
+#else
+		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: M)", handle_gen),
+#endif
 		[ARG_D] = ARG('D', "debug", PARAM_SWITCH, "<0/1>", "Turn on/off debug messages (default: 0)", NULL),
 		[ARG_C] = ARG('C', "success", PARAM_SWITCH, "<0/1>", "Turn on/off success messages (default: 0)", NULL),
 		[ARG_I] = ARG('I', "info", PARAM_SWITCH, "<0/1>", "Turn on/off info messages (default: 0)", NULL),
@@ -108,7 +112,13 @@ int main(int argc, char *argv[])
 
 	char *solution = ".";
 	char *build    = NULL;
-	gen_t gen      = GEN_VS;
+	gen_t gen;
+
+#if defined(B_WIN)
+	gen = GEN_VS;
+#else
+	gen = GEN_MAKE;
+#endif
 
 	void *params[] = {
 		[ARG_S] = &solution, [ARG_B] = &build, [ARG_G] = &gen,	 [ARG_D] = &G_DBG, [ARG_C] = &G_SUC,

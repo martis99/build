@@ -1,6 +1,7 @@
 #include "cm_dir.h"
 
 #include "defines.h"
+#include "print.h"
 #include "utils.h"
 
 int cm_dir_gen(const dir_t *dir, const path_t *path)
@@ -31,7 +32,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
-		fprintf_s(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		p_fprintf(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 
 	fclose(fp);

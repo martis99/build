@@ -21,6 +21,7 @@ static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_CONFIGS]   = { .name = "CONFIGS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_PLATFORMS] = { .name = "PLATFORMS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_CHARSET]   = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[SLN_PROP_CFLAGS]    = { .name = "CFLAGS", .parse = prop_parse_word, .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .dim = PROP_DIM_ARRAY },
 	[SLN_PROP_OUTDIR]    = { .name = "OUTDIR", .parse = prop_parse_path },
 	[SLN_PROP_INTDIR]    = { .name = "INTDIR", .parse = prop_parse_path },
 
@@ -75,9 +76,9 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	return ret;
 }
 
-static int proj_cmp_name(const proj_t **proj, const prop_str_t **name)
+static int proj_cmp_name(const void *proj, const void *name)
 {
-	return prop_cmp((*proj)->name, *name);
+	return prop_cmp((*(const proj_t **)proj)->name, *(const prop_str_t **)name);
 }
 
 static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
@@ -87,7 +88,7 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 		prop_str_t *dname = array_get(depends, i);
 
 		proj_t *dproj = NULL;
-		if (hashmap_get(projects, dname->data, dname->len, &dproj)) {
+		if (hashmap_get(projects, dname->data, dname->len, (void **)&dproj)) {
 			ERR("project doesn't exists: '%.*s'", dname->len, dname->data);
 			continue;
 		}
@@ -123,7 +124,7 @@ static void calculate_includes(void *key, size_t ksize, void *value, void *priv)
 		prop_str_t *iname = array_get(includes, i);
 
 		proj_t *iproj = NULL;
-		if (hashmap_get(&sln->projects, iname->data, iname->len, &iproj)) {
+		if (hashmap_get(&sln->projects, iname->data, iname->len, (void **)&iproj)) {
 			ERR("project doesn't exists: '%.*s'", iname->len, iname->data);
 			continue;
 		}

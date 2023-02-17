@@ -5,6 +5,7 @@
 #include "gen/dir.h"
 
 #include "defines.h"
+#include "print.h"
 #include "utils.h"
 
 static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *priv)
@@ -13,7 +14,7 @@ static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *priv)
 	dir_t *dir	= value;
 	pathv_t *folder = &dir->folder;
 
-	fprintf_s(fp, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (unsigned int)folder->len, folder->path,
+	p_fprintf(fp, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (unsigned int)folder->len, folder->path,
 		  (unsigned int)folder->len, folder->path, dir->guid);
 }
 
@@ -22,7 +23,7 @@ static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 	FILE *fp	       = priv;
 	proj_t *proj	       = value;
 	const prop_str_t *name = proj->name;
-	fprintf_s(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
+	p_fprintf(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
 		  name->data, (unsigned int)proj->rel_path.len, proj->rel_path.path, (unsigned int)name->len, name->data, proj->guid);
 }
 
@@ -48,7 +49,7 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 				platf_len = 5;
 			}
 
-			fprintf_s(data->fp,
+			p_fprintf(data->fp,
 				  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 				  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
 				  proj->guid, config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf, proj->guid,
@@ -63,7 +64,7 @@ static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *priv)
 	dir_t *dir = value;
 
 	if (dir->parent) {
-		fprintf_s(fp, "\t\t{%s} = {%s}\n", dir->guid, dir->parent->guid);
+		p_fprintf(fp, "\t\t{%s} = {%s}\n", dir->guid, dir->parent->guid);
 	}
 }
 
@@ -73,7 +74,7 @@ static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *priv)
 	proj_t *proj = value;
 
 	if (proj->parent) {
-		fprintf_s(fp, "\t\t{%s} = {%s}\n", proj->guid, proj->parent->guid);
+		p_fprintf(fp, "\t\t{%s} = {%s}\n", proj->guid, proj->parent->guid);
 	}
 }
 
@@ -84,6 +85,7 @@ typedef struct gen_proj_vs_data_s {
 	const array_t *platforms;
 	const prop_t *langs;
 	const prop_t *charset;
+	const prop_t *cflags;
 	const prop_t *outdir;
 	const prop_t *intdir;
 } gen_proj_vs_data_t;
@@ -91,7 +93,7 @@ typedef struct gen_proj_vs_data_s {
 static void gen_proj_vs(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_vs_data_t *data = priv;
-	vs_proj_gen(value, data->projects, data->path, data->configs, data->platforms, data->langs, data->charset, data->outdir, data->intdir);
+	vs_proj_gen(value, data->projects, data->path, data->configs, data->platforms, data->langs, data->charset, data->cflags, data->outdir, data->intdir);
 }
 
 int vs_sln_gen(const sln_t *sln, const path_t *path)
@@ -119,7 +121,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	fprintf_s(fp, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
+	p_fprintf(fp, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
 		      "# Visual Studio Version 17\n"
 		      "VisualStudioVersion = 17.4.33205.214\n"
 		      "MinimumVisualStudioVersion = 10.0.40219.1\n");
@@ -127,12 +129,12 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	hashmap_iterate_hc(&sln->dirs, add_dir_sln_vs, fp);
 	hashmap_iterate_hc(&sln->projects, add_proj_sln_vs, fp);
 
-	fprintf_s(fp, "Global\n"
+	p_fprintf(fp, "Global\n"
 		      "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
 	if (!sln->props[SLN_PROP_CONFIGS].set || !sln->props[SLN_PROP_PLATFORMS].set || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
 	    sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
-		ERR("at least one config and platform must be set");
+		ERR("%s", "at least one config and platform must be set");
 		return ret + 1;
 	}
 
@@ -143,12 +145,12 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		prop_str_t *config = array_get(configs, i);
 		for (int j = 0; j < platforms->count; j++) {
 			prop_str_t *platform = array_get(platforms, j);
-			fprintf_s(fp, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
+			p_fprintf(fp, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
 				  platform->data);
 		}
 	}
 
-	fprintf_s(fp, "\tEndGlobalSection\n"
+	p_fprintf(fp, "\tEndGlobalSection\n"
 		      "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
 
 	proj_config_plat_vs_t proj_config_plat_vs_data = {
@@ -159,7 +161,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 
 	hashmap_iterate_hc(&sln->projects, proj_config_plat_vs, &proj_config_plat_vs_data);
 
-	fprintf_s(fp, "\tEndGlobalSection\n"
+	p_fprintf(fp, "\tEndGlobalSection\n"
 		      "\tGlobalSection(SolutionProperties) = preSolution\n"
 		      "\t\tHideSolutionNode = FALSE\n"
 		      "\tEndGlobalSection\n"
@@ -168,7 +170,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	hashmap_iterate_hc(&sln->dirs, add_dir_nested_vs, fp);
 	hashmap_iterate_hc(&sln->projects, add_proj_nested_vs, fp);
 
-	fprintf_s(fp,
+	p_fprintf(fp,
 		  "\tEndGlobalSection\n"
 		  "\tGlobalSection(ExtensibilityGlobals) = postSolution\n"
 		  "\t\tSolutionGuid = {%s}\n"
@@ -190,9 +192,11 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		.platforms = &sln->props[SLN_PROP_PLATFORMS].arr,
 		.langs	   = &sln->props[SLN_PROP_LANGS],
 		.charset   = &sln->props[SLN_PROP_CHARSET],
+		.cflags	   = &sln->props[SLN_PROP_CFLAGS],
 		.outdir	   = &sln->props[SLN_PROP_OUTDIR],
 		.intdir	   = &sln->props[SLN_PROP_INTDIR],
 	};
+
 	hashmap_iterate_c(&sln->projects, gen_proj_vs, &gen_proj_vs_data);
 
 	return 0;

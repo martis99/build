@@ -40,8 +40,8 @@ static int add_src_file(path_t *path, const char *folder, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".c")) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".asm")) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".cpp"));
+	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".c", 2)) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".asm", 4)) ||
+		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".cpp", 4));
 
 	if (add) {
 		xml_add_attr_c(xml_add_child(data->xml_items, "ClCompile", 9), "Include", 7, new_path.path, new_path.len);
@@ -68,8 +68,8 @@ static int add_inc_file(path_t *path, const char *folder, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".h")) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".inc")) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".h")) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".hpp"));
+	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".h", 2)) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".inc", 4)) ||
+		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".h", 2)) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".hpp", 4));
 
 	if (add) {
 		xml_add_attr_c(xml_add_child(data->xml_items, "ClInclude", 9), "Include", 7, new_path.path, new_path.len);
@@ -216,13 +216,14 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 
 //TODO: Make proj const
 int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
-		const prop_t *outdir, const prop_t *intdir)
+		const prop_t *cflags, const prop_t *outdir, const prop_t *intdir)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
 	langs	= proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
 	charset = proj->props[PROJ_PROP_CHARSET].set ? &proj->props[PROJ_PROP_CHARSET] : charset;
+	cflags	= proj->props[PROJ_PROP_CFLAGS].set ? &proj->props[PROJ_PROP_CFLAGS] : cflags;
 	outdir	= proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir	= proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
 
@@ -511,7 +512,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			for (int i = 0; i < depends->count; i++) {
 				prop_str_t *depend = array_get(depends, i);
 				proj_t *dproj	   = { 0 };
-				if (hashmap_get(projects, depend->data, depend->len, &dproj)) {
+				if (hashmap_get(projects, depend->data, depend->len, (void **)&dproj)) {
 					ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
 					continue;
 				}

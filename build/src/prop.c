@@ -1,6 +1,7 @@
 #include "prop.h"
 
 #include "defines.h"
+#include "mem.h"
 #include "utils.h"
 
 #include <string.h>
@@ -27,7 +28,7 @@ int parse_char(prop_str_t *data, char c)
 		} else {
 			if (c == '\n') {
 				ERR_SYNTAX("unexpected token: '%c' (%d), expected: '\\n' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
-					   data->data[data->cur], data->data[data->cur], data->data[data->cur]);
+					   data->data[data->cur], data->data[data->cur], c);
 			} else if (data->data[data->cur] == '\n') {
 				ERR_SYNTAX("unexpected token: '\\n' (%d), expected: '%c' (%d)", data->path, data->line + 1, data->cur - data->line_start + 1,
 					   data->data[data->cur], c, c);
@@ -68,7 +69,7 @@ static int parse_prop_name(prop_str_t *data, prop_str_t *value)
 static int parse_str_table(prop_str_t *data, prop_t *prop, const str_t *table, size_t table_len)
 {
 	for (int i = 0; i < table_len; i++) {
-		if (table[i].len == prop->value.len && memcmp(table[i].data, prop->value.data, prop->value.len) == 0) {
+		if (cstr_cmp(table[i].data, table[i].len, prop->value.data, prop->value.len)) {
 			return i;
 		}
 	}
@@ -128,7 +129,7 @@ static int parse_prop(prop_str_t *data, prop_t *props, const prop_pol_t *props_p
 	int found	     = 0;
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
 	for (int i = 0; i < props_pol_len; i++) {
-		if (name.len == strlen(props_pol[i].name) && memcmp(name.data, props_pol[i].name, name.len) == 0) {
+		if (name.len == strlen(props_pol[i].name) && m_cmp(name.data, props_pol[i].name, name.len) == 0) {
 			if (props[i].set) {
 				ERR_LOGICS("%s already set", data->path, data->line + 1, col + 1, props_pol[i].name);
 				ret++;
@@ -183,6 +184,9 @@ int props_parse_file(prop_str_t *data, prop_t *props, const prop_pol_t *props_po
 		}
 
 		if (data->data[data->cur] == '\n') {
+			if (data->cur + 1 < data->len && data->data[data->cur + 1] == '\0') {
+				break;
+			}
 			data->cur++;
 			data->line++;
 			data->line_start = data->cur;

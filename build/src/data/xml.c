@@ -2,10 +2,7 @@
 
 #include "array.h"
 #include "mem.h"
-
-#include <memory.h>
-#include <stdarg.h>
-#include <stdio.h>
+#include "print.h"
 
 static inline int xml_init_tag(xml_tag_t *tag)
 {
@@ -73,7 +70,7 @@ xml_attr_t *xml_add_attr_c(xml_tag_t *tag, const char *name, unsigned int name_l
 		.val  = { .data = NULL, .len = val_len, .mem = 1 },
 	};
 	attr.val.data = m_calloc((size_t)attr.val.len + 1, sizeof(char));
-	memcpy(attr.val.tdata, val, attr.val.len);
+	m_cpy(attr.val.tdata, attr.val.len, val, attr.val.len);
 	return array_add(&tag->attrs, &attr);
 }
 
@@ -84,9 +81,9 @@ xml_attr_t *xml_add_attr_v(xml_tag_t *tag, const char *name, unsigned int name_l
 		.val  = { .data = NULL, .len = 0, .mem = 1 },
 	};
 
-	attr.val.len  = vsnprintf(NULL, 0, format, args);
+	attr.val.len  = p_vsnprintf(NULL, 0, format, args);
 	attr.val.data = m_calloc((size_t)attr.val.len + 1, sizeof(char));
-	vsprintf_s(attr.val.tdata, (size_t)attr.val.len + 1, format, args);
+	p_vsprintf(attr.val.tdata, (size_t)attr.val.len + 1, format, args);
 
 	return array_add(&tag->attrs, &attr);
 }
@@ -121,7 +118,7 @@ xml_tag_t *xml_add_child_val(xml_tag_t *tag, const char *name, unsigned int name
 		.val	= { .data = NULL, .len = val_len, .mem = 1 },
 	};
 	child.val.data = m_calloc((size_t)child.val.len + 1, sizeof(char));
-	memcpy(child.val.tdata, val, val_len);
+	m_cpy(child.val.tdata, child.val.len, val, val_len);
 	xml_init_tag(&child);
 	return array_add(&tag->childs, &child);
 }
@@ -135,9 +132,9 @@ xml_attr_t *xml_add_child_val_v(xml_tag_t *tag, const char *name, unsigned int n
 		.val	= { .data = NULL, .len = 0, .mem = 1 },
 	};
 
-	child.val.len  = vsnprintf(NULL, 0, format, args);
+	child.val.len  = p_vsnprintf(NULL, 0, format, args);
 	child.val.data = m_calloc((size_t)child.val.len + 1, sizeof(char));
-	vsprintf_s(child.val.tdata, (size_t)child.val.len + 1, format, args);
+	p_vsprintf(child.val.tdata, (size_t)child.val.len + 1, format, args);
 
 	return array_add(&tag->childs, &child);
 }
@@ -163,34 +160,34 @@ xml_str_t *xml_set_val(xml_tag_t *tag, const char *val, unsigned int val_len)
 
 static inline int xml_attr_save(const xml_attr_t *attr, void *file)
 {
-	fprintf_s(file, " %.*s=\"%.*s\"", attr->name.len, attr->name.data, attr->val.len, attr->val.data);
+	p_fprintf(file, " %.*s=\"%.*s\"", attr->name.len, attr->name.data, attr->val.len, attr->val.data);
 	return 0;
 }
 
 static int xml_tag_save(const xml_tag_t *tag, void *file, unsigned int depth)
 {
-	fprintf_s(file, "%*s<%.*s", depth * 2, "", tag->name.len, tag->name.data);
+	p_fprintf(file, "%*s<%.*s", depth * 2, "", tag->name.len, tag->name.data);
 	for (int i = 0; i < tag->attrs.count; i++) {
 		xml_attr_save(array_get(&tag->attrs, i), file);
 	}
 
 	if (tag->childs.count > 0) {
-		fprintf_s(file, ">\n");
+		p_fprintf(file, ">\n");
 
 		for (int i = 0; i < tag->childs.count; i++) {
 			xml_tag_save(array_get(&tag->childs, i), file, depth + 1);
 		}
 
-		fprintf_s(file, "%*s</%.*s>\n", depth * 2, "", tag->name.len, tag->name.data);
+		p_fprintf(file, "%*s</%.*s>\n", depth * 2, "", tag->name.len, tag->name.data);
 		return 0;
 	} else if (tag->val.data) {
 		if (tag->val.len > 0 && tag->val.data[tag->val.len - 1] == '\n') {
-			fprintf_s(file, ">%.*s%*s</%.*s>\n", tag->val.len, tag->val.data, depth * 2, "", tag->name.len, tag->name.data);
+			p_fprintf(file, ">%.*s%*s</%.*s>\n", tag->val.len, tag->val.data, depth * 2, "", tag->name.len, tag->name.data);
 		} else {
-			fprintf_s(file, ">%.*s</%.*s>\n", tag->val.len, tag->val.data, tag->name.len, tag->name.data);
+			p_fprintf(file, ">%.*s</%.*s>\n", tag->val.len, tag->val.data, tag->name.len, tag->name.data);
 		}
 	} else {
-		fprintf_s(file, " />\n");
+		p_fprintf(file, " />\n");
 	}
 
 	return 0;
@@ -198,7 +195,7 @@ static int xml_tag_save(const xml_tag_t *tag, void *file, unsigned int depth)
 
 int xml_save(xml_t *xml, void *file)
 {
-	fprintf(file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+	p_fprintf(file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 	for (int i = 0; i < xml->root.childs.count; i++) {
 		xml_tag_save(array_get(&xml->root.childs, i), file, 0);
 	}

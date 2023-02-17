@@ -1,5 +1,7 @@
 #include "mem.h"
 
+#include "defines.h"
+
 #include <memory.h>
 #include <stdlib.h>
 
@@ -31,6 +33,21 @@ void *m_malloc(size_t size)
 		return NULL;
 	}
 	return memset(ptr, 0, size);
+}
+
+void *m_cpy(void *dst, size_t dst_size, const void *src, size_t src_size)
+{
+#if defined(B_WIN)
+	memcpy_s(dst, dst_size, src, src_size);
+#else
+	memcpy(dst, src, src_size);
+#endif
+	return dst;
+}
+
+int m_cmp(const void *l, const void *r, size_t size)
+{
+	return memcmp(l, r, size);
 }
 
 void m_free(void *memory, size_t size)

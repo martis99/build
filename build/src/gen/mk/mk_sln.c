@@ -3,6 +3,7 @@
 #include "mk_proj.h"
 
 #include "defines.h"
+#include "print.h"
 #include "utils.h"
 
 #include <stdio.h>
@@ -12,6 +13,7 @@ typedef struct gen_proj_make_data_s {
 	const hashmap_t *projects;
 	const prop_t *langs;
 	charset_t charset;
+	const prop_t *cflags;
 	const prop_t *outdir;
 	const prop_t *intdir;
 } gen_proj_make_data_t;
@@ -19,13 +21,13 @@ typedef struct gen_proj_make_data_s {
 static void gen_proj_make(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_make_data_t *data = priv;
-	mk_proj_gen(value, data->projects, data->path, data->langs, data->outdir, data->intdir);
+	mk_proj_gen(value, data->projects, data->path, data->langs, data->cflags, data->outdir, data->intdir);
 }
 
 static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_t *proj = value;
-	fprintf_s(priv, " %.*s", proj->name->len, proj->name->data);
+	p_fprintf(priv, " %.*s", proj->name->len, proj->name->data);
 }
 
 typedef struct add_target_make_data_s {
@@ -42,21 +44,21 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	char buf[B_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	fprintf_s(data->fp, "%.*s:", proj->name->len, proj->name->data);
+	p_fprintf(data->fp, "%.*s:", proj->name->len, proj->name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				fprintf_s(data->fp, " %.*s", dproj->name->len, dproj->name->data);
+				p_fprintf(data->fp, " %.*s", dproj->name->len, dproj->name->data);
 			}
 		}
 	}
 
-	fprintf_s(data->fp,
+	p_fprintf(data->fp,
 		  "\n"
-		  "\t$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)\n"
+		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)\n"
 		  "\n",
 		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
 }
@@ -68,7 +70,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 	char buf[B_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	fprintf_s(priv, "\t$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
+	p_fprintf(priv, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
 }
 
 int mk_sln_gen(const sln_t *sln, const path_t *path)
@@ -101,17 +103,18 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		.path	  = path,
 		.projects = &sln->projects,
 		.langs	  = &sln->props[SLN_PROP_LANGS],
+		.cflags	  = &sln->props[SLN_PROP_CFLAGS],
 		.outdir	  = &sln->props[SLN_PROP_OUTDIR],
 		.intdir	  = &sln->props[SLN_PROP_INTDIR],
 	};
 
-	fprintf_s(fp, "SLNDIR=$(CURDIR)\n"
+	p_fprintf(fp, "SLNDIR=$(CURDIR)\n"
 		      "\n"
 		      ".PHONY:");
 
 	hashmap_iterate_hc(&sln->projects, add_phony_make, fp);
 
-	fprintf_s(fp, "\n\n");
+	p_fprintf(fp, "\n\n");
 
 	add_target_make_data_t add_target_make_data = {
 		.projects = &sln->projects,
@@ -120,7 +123,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	hashmap_iterate_hc(&sln->projects, add_target_make, &add_target_make_data);
 
-	fprintf_s(fp, "clean:\n");
+	p_fprintf(fp, "clean:\n");
 	hashmap_iterate_hc(&sln->projects, add_clean_make, fp);
 
 	fclose(fp);

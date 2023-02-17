@@ -15,7 +15,7 @@ static inline int switch_int(char c)
 	}
 }
 
-static int handle_string(const char *param, const void *ret)
+static int handle_string(const char *param, void *ret)
 {
 	*(const char **)ret = param;
 	return 0;
@@ -29,9 +29,15 @@ static int handle_switch(const char *param, void *ret)
 	return 0;
 }
 
+// clang-format off
 static param_handler_fn s_handlers[] = {
-	[PARAM_NONE] = NULL, [PARAM_INT] = NULL, [PARAM_STR] = handle_string, [PARAM_MODE] = NULL, [PARAM_SWITCH] = handle_switch,
+	[PARAM_NONE] = NULL,
+	[PARAM_INT] = NULL,
+	[PARAM_STR] = handle_string,
+	[PARAM_MODE] = NULL,
+	[PARAM_SWITCH] = handle_switch,
 };
+// clang-format on
 
 static inline void header(const char *name, const char *description)
 {
@@ -129,7 +135,7 @@ static inline int handle_param(const arg_t *args, size_t arg, const char *param,
 	return 1;
 }
 
-int args_handle(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size, int argc, const char *argv[],
+int args_handle(const char *name, const char *description, const arg_t *args, size_t args_size, const mode_desc_t *modes, size_t modes_size, int argc, const char **argv,
 		void **params)
 {
 	int ret = 0;

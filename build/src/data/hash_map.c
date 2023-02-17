@@ -100,7 +100,7 @@ static struct bucket *find_entry(const hashmap_t *map, void *key, size_t ksize, 
 	for (;;) {
 		struct bucket *entry = &map->buckets[index];
 
-		if (entry->key == NULL || (entry->ksize == ksize && entry->hash == hash && memcmp(entry->key, key, ksize) == 0)) {
+		if (entry->key == NULL || (entry->ksize == ksize && entry->hash == hash && m_cmp(entry->key, key, ksize) == 0)) {
 			return entry;
 		}
 

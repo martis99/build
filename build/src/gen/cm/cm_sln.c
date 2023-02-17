@@ -4,6 +4,7 @@
 #include "cm_proj.h"
 
 #include "defines.h"
+#include "print.h"
 #include "utils.h"
 
 #define SLN_CMAKE_USER_FOLDERS_SHIFT 0
@@ -23,6 +24,7 @@ typedef struct gen_proj_cmake_data_s {
 	const hashmap_t *projects;
 	const prop_t *langs;
 	charset_t charset;
+	const prop_t *cflags;
 	const prop_t *outdir;
 	const prop_t *intdir;
 } gen_proj_cmake_data_t;
@@ -30,7 +32,7 @@ typedef struct gen_proj_cmake_data_s {
 static void gen_proj_cmake(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_cmake_data_t *data = priv;
-	cm_proj_gen(value, data->projects, data->path, data->langs, data->charset, data->outdir, data->intdir);
+	cm_proj_gen(value, data->projects, data->path, data->langs, data->charset, data->cflags, data->outdir, data->intdir);
 }
 
 int cm_sln_gen(const sln_t *sln, const path_t *path)
@@ -59,7 +61,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	MSG("generating solution: %s", cmake_path.path);
 
-	fprintf_s(fp, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
+	p_fprintf(fp, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
 
 	// clang-format off
 	const char *langs[] = {
@@ -73,46 +75,46 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	for (int i = 0; i < __LANG_MAX; i++) {
 		if (languages & (1 << i)) {
-			fprintf_s(fp, langs[i]);
+			p_fprintf(fp, langs[i]);
 		}
 	}
-	fprintf_s(fp, ")\n");
+	p_fprintf(fp, ")\n");
 
 	if (sln->props[SLN_PROP_CONFIGS].set) {
-		fprintf_s(fp, "\nset(CMAKE_CONFIGURATION_TYPES \"");
+		p_fprintf(fp, "\nset(CMAKE_CONFIGURATION_TYPES \"");
 
 		const array_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
 		int first	       = 0;
 		for (int i = 0; i < configs->count; i++) {
 			prop_str_t *config = array_get(configs, i);
-			fprintf_s(fp, "%.*s%.*s", first, ";", config->len, config->data);
+			p_fprintf(fp, "%.*s%.*s", first, ";", config->len, config->data);
 			first = 1;
 		}
 
-		fprintf_s(fp, "\" CACHE STRING \"\" FORCE)\n");
+		p_fprintf(fp, "\" CACHE STRING \"\" FORCE)\n");
 	}
 
 	if (properties & SLN_CMAKE_USER_FOLDERS) {
-		fprintf_s(fp, "\nset_property(GLOBAL PROPERTY USE_FOLDERS ON)\n");
+		p_fprintf(fp, "\nset_property(GLOBAL PROPERTY USE_FOLDERS ON)\n");
 		if (targets_folder) {
-			fprintf_s(fp, "set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER %s)\n", targets_folder);
+			p_fprintf(fp, "set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER %s)\n", targets_folder);
 		}
 	}
 
-	fprintf_s(fp, "\n");
+	p_fprintf(fp, "\n");
 
 	int ret = 0;
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
-		fprintf_s(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		p_fprintf(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 
 	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
 		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line + 1, startup->start - startup->line_start + 1, startup->len, startup->data);
 		ret = 1;
 	} else {
-		fprintf_s(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
+		p_fprintf(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
 	}
 
 	fclose(fp);

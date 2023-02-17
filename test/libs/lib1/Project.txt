@@ -2,3 +2,4 @@ NAME: lib1
 TYPE: LIB
 SOURCE: src
 INCLUDE: inc
+CFLAGS: STD_C99

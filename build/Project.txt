@@ -1,4 +1,5 @@
 NAME: build
 TYPE: EXE
+INCLUDE: src
 SOURCE: src
 ARGS: -S $(SolutionDir)test -G V -D 1 -I 1 -C 1
