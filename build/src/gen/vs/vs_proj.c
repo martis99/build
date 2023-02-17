@@ -32,9 +32,9 @@ typedef struct add_file_s {
 	unsigned int langs;
 } add_file_t;
 
-static int add_src_file(path_t *path, const char *folder, void *usr)
+static int add_src_file(path_t *path, const char *folder, void *priv)
 {
-	add_file_t *data = usr;
+	add_file_t *data = priv;
 
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
@@ -49,9 +49,9 @@ static int add_src_file(path_t *path, const char *folder, void *usr)
 	return 0;
 }
 
-static int add_src_folder(path_t *path, const char *folder, void *usr)
+static int add_src_folder(path_t *path, const char *folder, void *priv)
 {
-	add_file_t data = *(add_file_t *)usr;
+	add_file_t data = *(add_file_t *)priv;
 
 	path_child(&data.path, folder, cstr_len(folder));
 
@@ -60,9 +60,9 @@ static int add_src_folder(path_t *path, const char *folder, void *usr)
 	return 0;
 }
 
-static int add_inc_file(path_t *path, const char *folder, void *usr)
+static int add_inc_file(path_t *path, const char *folder, void *priv)
 {
-	add_file_t *data = usr;
+	add_file_t *data = priv;
 
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
@@ -77,9 +77,9 @@ static int add_inc_file(path_t *path, const char *folder, void *usr)
 	return 0;
 }
 
-static int add_inc_folder(path_t *path, const char *folder, void *usr)
+static int add_inc_folder(path_t *path, const char *folder, void *priv)
 {
-	add_file_t data = *(add_file_t *)usr;
+	add_file_t data = *(add_file_t *)priv;
 
 	path_child(&data.path, folder, cstr_len(folder));
 

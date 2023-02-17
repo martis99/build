@@ -51,10 +51,10 @@ void *array_get(const array_t *arr, int index)
 	return (void *)((uintptr_t)arr->data + arr->vsize * index);
 }
 
-void array_iterate(array_t *arr, array_callback callback, void *usr)
+void array_iterate(array_t *arr, array_callback callback, void *priv)
 {
 	for (int i = 0; i < arr->count; i++) {
-		callback(i, (void *)((uintptr_t)arr->data + arr->vsize * i), usr);
+		callback(i, (void *)((uintptr_t)arr->data + arr->vsize * i), priv);
 	}
 }
 

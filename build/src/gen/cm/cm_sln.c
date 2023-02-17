@@ -13,9 +13,9 @@
 #define CMAKE_VERSION_MAJOR 3
 #define CMAKE_VERSION_MINOR 16
 
-static void gen_dir_cmake(void *key, size_t ksize, void *value, const void *usr)
+static void gen_dir_cmake(void *key, size_t ksize, void *value, const void *priv)
 {
-	cm_dir_gen(value, usr);
+	cm_dir_gen(value, priv);
 }
 
 typedef struct gen_proj_cmake_data_s {
@@ -27,9 +27,9 @@ typedef struct gen_proj_cmake_data_s {
 	const prop_t *intdir;
 } gen_proj_cmake_data_t;
 
-static void gen_proj_cmake(void *key, size_t ksize, void *value, const void *usr)
+static void gen_proj_cmake(void *key, size_t ksize, void *value, const void *priv)
 {
-	const gen_proj_cmake_data_t *data = usr;
+	const gen_proj_cmake_data_t *data = priv;
 	cm_proj_gen(value, data->projects, data->path, data->langs, data->charset, data->outdir, data->intdir);
 }
 

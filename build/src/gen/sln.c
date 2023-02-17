@@ -32,7 +32,7 @@ typedef struct read_dir_data_s {
 	dir_t *parent;
 } read_dir_data_t;
 
-static int read_dir(path_t *path, const char *folder, void *usr)
+static int read_dir(path_t *path, const char *folder, void *priv)
 {
 	int ret = 0;
 
@@ -43,7 +43,7 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 		return 1;
 	}
 
-	read_dir_data_t *data = usr;
+	read_dir_data_t *data = priv;
 	if (file_exists(file_path.path)) {
 		proj_t *proj = m_calloc(1, sizeof(proj_t));
 		ret += proj_read(proj, &data->sln->path, path, data->parent);
@@ -101,9 +101,9 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 	}
 }
 
-static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
+static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 {
-	sln_t *sln   = usr;
+	sln_t *sln   = priv;
 	proj_t *proj = value;
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
@@ -113,9 +113,9 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
 	}
 }
 
-static void calculate_includes(void *key, size_t ksize, void *value, void *usr)
+static void calculate_includes(void *key, size_t ksize, void *value, void *priv)
 {
-	sln_t *sln   = usr;
+	sln_t *sln   = priv;
 	proj_t *proj = value;
 
 	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
@@ -192,12 +192,12 @@ int sln_read(sln_t *sln, const path_t *path)
 	return ret;
 }
 
-static void print_project(void *key, size_t ksize, void *value, void *usr)
+static void print_project(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_print(value);
 }
 
-static void print_dir(void *key, size_t ksize, void *value, void *usr)
+static void print_dir(void *key, size_t ksize, void *value, void *priv)
 {
 	dir_print(value);
 }
@@ -216,13 +216,13 @@ void sln_print(sln_t *sln)
 	hashmap_iterate(&sln->projects, print_project, NULL);
 }
 
-static void free_project(void *key, size_t ksize, void *value, void *usr)
+static void free_project(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_free(value);
 	m_free(value, sizeof(proj_t));
 }
 
-static void free_dir(void *key, size_t ksize, void *value, void *usr)
+static void free_dir(void *key, size_t ksize, void *value, void *priv)
 {
 	dir_free(value);
 	m_free(value, sizeof(dir_t));

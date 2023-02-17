@@ -33,8 +33,8 @@ int folder_exists_v(const char *format, va_list args);
 int folder_exists_f(const char *format, ...);
 int folder_create(const char *path);
 
-typedef int (*files_foreach_cb)(path_t *path, const char *folder, void *usr);
-int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr);
+typedef int (*files_foreach_cb)(path_t *path, const char *folder, void *priv);
+int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *priv);
 
 int path_init(path_t *path, const char *dir, unsigned int len);
 int path_child_s(path_t *path, const char *dir, unsigned int len, char s);

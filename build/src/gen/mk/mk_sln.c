@@ -16,16 +16,16 @@ typedef struct gen_proj_make_data_s {
 	const prop_t *intdir;
 } gen_proj_make_data_t;
 
-static void gen_proj_make(void *key, size_t ksize, void *value, const void *usr)
+static void gen_proj_make(void *key, size_t ksize, void *value, const void *priv)
 {
-	const gen_proj_make_data_t *data = usr;
+	const gen_proj_make_data_t *data = priv;
 	mk_proj_gen(value, data->projects, data->path, data->langs, data->outdir, data->intdir);
 }
 
-static void add_phony_make(void *key, size_t ksize, void *value, void *usr)
+static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_t *proj = value;
-	fprintf_s(usr, " %.*s", proj->name->len, proj->name->data);
+	fprintf_s(priv, " %.*s", proj->name->len, proj->name->data);
 }
 
 typedef struct add_target_make_data_s {
@@ -33,9 +33,9 @@ typedef struct add_target_make_data_s {
 	FILE *fp;
 } add_target_make_data_t;
 
-static void add_target_make(void *key, size_t ksize, void *value, void *usr)
+static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 {
-	const add_target_make_data_t *data = usr;
+	const add_target_make_data_t *data = priv;
 
 	proj_t *proj	   = value;
 	char buf[MAX_PATH] = { 0 };
@@ -59,12 +59,12 @@ static void add_target_make(void *key, size_t ksize, void *value, void *usr)
 		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
 }
 
-static void add_clean_make(void *key, size_t ksize, void *value, void *usr)
+static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_t *proj	   = value;
 	char buf[MAX_PATH] = { 0 };
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	fprintf_s(usr, "\t$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
+	fprintf_s(priv, "\t$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
 }
 
 int mk_sln_gen(const sln_t *sln, const path_t *path)

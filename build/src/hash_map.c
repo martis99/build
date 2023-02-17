@@ -142,14 +142,14 @@ int hashmap_get(const hashmap_t *map, void *key, size_t ksize, void **out_val)
 	return entry->key == NULL;
 }
 
-void hashmap_iterate(hashmap_t *map, hashmap_callback callback, void *usr)
+void hashmap_iterate(hashmap_t *map, hashmap_callback callback, void *priv)
 {
 	struct bucket *current = map->first;
 
 	int co = 0;
 
 	while (current != NULL) {
-		callback(current->key, current->ksize, current->value, usr);
+		callback(current->key, current->ksize, current->value, priv);
 
 		current = current->next;
 
@@ -160,14 +160,14 @@ void hashmap_iterate(hashmap_t *map, hashmap_callback callback, void *usr)
 	}
 }
 
-void hashmap_iterate_c(const hashmap_t *map, hashmap_callback_c callback, const void *usr)
+void hashmap_iterate_c(const hashmap_t *map, hashmap_callback_c callback, const void *priv)
 {
 	struct bucket *current = map->first;
 
 	int co = 0;
 
 	while (current != NULL) {
-		callback(current->key, current->ksize, current->value, usr);
+		callback(current->key, current->ksize, current->value, priv);
 
 		current = current->next;
 
@@ -178,14 +178,14 @@ void hashmap_iterate_c(const hashmap_t *map, hashmap_callback_c callback, const 
 	}
 }
 
-void hashmap_iterate_hc(const hashmap_t *map, hashmap_callback_hc callback, void *usr)
+void hashmap_iterate_hc(const hashmap_t *map, hashmap_callback_hc callback, void *priv)
 {
 	struct bucket *current = map->first;
 
 	int co = 0;
 
 	while (current != NULL) {
-		callback(current->key, current->ksize, current->value, usr);
+		callback(current->key, current->ksize, current->value, priv);
 
 		current = current->next;
 

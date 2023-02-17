@@ -29,8 +29,8 @@ typedef struct dir_data_s {
 	FILE *cmake;
 } dir_data_t;
 
-typedef int (*on_dir_cb)(path_t *path, const char *folder, void *usr);
-int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *usr);
+typedef int (*on_dir_cb)(path_t *path, const char *folder, void *priv);
+int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv);
 void dir_print(dir_t *dir);
 
 void dir_free(dir_t *dir);

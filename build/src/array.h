@@ -21,8 +21,8 @@ void array_set(array_t *arr, int index, const void *value);
 
 void *array_get(const array_t *arr, int index);
 
-typedef void (*array_callback)(int index, void *value, void *usr);
-void array_iterate(array_t *arr, array_callback callback, void *usr);
+typedef void (*array_callback)(int index, void *value, void *priv);
+void array_iterate(array_t *arr, array_callback callback, void *priv);
 
 int array_index(const array_t *arr, const void *value);
 

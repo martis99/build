@@ -17,7 +17,7 @@ static const prop_pol_t s_dir_props[] = {
 	[DIR_PROP_DIRS] = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
 };
 
-static int add_dir(path_t *path, const char *folder, void *usr)
+static int add_dir(path_t *path, const char *folder, void *priv)
 {
 	unsigned int folder_len = cstr_len(folder);
 
@@ -31,7 +31,7 @@ static int add_dir(path_t *path, const char *folder, void *usr)
 	};
 
 	memcpy_s(dir.data, dir.len, folder, folder_len);
-	array_add(usr, &dir);
+	array_add(priv, &dir);
 	return 0;
 }
 
@@ -40,7 +40,7 @@ typedef struct read_dir_data_s {
 	dir_t *parent;
 } read_dir_data_t;
 
-int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *usr)
+int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv)
 {
 	dir->file_path = *path;
 	pathv_path(&dir->path, &dir->file_path);
@@ -79,7 +79,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	path_t child_path	    = *path;
 	unsigned int child_path_len = child_path.len;
 
-	read_dir_data_t *data	      = usr;
+	read_dir_data_t *data	      = priv;
 	read_dir_data_t read_dir_data = {
 		.sln	= data->sln,
 		.parent = dir,
@@ -121,7 +121,7 @@ void dir_print(dir_t *dir)
 	props_print(dir->props, s_dir_props, sizeof(s_dir_props));
 }
 
-static void free_dir(int index, void *value, void *usr)
+static void free_dir(int index, void *value, void *priv)
 {
 	prop_str_t *dir = value;
 	m_free(dir->data, (size_t)dir->len + 1);

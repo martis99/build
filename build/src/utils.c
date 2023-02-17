@@ -281,7 +281,7 @@ int folder_create(const char *path)
 	return CreateDirectoryA(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError();
 }
 
-int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *usr)
+int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_cb on_file, void *priv)
 {
 	WIN32_FIND_DATA file = { 0 };
 	HANDLE find	     = NULL;
@@ -307,7 +307,7 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 				continue;
 			}
 
-			int ret	      = cb(&cild_path, file.cFileName, usr);
+			int ret	      = cb(&cild_path, file.cFileName, priv);
 			cild_path.len = path->len;
 			if (ret < 0) {
 				return ret;

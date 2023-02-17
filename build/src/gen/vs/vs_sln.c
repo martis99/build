@@ -7,9 +7,9 @@
 #include "defines.h"
 #include "utils.h"
 
-static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *usr)
+static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *priv)
 {
-	FILE *fp	= usr;
+	FILE *fp	= priv;
 	dir_t *dir	= value;
 	pathv_t *folder = &dir->folder;
 
@@ -17,9 +17,9 @@ static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *usr)
 		  (unsigned int)folder->len, folder->path, dir->guid);
 }
 
-static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *usr)
+static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 {
-	FILE *fp	       = usr;
+	FILE *fp	       = priv;
 	proj_t *proj	       = value;
 	const prop_str_t *name = proj->name;
 	fprintf_s(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
@@ -32,9 +32,9 @@ typedef struct proj_config_plat_vs_s {
 	FILE *fp;
 } proj_config_plat_vs_t;
 
-static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *usr)
+static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv)
 {
-	proj_config_plat_vs_t *data = usr;
+	proj_config_plat_vs_t *data = priv;
 	proj_t *proj		    = value;
 
 	for (int i = 0; i < data->configs->count; i++) {
@@ -57,9 +57,9 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *usr)
 	}
 }
 
-static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *usr)
+static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *priv)
 {
-	FILE *fp   = usr;
+	FILE *fp   = priv;
 	dir_t *dir = value;
 
 	if (dir->parent) {
@@ -67,9 +67,9 @@ static void add_dir_nested_vs(void *key, size_t ksize, void *value, void *usr)
 	}
 }
 
-static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *usr)
+static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *priv)
 {
-	FILE *fp     = usr;
+	FILE *fp     = priv;
 	proj_t *proj = value;
 
 	if (proj->parent) {
@@ -88,9 +88,9 @@ typedef struct gen_proj_vs_data_s {
 	const prop_t *intdir;
 } gen_proj_vs_data_t;
 
-static void gen_proj_vs(void *key, size_t ksize, void *value, const void *usr)
+static void gen_proj_vs(void *key, size_t ksize, void *value, const void *priv)
 {
-	const gen_proj_vs_data_t *data = usr;
+	const gen_proj_vs_data_t *data = priv;
 	vs_proj_gen(value, data->projects, data->path, data->configs, data->platforms, data->langs, data->charset, data->outdir, data->intdir);
 }
 
