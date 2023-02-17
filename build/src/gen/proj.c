@@ -134,6 +134,13 @@ void proj_print(proj_t *proj)
 		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
 	}
+
+	INFP("    Includes:");
+	for (int i = 0; i < proj->includes.count; i++) {
+		const proj_t *dproj = *(proj_t **)array_get(&proj->includes, i);
+		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
+	}
+
 	INFF();
 }
 
@@ -141,4 +148,5 @@ void proj_free(proj_t *proj)
 {
 	props_free(proj->props, s_proj_props, sizeof(s_proj_props));
 	array_free(&proj->all_depends);
+	array_free(&proj->includes);
 }

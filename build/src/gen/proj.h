@@ -104,6 +104,7 @@ typedef struct proj_s {
 	char guid[37];
 	const prop_str_t *name;
 	array_t all_depends;
+	array_t includes;
 	const struct dir_s *parent;
 } proj_t;
 

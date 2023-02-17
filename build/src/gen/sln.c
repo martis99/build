@@ -113,6 +113,26 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
 	}
 }
 
+static void calculate_includes(void *key, size_t ksize, void *value, void *usr)
+{
+	sln_t *sln   = usr;
+	proj_t *proj = value;
+
+	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	array_init(&proj->includes, includes->capacity, sizeof(proj_t *));
+	for (int i = 0; i < includes->count; i++) {
+		prop_str_t *iname = array_get(includes, i);
+
+		proj_t *iproj = NULL;
+		if (hashmap_get(&sln->projects, iname->data, iname->len, &iproj)) {
+			ERR("project doesn't exists: '%.*s'", iname->len, iname->data);
+			continue;
+		}
+
+		array_add(&proj->includes, &iproj);
+	}
+}
+
 int sln_read(sln_t *sln, const path_t *path)
 {
 	sln->path      = *path;
@@ -167,6 +187,7 @@ int sln_read(sln_t *sln, const path_t *path)
 	}
 
 	hashmap_iterate(&sln->projects, calculate_depends, sln);
+	hashmap_iterate(&sln->projects, calculate_includes, sln);
 
 	return ret;
 }

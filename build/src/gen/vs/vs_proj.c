@@ -115,32 +115,22 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 		first = 0;
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDES].set) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	for (int i = 0; i < proj->includes.count; i++) {
+		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
-		for (int k = 0; k < includes->count; k++) {
-			prop_str_t *include = array_get(includes, k);
-			proj_t *dproj	    = NULL;
-			if (hashmap_get(projects, include->data, include->len, &dproj)) {
-				ERR("project doesn't exists: '%.*s'", include->len, include->data);
-				continue;
-			}
+		if (iproj->props[PROJ_PROP_INCLUDE].set) {
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", iproj->rel_path.len,
+					iproj->rel_path.path, iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
 
-			if (dproj->props[PROJ_PROP_INCLUDE].set) {
-				len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s",
-						dproj->rel_path.len, dproj->rel_path.path, dproj->props[PROJ_PROP_INCLUDE].value.len,
-						dproj->props[PROJ_PROP_INCLUDE].value.data);
+			first = 0;
+		}
 
-				first = 0;
-			}
+		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
+			buf_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
+						vars.tos, __VAR_MAX);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", buf_len, buff);
 
-			if (dproj->props[PROJ_PROP_ENCLUDE].set) {
-				buf_len = cstr_replaces(dproj->props[PROJ_PROP_ENCLUDE].value.data, dproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
-							vars.tos, __VAR_MAX);
-				len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", buf_len, buff);
-
-				first = 0;
-			}
+			first = 0;
 		}
 	}
 

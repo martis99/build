@@ -238,44 +238,35 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		first = 0;
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDES].set) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
-		for (int i = 0; i < includes->count; i++) {
-			prop_str_t *inc_str = array_get(includes, i);
-			proj_t *inc_proj    = NULL;
-			if (hashmap_get(projects, inc_str->data, inc_str->len, &inc_proj)) {
-				ERR_LOGICS("project '%.*s' doesn't exists", inc_str->path, inc_str->line + 1, inc_str->start - inc_str->line_start + 1, inc_str->len,
-					   inc_str->data);
-				ret++;
-				continue;
+	for (int i = 0; i < proj->includes.count; i++) {
+		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
+
+		if (iproj->props[PROJ_PROP_INCLUDE].set) {
+			if (!first) {
+				fprintf_s(fp, " ");
 			}
+			print_rel_path(fp, iproj, iproj->props[PROJ_PROP_INCLUDE].value.data, iproj->props[PROJ_PROP_INCLUDE].value.len);
+			first = 0;
+		}
 
-			if (inc_proj->props[PROJ_PROP_INCLUDE].set) {
-				if (!first) {
-					fprintf_s(fp, " ");
-				}
-				print_rel_path(fp, inc_proj, inc_proj->props[PROJ_PROP_INCLUDE].value.data, inc_proj->props[PROJ_PROP_INCLUDE].value.len);
-				first = 0;
+		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
+			if (!first) {
+				fprintf_s(fp, " ");
 			}
+			char buff[MAX_PATH] = { 0 };
+			unsigned int buf_len;
 
-			if (inc_proj->props[PROJ_PROP_ENCLUDE].set) {
-				if (!first) {
-					fprintf_s(fp, " ");
-				}
-				char buff[MAX_PATH] = { 0 };
-				unsigned int buf_len;
+			char buff2[MAX_PATH] = { 0 };
+			unsigned int buf2_len;
+			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
+						 vars.tos, __VAR_MAX);
+			buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
 
-				char buff2[MAX_PATH] = { 0 };
-				unsigned int buf2_len;
-				buf_len	 = cstr_replaces(inc_proj->props[PROJ_PROP_ENCLUDE].value.data, inc_proj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH,
-							 vars.names, vars.tos, __VAR_MAX);
-				buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, inc_proj->name->data, inc_proj->name->len);
-
-				print_rel_path(fp, inc_proj, buff2, buf2_len);
-				first = 0;
-			}
+			print_rel_path(fp, iproj, buff2, buf2_len);
+			first = 0;
 		}
 	}
+
 	fprintf_s(fp, ")\n");
 
 	if (!proj->props[PROJ_PROP_SOURCE].set) {

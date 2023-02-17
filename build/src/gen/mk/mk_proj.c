@@ -166,37 +166,29 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_INCLUDE].value.len, buf);
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDES].set) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	for (int i = 0; i < proj->includes.count; i++) {
+		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
-		for (int k = 0; k < includes->count; k++) {
-			prop_str_t *include = array_get(includes, k);
-			proj_t *inc_proj    = { 0 };
-			if (hashmap_get(projects, include->data, include->len, &inc_proj)) {
-				ERR("project doesn't exists: '%.*s'", include->len, include->data);
-				continue;
-			}
+		char buff[MAX_PATH] = { 0 };
+
+		if (iproj->props[PROJ_PROP_INCLUDE].set) {
+			convert_slash(buff, sizeof(buff) - 1, iproj->rel_path.path, iproj->rel_path.len);
+			fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buff, iproj->props[PROJ_PROP_INCLUDE].value.len,
+				  iproj->props[PROJ_PROP_INCLUDE].value.data);
+		}
+
+		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
 			char buff[MAX_PATH] = { 0 };
+			unsigned int buf_len;
 
-			if (inc_proj->props[PROJ_PROP_INCLUDE].set) {
-				convert_slash(buff, sizeof(buff) - 1, inc_proj->rel_path.path, inc_proj->rel_path.len);
-				fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", inc_proj->rel_path.len, buff, inc_proj->props[PROJ_PROP_INCLUDE].value.len,
-					  inc_proj->props[PROJ_PROP_INCLUDE].value.data);
-			}
+			char buff2[MAX_PATH] = { 0 };
+			unsigned int buf2_len;
+			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
+						 vars.tos, __VAR_MAX);
+			buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
 
-			if (inc_proj->props[PROJ_PROP_ENCLUDE].set) {
-				char buff[MAX_PATH] = { 0 };
-				unsigned int buf_len;
-
-				char buff2[MAX_PATH] = { 0 };
-				unsigned int buf2_len;
-				buf_len	 = cstr_replaces(inc_proj->props[PROJ_PROP_ENCLUDE].value.data, inc_proj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH,
-							 vars.names, vars.tos, __VAR_MAX);
-				buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, inc_proj->name->data, inc_proj->name->len);
-
-				fprintf_s(fp, " -I");
-				print_rel_path(fp, inc_proj, buff2, buf2_len);
-			}
+			fprintf_s(fp, " -I");
+			print_rel_path(fp, iproj, buff2, buf2_len);
 		}
 	}
 
