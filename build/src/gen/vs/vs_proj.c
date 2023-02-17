@@ -172,15 +172,10 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 	int first	 = 1;
 
 	for (int i = 0; i < proj->all_depends.count; i++) {
-		prop_str_t **depend = array_get(&proj->all_depends, i);
-		proj_t *dproj	    = NULL;
-		if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
-			ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
-			continue;
-		}
+		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 		if (dproj->props[PROJ_PROP_LIBDIRS].set) {
-			array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+			const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 			for (int j = 0; j < libdirs->count; j++) {
 				prop_str_t *libdir = array_get(libdirs, j);
 				if (libdir->len > 0) {
@@ -229,7 +224,7 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
 		const prop_t *outdir, const prop_t *intdir)
 {
-	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
+	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
 	langs	= proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
@@ -547,8 +542,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 					path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
 
 					xml_tag_t *xml_ref = xml_add_child(xml_refs, "ProjectReference", 16);
-					xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->props[PROJ_PROP_NAME].value.len,
-						       dproj->props[PROJ_PROP_NAME].value.data);
+					xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len, dproj->name->data);
 					xml_add_child_val_f(xml_ref, "Project", 7, "{%s}", dproj->guid);
 				}
 			}

@@ -47,9 +47,9 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 	if (file_exists(file_path.path)) {
 		proj_t *proj = m_calloc(1, sizeof(proj_t));
 		ret += proj_read(proj, &data->sln->path, path, data->parent);
-		prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
+		const prop_str_t *name = proj->name;
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
-			hashmap_set(&data->sln->projects, proj->props[PROJ_PROP_NAME].value.data, proj->props[PROJ_PROP_NAME].value.len, proj);
+			hashmap_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
 			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len,
 				   name->data);
@@ -76,28 +76,28 @@ static int read_dir(path_t *path, const char *folder, void *usr)
 	return ret;
 }
 
-static int str_cmp_data(const prop_str_t **arr_val, const prop_str_t **value)
+static int proj_cmp_name(const proj_t **proj, const prop_str_t **name)
 {
-	return (*arr_val)->len == (*value)->len && memcmp((*arr_val)->data, (*value)->data, (*value)->len) == 0;
+	return prop_cmp((*proj)->name, *name);
 }
 
 static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 {
 	array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
 	for (int i = 0; i < depends->count; i++) {
-		prop_str_t *depend = array_get(depends, i);
+		prop_str_t *dname = array_get(depends, i);
 
-		if (array_index_cb(arr, &depend, str_cmp_data) == -1) {
-			array_add(arr, &depend);
-		}
-
-		proj_t *dep_proj = NULL;
-		if (hashmap_get(projects, depend->data, depend->len, &dep_proj)) {
-			ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
+		proj_t *dproj = NULL;
+		if (hashmap_get(projects, dname->data, dname->len, &dproj)) {
+			ERR("project doesn't exists: '%.*s'", dname->len, dname->data);
 			continue;
 		}
 
-		get_all_depends(arr, dep_proj, projects);
+		if (array_index_cb(arr, &dname, proj_cmp_name) == -1) {
+			array_add(arr, &dproj);
+		}
+
+		get_all_depends(arr, dproj, projects);
 	}
 }
 
@@ -108,7 +108,7 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *usr)
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-		array_init(&proj->all_depends, depends->capacity * 2, sizeof(prop_str_t *));
+		array_init(&proj->all_depends, depends->capacity * 2, sizeof(proj_t *));
 		get_all_depends(&proj->all_depends, proj, &sln->projects);
 	}
 }

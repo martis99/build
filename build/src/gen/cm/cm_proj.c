@@ -39,7 +39,7 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 
 int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *langs, charset_t charset, const prop_t *outdir, const prop_t *intdir)
 {
-	const prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
+	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
 	langs	= proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
@@ -160,12 +160,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	case PROJ_TYPE_EXE: {
 		int first = 0;
 		for (int i = 0; i < proj->all_depends.count; i++) {
-			prop_str_t **depend = array_get(&proj->all_depends, i);
-			proj_t *dproj	    = NULL;
-			if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
-				ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
-				continue;
-			}
+			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_LIBDIRS].set && dproj->props[PROJ_PROP_LIBDIRS].arr.count > 0) {
 				first = 1;
@@ -177,15 +172,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			fprintf_s(fp, "link_directories(");
 			first = 1;
 			for (int i = 0; i < proj->all_depends.count; i++) {
-				prop_str_t **depend = array_get(&proj->all_depends, i);
-				proj_t *dproj	    = NULL;
-				if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
-					ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
-					continue;
-				}
+				const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 				if (dproj->props[PROJ_PROP_LIBDIRS].set) {
-					array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+					const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 					for (int j = 0; j < libdirs->count; j++) {
 						prop_str_t *libdir = array_get(libdirs, j);
 						if (libdir->len > 0) {
@@ -199,8 +189,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 							unsigned int buf2_len;
 
 							buf_len	 = cstr_replaces(libdir->data, libdir->len, buff, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-							buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12,
-										dproj->props[PROJ_PROP_NAME].value.data, dproj->props[PROJ_PROP_NAME].value.len);
+							buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
 
 							print_rel_path(fp, dproj, buff, buf_len);
 							first = 0;
@@ -218,15 +207,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		fprintf_s(fp, "target_link_libraries(%.*s", name->len, name->data);
 
 		for (int i = 0; i < proj->all_depends.count; i++) {
-			prop_str_t **depend = array_get(&proj->all_depends, i);
-			proj_t *dproj	    = NULL;
-			if (hashmap_get(projects, (*depend)->data, (*depend)->len, &dproj)) {
-				ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
-				continue;
-			}
+			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
-				fprintf_s(fp, " %.*s", (*depend)->len, (*depend)->data);
+				fprintf_s(fp, " %.*s", dproj->name->len, dproj->name->data);
 			}
 		}
 
@@ -285,8 +269,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				unsigned int buf2_len;
 				buf_len	 = cstr_replaces(inc_proj->props[PROJ_PROP_ENCLUDE].value.data, inc_proj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH,
 							 vars.names, vars.tos, __VAR_MAX);
-				buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, inc_proj->props[PROJ_PROP_NAME].value.data,
-							inc_proj->props[PROJ_PROP_NAME].value.len);
+				buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, inc_proj->name->data, inc_proj->name->len);
 
 				print_rel_path(fp, inc_proj, buff2, buf2_len);
 				first = 0;
@@ -316,8 +299,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		if (outdir->set) {
 			buf_len	 = cstr_replaces(outdir->value.data, outdir->value.len, buff, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-			buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, proj->props[PROJ_PROP_NAME].value.data,
-						proj->props[PROJ_PROP_NAME].value.len);
+			buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, name->data, name->len);
 			fprintf_s(fp, "    ARCHIVE_OUTPUT_DIRECTORY_DEBUG \"");
 			print_rel_path(fp, proj, buff2, buf2_len);
 			fprintf_s(fp, "\"\n    ARCHIVE_OUTPUT_DIRECTORY_RELEASE \"");

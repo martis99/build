@@ -291,6 +291,11 @@ int prop_parse_printable(prop_str_t *data, prop_t *prop)
 	return 0;
 }
 
+int prop_cmp(const prop_str_t *l, const prop_str_t *r)
+{
+	return cstr_cmp(l->data, l->len, r->data, r->len);
+}
+
 void prop_print_arr(const prop_t *prop)
 {
 	for (int j = 0; j < prop->arr.count; j++) {

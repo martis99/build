@@ -60,9 +60,17 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	int ret = props_parse_file(&proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
 
+	if (!proj->props[PROJ_PROP_NAME].set) {
+		ERR("%.*s: project name is not set", proj->file_path.len, proj->file_path.path);
+		ret++;
+		return ret;
+	}
+
+	proj->name = &proj->props[PROJ_PROP_NAME].value;
+
 	path_t rel_path_name = { 0 };
 	path_init(&rel_path_name, proj->rel_path.path, proj->rel_path.len);
-	path_child(&rel_path_name, proj->props[PROJ_PROP_NAME].value.data, proj->props[PROJ_PROP_NAME].value.len);
+	path_child(&rel_path_name, proj->name->data, proj->name->len);
 	path_child_s(&rel_path_name, "vcxproj", 7, '.');
 	unsigned char buf[256] = { 0 };
 	md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
@@ -108,9 +116,10 @@ void proj_print(proj_t *proj)
 	     "    Rel    : %.*s\n"
 	     "    Dir    : %.*s\n"
 	     "    Folder : %.*s\n"
+	     "    Name   : %.*s\n"
 	     "    GUID   : %s",
 	     proj->path.len, proj->path.path, proj->file_path.len, proj->file_path.path, proj->rel_path.len, proj->rel_path.path, proj->dir.len, proj->dir.path,
-	     proj->folder.len, proj->folder.path, proj->guid);
+	     proj->folder.len, proj->folder.path, proj->name->len, proj->name->data, proj->guid);
 
 	if (proj->parent) {
 		INFP("    Parent : %.*s", (unsigned int)proj->parent->folder.len, proj->parent->folder.path);
@@ -122,8 +131,8 @@ void proj_print(proj_t *proj)
 
 	INFP("    Depends:");
 	for (int i = 0; i < proj->all_depends.count; i++) {
-		prop_str_t **val = array_get(&proj->all_depends, i);
-		INFP("        '%.*s'", (*val)->len, (*val)->data);
+		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
 	}
 	INFF();
 }

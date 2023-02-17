@@ -25,7 +25,7 @@ static void gen_proj_make(void *key, size_t ksize, void *value, const void *usr)
 static void add_phony_make(void *key, size_t ksize, void *value, void *usr)
 {
 	proj_t *proj = value;
-	fprintf_s(usr, " %.*s", proj->props[PROJ_PROP_NAME].value.len, proj->props[PROJ_PROP_NAME].value.data);
+	fprintf_s(usr, " %.*s", proj->name->len, proj->name->data);
 }
 
 typedef struct add_target_make_data_s {
@@ -40,19 +40,14 @@ static void add_target_make(void *key, size_t ksize, void *value, void *usr)
 	proj_t *proj	   = value;
 	char buf[MAX_PATH] = { 0 };
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	fprintf_s(data->fp, "%.*s:", proj->props[PROJ_PROP_NAME].value.len, proj->props[PROJ_PROP_NAME].value.data);
+	fprintf_s(data->fp, "%.*s:", proj->name->len, proj->name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		for (int i = 0; i < proj->all_depends.count; i++) {
-			prop_str_t **depend = array_get(&proj->all_depends, i);
-			proj_t *dproj	    = NULL;
-			if (hashmap_get(data->projects, (*depend)->data, (*depend)->len, &dproj)) {
-				ERR("project doesn't exists: '%.*s'", (*depend)->len, (*depend)->data);
-				continue;
-			}
+			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				fprintf_s(data->fp, " %.*s", dproj->props[PROJ_PROP_NAME].value.len, dproj->props[PROJ_PROP_NAME].value.data);
+				fprintf_s(data->fp, " %.*s", dproj->name->len, dproj->name->data);
 			}
 		}
 	}
@@ -61,7 +56,7 @@ static void add_target_make(void *key, size_t ksize, void *value, void *usr)
 		  "\n"
 		  "\t$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)\n"
 		  "\n",
-		  proj->rel_path.len, buf, proj->props[PROJ_PROP_NAME].value.len, proj->props[PROJ_PROP_NAME].value.data);
+		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
 }
 
 static void add_clean_make(void *key, size_t ksize, void *value, void *usr)

@@ -102,6 +102,7 @@ typedef struct proj_s {
 	prop_str_t data;
 	prop_t props[__PROJ_PROP_MAX];
 	char guid[37];
+	const prop_str_t *name;
 	array_t all_depends;
 	const struct dir_s *parent;
 } proj_t;

@@ -141,7 +141,9 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	ret += gen_fns[gen](&sln, &build_dir);
+	if (gen_fns[gen]) {
+		ret += gen_fns[gen](&sln, &build_dir);
+	}
 
 	INF("mem: %zd", mem);
 

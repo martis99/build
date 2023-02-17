@@ -19,9 +19,9 @@ static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *usr)
 
 static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *usr)
 {
-	FILE *fp	 = usr;
-	proj_t *proj	 = value;
-	prop_str_t *name = &proj->props[PROJ_PROP_NAME].value;
+	FILE *fp	       = usr;
+	proj_t *proj	       = value;
+	const prop_str_t *name = proj->name;
 	fprintf_s(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
 		  name->data, (unsigned int)proj->rel_path.len, proj->rel_path.path, (unsigned int)name->len, name->data, proj->guid);
 }
