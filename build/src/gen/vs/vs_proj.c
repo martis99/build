@@ -91,10 +91,11 @@ static int add_inc_folder(path_t *path, const char *folder, void *priv)
 
 static inline int print_includes(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
 {
-	unsigned int len    = 0;
-	int first	    = 1;
-	char buff[MAX_PATH] = { 0 };
-	unsigned int buf_len;
+	unsigned int len = 0;
+	int first	 = 1;
+
+	char tmp[B_MAX_PATH] = { 0 };
+	unsigned int tmp_len;
 
 	const prop_str_t *src = &proj->props[PROJ_PROP_SOURCE].value;
 	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
@@ -111,8 +112,8 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].set) {
-		buf_len = cstr_replaces(enc->data, enc->len, buff, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(ProjectDir)%.*s" : ";$(ProjectDir)%.*s", buf_len, buff);
+		tmp_len = cstr_replaces(enc->data, enc->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(ProjectDir)%.*s" : ";$(ProjectDir)%.*s", tmp_len, tmp);
 		first = 0;
 	}
 
@@ -127,9 +128,9 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
-			buf_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
+			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, tmp, sizeof(tmp) - 1, vars.names,
 						vars.tos, __VAR_MAX);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", buf_len, buff);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", tmp_len, tmp);
 
 			first = 0;
 		}
@@ -162,6 +163,9 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 	unsigned int len = 0;
 	int first	 = 1;
 
+	char tmp[B_MAX_PATH] = { 0 };
+	unsigned int tmp_len;
+
 	for (int i = 0; i < proj->all_depends.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
@@ -170,16 +174,15 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 			for (int j = 0; j < libdirs->count; j++) {
 				prop_str_t *libdir = array_get(libdirs, j);
 				if (libdir->len > 0) {
-					char buff[MAX_PATH]  = { 0 };
-					unsigned int buf_len = cstr_replaces(libdir->data, libdir->len, buff, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
+					tmp_len = cstr_replaces(libdir->data, libdir->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
 
-					if (cstrn_cmp(buff, buf_len, "$(SolutionDir)", 14, 14)) {
-						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", buf_len, buff);
+					if (cstrn_cmp(tmp, tmp_len, "$(SolutionDir)", 14, 14)) {
+						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", tmp_len, tmp);
 					} else {
 						path_t dir = { 0 };
 						path_init(&dir, "$(SolutionDir)", 14);
 						path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
-						path_child(&dir, buff, buf_len);
+						path_child(&dir, tmp, tmp_len);
 
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", dir.len, dir.path);
 					}
@@ -223,6 +226,9 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	outdir	= proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir	= proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
 
+	char buf[B_MAX_PATH] = { 0 };
+	unsigned int buf_len;
+
 	if (charset->mask == CHARSET_UNICODE) {
 		if (!proj->props[PROJ_PROP_DEFINES].set) {
 			array_init(&proj->props[PROJ_PROP_DEFINES].arr, 2, sizeof(prop_str_t));
@@ -255,7 +261,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -303,21 +309,15 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
 			prop_str_t *config = array_get(configs, j);
-			int debug	   = 0;
-			if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
-				debug = 1;
-			}
 
-			int release = 0;
-			if (config->len == 7 && strncmp(config->data, "Release", 7) == 0) {
-				release = 1;
-			}
+			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
+			const int release = cstr_cmp(config->data, config->len, "Release", 7);
 
 			xml_tag_t *xml_conf = xml_add_child(xml_proj, "PropertyGroup", 13);
 			xml_add_attr_f(xml_conf, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
@@ -345,7 +345,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -369,17 +369,14 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
 			prop_str_t *config = array_get(configs, j);
 
-			int debug = 0;
-			if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
-				debug = 1;
-			}
+			const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 
 			xml_tag_t *xml_plat = xml_add_child(xml_proj, "PropertyGroup", 13);
 			xml_add_attr_f(xml_plat, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
@@ -389,8 +386,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			if (outdir->set) {
-				char buf[MAX_PATH]   = { 0 };
-				unsigned int buf_len = cstr_replaces(outdir->value.data, outdir->value.len, buf, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
+				buf_len = cstr_replaces(outdir->value.data, outdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
 					xml_add_child_val(xml_plat, "OutDir", 6, buf, buf_len);
@@ -398,8 +394,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			}
 
 			if (intdir->set) {
-				char buf[MAX_PATH]   = { 0 };
-				unsigned int buf_len = cstr_replaces(intdir->value.data, intdir->value.len, buf, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
+				buf_len = cstr_replaces(intdir->value.data, intdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
 					xml_add_child_val(xml_plat, "IntDir", 6, buf, buf_len);
@@ -412,22 +407,15 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->count; j++) {
 			prop_str_t *config = array_get(configs, j);
 
-			int debug = 0;
-			if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
-				debug = 1;
-			}
-
-			int release = 0;
-			if (config->len == 7 && strncmp(config->data, "Release", 7) == 0) {
-				release = 1;
-			}
+			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
+			const int release = cstr_cmp(config->data, config->len, "Release", 7);
 
 			xml_tag_t *xml_def = xml_add_child(xml_proj, "ItemDefinitionGroup", 19);
 			xml_add_attr_f(xml_def, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
@@ -609,17 +597,14 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			prop_str_t *platform   = array_get(platforms, i);
 			const char *platf      = platform->data;
 			unsigned int platf_len = platform->len;
-			if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+			if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 				platf	  = "Win32";
 				platf_len = 5;
 			}
 			for (int j = 0; j < configs->count; j++) {
 				prop_str_t *config = array_get(configs, j);
 
-				int debug = 0;
-				if (config->len == 5 && strncmp(config->data, "Debug", 5) == 0) {
-					debug = 1;
-				}
+				const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 
 				xml_tag_t *xml_group = xml_add_child(xml_proj_user, "PropertyGroup", 13);
 				xml_add_attr_f(xml_group, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);

@@ -3,6 +3,7 @@
 #include "gen/var.h"
 
 #include "defines.h"
+#include "prop.h"
 #include "utils.h"
 
 static const var_pol_t vars = {
@@ -20,9 +21,9 @@ static const var_pol_t vars = {
 
 static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, unsigned int path_len)
 {
-	char path_b[MAX_PATH] = { 0 };
+	char path_b[B_MAX_PATH] = { 0 };
 	convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
-	char rel_path[MAX_PATH] = { 0 };
+	char rel_path[B_MAX_PATH] = { 0 };
 	convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
 	unsigned int rel_path_len = proj->rel_path.len;
 
@@ -43,6 +44,12 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	langs  = proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
 	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir = proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
+
+	char buf[B_MAX_PATH]  = { 0 };
+	char buf2[B_MAX_PATH] = { 0 };
+
+	unsigned int buf_len;
+	unsigned int buf2_len;
 
 	int ret = 0;
 
@@ -73,29 +80,19 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	int deps_first = 0;
 
 	if (outdir->set) {
-		char buff[MAX_PATH] = { 0 };
-		unsigned int buf_len;
+		convert_slash(buf, sizeof(buf) - 1, outdir->value.data, outdir->value.len);
+		buf2_len = cstr_replaces(buf, outdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
+		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
 
-		char buff2[MAX_PATH] = { 0 };
-		unsigned int buf2_len;
-		convert_slash(buff, sizeof(buff) - 1, outdir->value.data, outdir->value.len);
-		buf2_len = cstr_replaces(buff, outdir->value.len, buff2, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-		buf_len	 = cstr_replace(buff2, buf2_len, buff, MAX_PATH, "$(PROJ_NAME)", 12, name->data, name->len);
-
-		fprintf_s(fp, "OUTDIR = %.*s\n", buf_len, buff);
+		fprintf_s(fp, "OUTDIR = %.*s\n", buf_len, buf);
 	}
 
 	if (intdir->set) {
-		char buff[MAX_PATH] = { 0 };
-		unsigned int buf_len;
+		convert_slash(buf, sizeof(buf) - 1, intdir->value.data, intdir->value.len);
+		buf2_len = cstr_replaces(buf, intdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
+		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
 
-		char buff2[MAX_PATH] = { 0 };
-		unsigned int buf2_len;
-		convert_slash(buff, sizeof(buff) - 1, intdir->value.data, intdir->value.len);
-		buf2_len = cstr_replaces(buff, intdir->value.len, buff2, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-		buf_len	 = cstr_replace(buff2, buf2_len, buff, MAX_PATH, "$(PROJ_NAME)", 12, name->data, name->len);
-
-		fprintf_s(fp, "INTDIR = %.*s\n", buf_len, buff);
+		fprintf_s(fp, "INTDIR = %.*s\n", buf_len, buf);
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].set) {
@@ -150,18 +147,14 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	fprintf_s(fp, "FLAGS =");
 
 	int include_diff = proj->props[PROJ_PROP_INCLUDE].set &&
-			   (!proj->props[PROJ_PROP_SOURCE].set ||
-			    !(proj->props[PROJ_PROP_INCLUDE].value.len == proj->props[PROJ_PROP_SOURCE].value.len &&
-			      memcmp(proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_SOURCE].value.len) == 0));
+			   (!proj->props[PROJ_PROP_SOURCE].set || !prop_cmp(&proj->props[PROJ_PROP_INCLUDE].value, &proj->props[PROJ_PROP_SOURCE].value));
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
-		char buf[MAX_PATH] = { 0 };
 		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_SOURCE].value.len, buf);
 	}
 
 	if (include_diff) {
-		char buf[MAX_PATH] = { 0 };
 		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
 		fprintf_s(fp, " -I%.*s", proj->props[PROJ_PROP_INCLUDE].value.len, buf);
 	}
@@ -169,26 +162,19 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
-		char buff[MAX_PATH] = { 0 };
-
 		if (iproj->props[PROJ_PROP_INCLUDE].set) {
-			convert_slash(buff, sizeof(buff) - 1, iproj->rel_path.path, iproj->rel_path.len);
-			fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buff, iproj->props[PROJ_PROP_INCLUDE].value.len,
+			convert_slash(buf, sizeof(buf) - 1, iproj->rel_path.path, iproj->rel_path.len);
+			fprintf_s(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buf, iproj->props[PROJ_PROP_INCLUDE].value.len,
 				  iproj->props[PROJ_PROP_INCLUDE].value.data);
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
-			char buff[MAX_PATH] = { 0 };
-			unsigned int buf_len;
-
-			char buff2[MAX_PATH] = { 0 };
-			unsigned int buf2_len;
-			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buff, MAX_PATH, vars.names,
+			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buf, sizeof(buf) - 1, vars.names,
 						 vars.tos, __VAR_MAX);
-			buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
+			buf2_len = cstr_replace(buf, buf_len, buf2, sizeof(buf2) - 1, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
 
 			fprintf_s(fp, " -I");
-			print_rel_path(fp, iproj, buff2, buf2_len);
+			print_rel_path(fp, iproj, buf2, buf2_len);
 		}
 	}
 
@@ -207,22 +193,15 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				char buf[MAX_PATH] = { 0 };
-
 				const prop_t *doutdir = dproj->props[PROJ_PROP_OUTDIR].set ? &dproj->props[PROJ_PROP_OUTDIR] : sln_outdir;
 
 				if (doutdir->set) {
-					char buff[MAX_PATH] = { 0 };
-					unsigned int buf_len;
-
-					char buff2[MAX_PATH] = { 0 };
-					unsigned int buf2_len;
-					convert_slash(buff, sizeof(buff) - 1, doutdir->value.data, doutdir->value.len);
-					buf2_len = cstr_replaces(buff, doutdir->value.len, buff2, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-					buf_len	 = cstr_replace(buff2, buf2_len, buff, MAX_PATH, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
+					convert_slash(buf, sizeof(buf) - 1, doutdir->value.data, doutdir->value.len);
+					buf2_len = cstr_replaces(buf, doutdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
+					buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
 
 					fprintf_s(fp, " -L");
-					print_rel_path(fp, dproj, buff, buf_len);
+					print_rel_path(fp, dproj, buf, buf_len);
 
 					fprintf_s(fp, " -l:%.*s.a", dproj->name->len, dproj->name->data);
 				} else {
@@ -236,16 +215,11 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				for (int j = 0; j < libdirs->count; j++) {
 					prop_str_t *libdir = array_get(libdirs, j);
 					if (libdir->len > 0) {
-						char buff[MAX_PATH] = { 0 };
-						unsigned int buf_len;
-						char buff2[MAX_PATH] = { 0 };
-						unsigned int buf2_len;
-
-						buf_len	 = cstr_replaces(libdir->data, libdir->len, buff, MAX_PATH, vars.names, vars.tos, __VAR_MAX);
-						buf2_len = cstr_replace(buff, buf_len, buff2, MAX_PATH, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
+						buf_len	 = cstr_replaces(libdir->data, libdir->len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
+						buf2_len = cstr_replace(buf, buf_len, buf2, sizeof(buf2) - 1, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
 
 						fprintf_s(fp, " -L");
-						print_rel_path(fp, dproj, buff, buf_len);
+						print_rel_path(fp, dproj, buf2, buf2_len);
 					}
 				}
 			}

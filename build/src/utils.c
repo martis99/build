@@ -153,7 +153,7 @@ FILE *file_open(const char *path, const char *mode, int exists)
 
 FILE *file_open_v(const char *format, const char *mode, int exists, va_list args)
 {
-	char path[MAX_PATH] = { 0 };
+	char path[B_MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
 		return NULL;
@@ -206,7 +206,7 @@ size_t file_read(const char *path, int exists, char *data, size_t data_len)
 
 size_t file_read_v(const char *format, int exists, char *data, size_t data_len, va_list args)
 {
-	char path[MAX_PATH] = { 0 };
+	char path[B_MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
 		return -1;
@@ -232,7 +232,7 @@ int file_exists(const char *path)
 
 int file_exists_v(const char *format, va_list args)
 {
-	char path[MAX_PATH] = { 0 };
+	char path[B_MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
 		return 0;
@@ -258,7 +258,7 @@ int folder_exists(const char *path)
 
 int folder_exists_v(const char *format, va_list args)
 {
-	char path[MAX_PATH] = { 0 };
+	char path[B_MAX_PATH] = { 0 };
 
 	if (cstr_format_v(path, sizeof(path) / sizeof(char), format, args) == -1) {
 		return 0;
@@ -322,7 +322,7 @@ int files_foreach(const path_t *path, files_foreach_cb on_folder, files_foreach_
 
 int path_init(path_t *path, const char *dir, unsigned int len)
 {
-	if (len + 1 > MAX_PATH) {
+	if (len + 1 > B_MAX_PATH) {
 		ERR("path too long");
 		return 1;
 	}
@@ -337,7 +337,7 @@ int path_init(path_t *path, const char *dir, unsigned int len)
 
 int path_child_s(path_t *path, const char *dir, unsigned int len, char s)
 {
-	if (path->len + len + 2 > MAX_PATH) {
+	if (path->len + len + 2 > B_MAX_PATH) {
 		ERR("path too long");
 		return 1;
 	}

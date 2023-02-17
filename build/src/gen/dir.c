@@ -9,7 +9,6 @@
 #include "defines.h"
 #include "mem.h"
 
-#include <Windows.h>
 #include <stdio.h>
 #include <string.h>
 

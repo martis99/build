@@ -1,11 +1,11 @@
 #ifndef UTILS_TYPES_H
 #define UTILS_TYPES_H
 
-#include <Windows.h>
+#include "defines.h"
 
 typedef struct path_s {
 	unsigned int len;
-	char path[MAX_PATH];
+	char path[B_MAX_PATH];
 } path_t;
 
 typedef struct pathv_s {

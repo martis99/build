@@ -10,7 +10,6 @@
 #include "mem.h"
 #include "utils.h"
 
-#include <Windows.h>
 #include <stdio.h>
 #include <string.h>
 

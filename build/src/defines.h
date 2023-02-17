@@ -98,4 +98,6 @@ extern int G_MSG;
 
 #define DATA_LEN 1024
 
+#define B_MAX_PATH 256
+
 #endif

@@ -37,8 +37,10 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 {
 	const add_target_make_data_t *data = priv;
 
-	proj_t *proj	   = value;
-	char buf[MAX_PATH] = { 0 };
+	proj_t *proj = value;
+
+	char buf[B_MAX_PATH] = { 0 };
+
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
 	fprintf_s(data->fp, "%.*s:", proj->name->len, proj->name->data);
 
@@ -61,8 +63,10 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 
 static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 {
-	proj_t *proj	   = value;
-	char buf[MAX_PATH] = { 0 };
+	proj_t *proj = value;
+
+	char buf[B_MAX_PATH] = { 0 };
+
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
 	fprintf_s(priv, "\t$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
 }

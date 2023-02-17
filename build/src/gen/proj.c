@@ -10,8 +10,6 @@
 
 #include <string.h>
 
-#include <Windows.h>
-
 static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_NAME]     = { .name = "NAME", .parse = prop_parse_word },
 	[PROJ_PROP_TYPE]     = { .name = "TYPE", .parse = prop_parse_word, .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },

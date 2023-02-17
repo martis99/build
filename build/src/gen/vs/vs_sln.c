@@ -43,7 +43,7 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 			prop_str_t *platform   = array_get(data->platforms, j);
 			const char *platf      = platform->data;
 			unsigned int platf_len = platform->len;
-			if (platform->len == 3 && strncmp(platform->data, "x86", 3) == 0) {
+			if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 				platf	  = "Win32";
 				platf_len = 5;
 			}
