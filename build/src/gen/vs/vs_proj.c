@@ -43,10 +43,17 @@ static int add_src_file(path_t *path, const char *folder, void *priv)
 	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".c", 2)) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".asm", 4)) ||
 		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".cpp", 4));
 
-	if (add) {
-		xml_add_attr_c(xml_add_child(data->xml_items, "ClCompile", 9), "Include", 7, new_path.path, new_path.len);
+	if (!add) {
+		return 0;
 	}
 
+	if (path_ends(&new_path, ".asm", 4)) {
+		xml_tag_t *xml_inc = xml_add_child(data->xml_items, "MASM", 9);
+		xml_add_attr_c(xml_inc, "Include", 7, new_path.path, new_path.len);
+		xml_add_child_val(xml_inc, "FileType", 8, "Document", 8);
+	} else {
+		xml_add_attr_c(xml_add_child(data->xml_items, "ClCompile", 9), "Include", 7, new_path.path, new_path.len);
+	}
 	return 0;
 }
 
@@ -339,8 +346,15 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	}
 
 	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.props", 36);
-	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 0), "Label", 5, "ExtensionSettings", 17);
-	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 0), "Label", 5, "Shared", 6);
+
+	if (langs->mask & (1 << LANG_ASM)) {
+		xml_tag_t *xml_ext_set = xml_add_child(xml_proj, "ImportGroup", 11);
+		xml_add_attr(xml_ext_set, "Label", 5, "ExtensionSettings", 17);
+		xml_add_attr(xml_add_child(xml_ext_set, "Import", 6), "Project", 7, "$(VCTargetsPath)\\BuildCustomizations\\masm.props", 47);
+	} else {
+		xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "ExtensionSettings", 17);
+	}
+	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "Shared", 6);
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
 		prop_str_t *platform   = array_get(platforms, i);
@@ -556,7 +570,12 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	}
 
 	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.targets", 38);
-	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "ExtensionTargets", 16);
+
+	xml_tag_t *xml_ext_tar = xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1);
+	xml_add_attr(xml_ext_tar, "Label", 5, "ExtensionTargets", 16);
+	if (langs->mask & (1 << LANG_ASM)) {
+		xml_add_attr(xml_add_child(xml_ext_tar, "Import", 6), "Project", 7, "$(VCTargetsPath)\\BuildCustomizations\\masm.targets", 49);
+	}
 
 	path_t cmake_path = *path;
 	if (path_child(&cmake_path, proj->rel_path.path, proj->rel_path.len)) {
