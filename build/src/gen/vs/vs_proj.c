@@ -97,47 +97,41 @@ static int add_inc_folder(path_t *path, const char *folder, void *priv)
 static inline int print_includes(char *buf, unsigned int buf_size, const proj_t *proj, const hashmap_t *projects)
 {
 	unsigned int len = 0;
-	int first	 = 1;
+	int first	 = 0;
 
 	char tmp[P_MAX_PATH] = { 0 };
 	unsigned int tmp_len;
 
-	const prop_str_t *src = &proj->props[PROJ_PROP_SOURCE].value;
 	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
 	const prop_str_t *enc = &proj->props[PROJ_PROP_ENCLUDE].value;
 
-	if (proj->props[PROJ_PROP_SOURCE].set) {
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "$(ProjectDir)%.*s", src->len, src->data);
-		first = 0;
-	}
-
-	if (proj->props[PROJ_PROP_INCLUDE].set && (!proj->props[PROJ_PROP_SOURCE].set || !cstr_cmp(src->data, src->len, inc->data, inc->len))) {
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(ProjectDir)%.*s" : ";$(ProjectDir)%.*s", inc->len, inc->data);
-		first = 0;
+	if (proj->props[PROJ_PROP_INCLUDE].set) {
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", inc->len, inc->data);
+		first = 1;
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].set) {
 		tmp_len = cstr_replaces(enc->data, enc->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(ProjectDir)%.*s" : ";$(ProjectDir)%.*s", tmp_len, tmp);
-		first = 0;
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", tmp_len, tmp);
+		first = 1;
 	}
 
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].set) {
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "$(SolutionDir)%.*s\\%.*s" : ";$(SolutionDir)%.*s\\%.*s", iproj->rel_path.len,
-					iproj->rel_path.path, iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", iproj->rel_path.len, iproj->rel_path.path,
+					iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
 
-			first = 0;
+			first = 1;
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
 			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, tmp, sizeof(tmp) - 1, vars.names,
 						vars.tos, __VAR_MAX);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", tmp_len, tmp);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", tmp_len, tmp);
 
-			first = 0;
+			first = 1;
 		}
 	}
 

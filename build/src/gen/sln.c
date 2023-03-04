@@ -107,24 +107,34 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 	}
 }
 
+static void get_all_includes(array_t *arr, proj_t *proj, hashmap_t *projects)
+{
+	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	for (int i = 0; i < includes->count; i++) {
+		prop_str_t *iname = array_get(includes, i);
+
+		proj_t *iproj = NULL;
+		if (hashmap_get(projects, iname->data, iname->len, (void **)&iproj)) {
+			ERR("project doesn't exists: '%.*s'", iname->len, iname->data);
+			continue;
+		}
+
+		if (array_index_cb(arr, &iname, proj_cmp_name) == -1) {
+			array_add(arr, &iproj);
+		}
+
+		get_all_includes(arr, iproj, projects);
+	}
+}
+
 static void calculate_includes(void *key, size_t ksize, void *value, void *priv)
 {
 	sln_t *sln   = priv;
 	proj_t *proj = value;
 
 	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
-	array_init(&proj->includes, includes->capacity, sizeof(proj_t *));
-	for (int i = 0; i < includes->count; i++) {
-		prop_str_t *iname = array_get(includes, i);
-
-		proj_t *iproj = NULL;
-		if (hashmap_get(&sln->projects, iname->data, iname->len, (void **)&iproj)) {
-			ERR("project doesn't exists: '%.*s'", iname->len, iname->data);
-			continue;
-		}
-
-		array_add(&proj->includes, &iproj);
-	}
+	array_init(&proj->includes, includes->capacity * 2, sizeof(proj_t *));
+	get_all_includes(&proj->includes, proj, &sln->projects);
 }
 
 int sln_read(sln_t *sln, const path_t *path)
