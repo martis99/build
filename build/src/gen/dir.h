@@ -1,8 +1,8 @@
 #ifndef DIR_H
 #define DIR_H
 
-#include "types.h"
-#include "utils_types.h"
+#include "path.h"
+#include "prop.h"
 
 #include <stdio.h>
 

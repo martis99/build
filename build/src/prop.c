@@ -1,8 +1,8 @@
 #include "prop.h"
 
+#include "cstr.h"
 #include "defines.h"
 #include "mem.h"
-#include "utils.h"
 
 #include <string.h>
 
@@ -323,6 +323,113 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 	for (size_t i = 0; i < props_pol_len; i++) {
 		if (props_pol[i].dim == PROP_DIM_ARRAY) {
 			array_free(&props[i].arr);
+		}
+	}
+}
+
+int read_char(prop_str_t *str, char c)
+{
+	if (str->cur >= str->len) {
+		return 0;
+	}
+
+	unsigned int start = str->cur;
+	if (str->data[str->cur] == c) {
+		str->cur++;
+	}
+
+	return str->cur - start;
+}
+
+int read_name(prop_str_t *str)
+{
+	if (str->cur >= str->len) {
+		return 0;
+	}
+
+	unsigned int start = str->cur;
+	char c		   = str->data[str->cur];
+	while (str->cur < str->len && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
+		c = str->data[++str->cur];
+	}
+
+	return str->cur - start;
+}
+
+int read_path(prop_str_t *str, prop_str_t *dst)
+{
+	if (str->cur >= str->len) {
+		return 0;
+	}
+
+	unsigned int start = str->cur;
+	char c		   = str->data[str->cur];
+	while (str->cur < str->len && (c == '$' || c == '(' || c == ')' || c == '-' || c == '/' || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '\\' ||
+				       c == '_' || (c >= 'a' && c <= 'z'))) {
+		c = str->data[++str->cur];
+	}
+
+	if (dst != NULL) {
+		*dst = (prop_str_t){
+			.path	    = str->path,
+			.data	    = &str->data[start],
+			.start	    = start,
+			.len	    = str->cur - start,
+			.line	    = str->line,
+			.line_start = str->line_start,
+		};
+	}
+
+	return str->cur - start;
+}
+
+int read_upper(prop_str_t *str, prop_str_t *dst)
+{
+	if (str->cur >= str->len) {
+		return 0;
+	}
+
+	unsigned int start = str->cur;
+	char c		   = str->data[str->cur];
+	while (str->cur < str->len && (c >= 'A' && c <= 'Z')) {
+		c = str->data[++str->cur];
+	}
+
+	if (dst != NULL) {
+		*dst = (prop_str_t){
+			.path	    = str->path,
+			.data	    = &str->data[start],
+			.start	    = start,
+			.len	    = str->cur - start,
+			.line	    = str->line,
+			.line_start = str->line_start,
+		};
+	}
+
+	return str->cur - start;
+}
+
+int read_printable(prop_str_t *str)
+{
+	if (str->cur >= str->len) {
+		return 0;
+	}
+
+	unsigned int start = str->cur;
+	char c		   = str->data[str->cur];
+	while (str->cur < str->len && c >= ' ' && c <= '~') {
+		c = str->data[++str->cur];
+	}
+
+	return str->cur - start;
+}
+
+void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len)
+{
+	m_cpy(dst, dst_len, src, len);
+	for (int i = 0; i < len; i++) {
+		if (dst[i] == '\\') {
+			dst[i] = '/';
 		}
 	}
 }

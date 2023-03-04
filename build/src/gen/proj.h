@@ -1,11 +1,12 @@
 #ifndef PROJ_H
 #define PROJ_H
 
-#include "data/array.h"
-#include "data/hash_map.h"
+#include "prop.h"
 
-#include "types.h"
-#include "utils_types.h"
+#include "array.h"
+#include "hash_map.h"
+#include "path.h"
+#include "str.h"
 
 typedef enum proj_prop_e {
 	PROJ_PROP_NAME,

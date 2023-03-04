@@ -2,11 +2,9 @@
 
 #include "gen/var.h"
 
-#include "data/xml.h"
+#include "common.h"
 
-#include "defines.h"
-#include "mem.h"
-#include "utils.h"
+#include "xml.h"
 
 static const var_pol_t vars = {
 	.names = {
@@ -101,7 +99,7 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 	unsigned int len = 0;
 	int first	 = 1;
 
-	char tmp[B_MAX_PATH] = { 0 };
+	char tmp[P_MAX_PATH] = { 0 };
 	unsigned int tmp_len;
 
 	const prop_str_t *src = &proj->props[PROJ_PROP_SOURCE].value;
@@ -170,7 +168,7 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 	unsigned int len = 0;
 	int first	 = 1;
 
-	char tmp[B_MAX_PATH] = { 0 };
+	char tmp[P_MAX_PATH] = { 0 };
 	unsigned int tmp_len;
 
 	for (int i = 0; i < proj->all_depends.count; i++) {
@@ -234,7 +232,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	outdir	= proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir	= proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
 
-	char buf[B_MAX_PATH] = { 0 };
+	char buf[P_MAX_PATH] = { 0 };
 	unsigned int buf_len;
 
 	if (charset->mask == CHARSET_UNICODE) {

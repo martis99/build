@@ -1,14 +1,10 @@
 #include "proj.h"
 
 #include "dir.h"
-#include "prop.h"
-#include "utils.h"
 
-#include "defines.h"
+#include "common.h"
+
 #include "md5.h"
-#include "mem.h"
-
-#include <string.h>
 
 static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_NAME]     = { .name = "NAME", .parse = prop_parse_word },

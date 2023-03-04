@@ -2,10 +2,7 @@
 
 #include "gen/var.h"
 
-#include "defines.h"
-#include "print.h"
-#include "prop.h"
-#include "utils.h"
+#include "common.h"
 
 static const var_pol_t vars = {
 	.names = {
@@ -22,9 +19,9 @@ static const var_pol_t vars = {
 
 static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, unsigned int path_len)
 {
-	char path_b[B_MAX_PATH] = { 0 };
+	char path_b[P_MAX_PATH] = { 0 };
 	convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
-	char rel_path[B_MAX_PATH] = { 0 };
+	char rel_path[P_MAX_PATH] = { 0 };
 	convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
 	unsigned int rel_path_len = proj->rel_path.len;
 
@@ -47,8 +44,8 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
 	intdir = proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
 
-	char buf[B_MAX_PATH]  = { 0 };
-	char buf2[B_MAX_PATH] = { 0 };
+	char buf[P_MAX_PATH]  = { 0 };
+	char buf2[P_MAX_PATH] = { 0 };
 
 	unsigned int buf_len;
 	unsigned int buf2_len;

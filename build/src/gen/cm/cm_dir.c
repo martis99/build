@@ -1,8 +1,6 @@
 #include "cm_dir.h"
 
-#include "defines.h"
-#include "print.h"
-#include "utils.h"
+#include "common.h"
 
 int cm_dir_gen(const dir_t *dir, const path_t *path)
 {

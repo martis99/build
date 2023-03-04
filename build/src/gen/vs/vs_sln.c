@@ -4,9 +4,7 @@
 
 #include "gen/dir.h"
 
-#include "defines.h"
-#include "print.h"
-#include "utils.h"
+#include "common.h"
 
 static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *priv)
 {

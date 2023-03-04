@@ -1,16 +1,10 @@
 #include "dir.h"
 
 #include "proj.h"
-#include "prop.h"
+
+#include "common.h"
 
 #include "md5.h"
-#include "utils.h"
-
-#include "defines.h"
-#include "mem.h"
-
-#include <stdio.h>
-#include <string.h>
 
 static const prop_pol_t s_dir_props[] = {
 	[DIR_PROP_DIRS] = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },

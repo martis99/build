@@ -1,10 +1,10 @@
 #ifndef SLN_H
 #define SLN_H
 
-#include "data/hash_map.h"
+#include "prop.h"
 
-#include "types.h"
-#include "utils_types.h"
+#include "hash_map.h"
+#include "path.h"
 
 typedef enum sln_prop_e {
 	SLN_PROP_NAME,

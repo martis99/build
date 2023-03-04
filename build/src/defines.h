@@ -1,19 +1,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-	#define B_WIN
-	#if defined(_WIN64)
-		#define B_WIN64
-	#else
-		#define B_WIN32
-	#endif
-#elif __linux__
-	#define B_LINUX
-#else
-	#error "Platform not supported"
-#endif
-
 #include <stdio.h>
 
 extern int G_DBG;
@@ -110,12 +97,5 @@ extern int G_MSG;
 #define MIN(a, b) a < b ? a : b
 
 #define DATA_LEN 1024
-
-#if defined(B_WIN)
-	#include <Windows.h>
-	#define B_MAX_PATH MAX_PATH
-#else
-	#define B_MAX_PATH 256
-#endif
 
 #endif

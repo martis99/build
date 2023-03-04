@@ -2,12 +2,10 @@
 #include "gen/mk/mk_sln.h"
 #include "gen/vs/vs_sln.h"
 
-#include "utils.h"
+#include "defines.h"
 
 #include "args.h"
-#include "types.h"
-
-#include "defines.h"
+#include "cstr.h"
 #include "mem.h"
 
 #include <stdio.h>
@@ -79,7 +77,7 @@ int main(int argc, const char **argv)
 	arg_t args[] = {
 		[ARG_S] = ARG('S', "solution", PARAM_STR, "<dir>", "Specify a solution directory (default: .)", NULL),
 		[ARG_B] = ARG('B', "build", PARAM_STR, "<dir>", "Specify a build directory (default: <solution>)", NULL),
-#if defined(B_WIN)
+#if defined(P_WIN)
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: V)", handle_gen),
 #else
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: M)", handle_gen),
@@ -114,7 +112,7 @@ int main(int argc, const char **argv)
 	char *build    = NULL;
 	gen_t gen;
 
-#if defined(B_WIN)
+#if defined(P_WIN)
 	gen = GEN_VS;
 #else
 	gen = GEN_MAKE;

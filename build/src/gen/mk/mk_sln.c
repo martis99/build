@@ -2,11 +2,7 @@
 
 #include "mk_proj.h"
 
-#include "defines.h"
-#include "print.h"
-#include "utils.h"
-
-#include <stdio.h>
+#include "common.h"
 
 typedef struct gen_proj_make_data_s {
 	const path_t *path;
@@ -41,7 +37,7 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 
 	proj_t *proj = value;
 
-	char buf[B_MAX_PATH] = { 0 };
+	char buf[P_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
 	p_fprintf(data->fp, "%.*s:", proj->name->len, proj->name->data);
@@ -67,7 +63,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 {
 	proj_t *proj = value;
 
-	char buf[B_MAX_PATH] = { 0 };
+	char buf[P_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
 	p_fprintf(priv, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);

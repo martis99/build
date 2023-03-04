@@ -1,6 +1,6 @@
 NAME: build
 LANGS: C
-DIRS: build
+DIRS: build, cutils
 STARTUP: build
 CONFIGS: Debug, Release
 PLATFORMS: x64, x86

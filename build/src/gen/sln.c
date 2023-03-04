@@ -2,16 +2,10 @@
 
 #include "dir.h"
 #include "proj.h"
-#include "prop.h"
+
+#include "common.h"
 
 #include "md5.h"
-
-#include "defines.h"
-#include "mem.h"
-#include "utils.h"
-
-#include <stdio.h>
-#include <string.h>
 
 static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_NAME]	     = { .name = "NAME", .parse = prop_parse_word },

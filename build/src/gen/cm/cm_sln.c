@@ -3,9 +3,7 @@
 #include "cm_dir.h"
 #include "cm_proj.h"
 
-#include "defines.h"
-#include "print.h"
-#include "utils.h"
+#include "common.h"
 
 #define SLN_CMAKE_USER_FOLDERS_SHIFT 0
 
