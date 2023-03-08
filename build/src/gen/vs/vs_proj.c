@@ -510,18 +510,13 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	}
 
 	if (proj->props[PROJ_PROP_DEPENDS].set) {
-		const array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+		const array_t *depends = &proj->all_depends;
 
 		if (depends->count > 0) {
 			xml_tag_t *xml_refs = xml_add_child(xml_proj, "ItemGroup", 9);
 
 			for (int i = 0; i < depends->count; i++) {
-				prop_str_t *depend = array_get(depends, i);
-				proj_t *dproj	   = { 0 };
-				if (hashmap_get(projects, depend->data, depend->len, (void **)&dproj)) {
-					ERR("project doesn't exists: '%.*s'", depend->len, depend->data);
-					continue;
-				}
+				const proj_t *dproj = *(proj_t **)array_get(depends, i);
 
 				if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 					path_t rel_path = { 0 };

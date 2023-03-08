@@ -7,24 +7,25 @@
 #include "md5.h"
 
 static const prop_pol_t s_proj_props[] = {
-	[PROJ_PROP_NAME]     = { .name = "NAME", .parse = prop_parse_word },
-	[PROJ_PROP_TYPE]     = { .name = "TYPE", .parse = prop_parse_word, .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
-	[PROJ_PROP_LANGS]    = { .name = "LANGS", .parse = prop_parse_word, .str_table = s_langs, .str_table_len = __LANG_MAX, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_SOURCE]   = { .name = "SOURCE", .parse = prop_parse_path },
-	[PROJ_PROP_INCLUDE]  = { .name = "INCLUDE", .parse = prop_parse_path },
-	[PROJ_PROP_ENCLUDE]  = { .name = "ENCLUDE", .parse = prop_parse_path },
-	[PROJ_PROP_DEPENDS]  = { .name = "DEPENDS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_INCLUDES] = { .name = "INCLUDES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_DEFINES]  = { .name = "DEFINES", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_LIBDIRS]  = { .name = "LIBDIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_WDIR]     = { .name = "WDIR", .parse = prop_parse_path },
-	[PROJ_PROP_CHARSET]  = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[PROJ_PROP_OUTDIR]   = { .name = "OUTDIR", .parse = prop_parse_path },
-	[PROJ_PROP_INTDIR]   = { .name = "INTDIR", .parse = prop_parse_path },
-	[PROJ_PROP_CFLAGS]   = { .name = "CFLAGS", .parse = prop_parse_word, .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_LDFLAGS]  = { .name = "LDFLAGS", .parse = prop_parse_word, .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_LINK]     = { .name = "LINK", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[PROJ_PROP_ARGS]     = { .name = "ARGS", .parse = prop_parse_printable },
+	[PROJ_PROP_NAME]     = { .name = STR("NAME"), },
+	[PROJ_PROP_TYPE]     = { .name = STR("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
+	[PROJ_PROP_LANGS]    = { .name = STR("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
+	[PROJ_PROP_SOURCE]   = { .name = STR("SOURCE"), },
+	[PROJ_PROP_INCLUDE]  = { .name = STR("INCLUDE"), },
+	[PROJ_PROP_ENCLUDE]  = { .name = STR("ENCLUDE"), },
+	[PROJ_PROP_DEPENDS]  = { .name = STR("DEPENDS"), .arr = 1 },
+	[PROJ_PROP_DEPEND]   = { .name = STR("DEPEND"),  .arr = 1 },
+	[PROJ_PROP_INCLUDES] = { .name = STR("INCLUDES"), .arr = 1 },
+	[PROJ_PROP_DEFINES]  = { .name = STR("DEFINES"), .arr = 1 },
+	[PROJ_PROP_LIBDIRS]  = { .name = STR("LIBDIRS"), .arr = 1 },
+	[PROJ_PROP_WDIR]     = { .name = STR("WDIR"),  },
+	[PROJ_PROP_CHARSET]  = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[PROJ_PROP_OUTDIR]   = { .name = STR("OUTDIR"), },
+	[PROJ_PROP_INTDIR]   = { .name = STR("INTDIR"), },
+	[PROJ_PROP_CFLAGS]   = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
+	[PROJ_PROP_LDFLAGS]  = { .name = STR("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .arr = 1 },
+	[PROJ_PROP_LINK]     = { .name = STR("LINK"),.arr = 1},
+	[PROJ_PROP_ARGS]     = { .name = STR("ARGS"), },
 };
 
 int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent)
@@ -51,9 +52,8 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	proj->data.path = proj->file_path.path;
 	proj->data.data = proj->file;
-	proj->data.cur	= 0;
 
-	int ret = props_parse_file(&proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
+	int ret = props_parse_file(proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
 
 	if (!proj->props[PROJ_PROP_NAME].set) {
 		ERR("%.*s: project name is not set", proj->file_path.len, proj->file_path.path);
@@ -78,8 +78,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 			ret++;
 		} else {
 			if (!folder_exists(path.path)) {
-				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line + 1, source->start - source->line_start + 1, source->len,
-					   source->data);
+				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, source->len, source->data);
 				ret++;
 			}
 		}
@@ -93,8 +92,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 			ret++;
 		} else {
 			if (!folder_exists(path.path)) {
-				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line + 1, include->start - include->line_start + 1,
-					   include->len, include->data);
+				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, include->len, include->data);
 				ret++;
 			}
 		}

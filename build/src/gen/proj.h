@@ -16,6 +16,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_INCLUDE,
 	PROJ_PROP_ENCLUDE,
 	PROJ_PROP_DEPENDS,
+	PROJ_PROP_DEPEND,
 	PROJ_PROP_INCLUDES,
 	PROJ_PROP_DEFINES,
 	PROJ_PROP_LIBDIRS,
@@ -48,7 +49,6 @@ static const str_t s_proj_types[] = {
 };
 
 typedef enum lang_e {
-	LANG_UNKNOWN,
 	LANG_NONE,
 	LANG_C,
 	LANG_ASM,
@@ -59,7 +59,6 @@ typedef enum lang_e {
 
 // clang-format off
 static const str_t s_langs[] = {
-	[LANG_UNKNOWN] = { "", 0 },
 	[LANG_NONE]    = { "NONE", 4 },
 	[LANG_C]       = { "C", 1 },
 	[LANG_ASM]     = { "ASM", 3 },
@@ -82,7 +81,6 @@ static const str_t s_charsets[] = {
 };
 
 typedef enum cflag_e {
-	CFLAG_UNKNOWN,
 	CFLAG_NONE,
 	CFLAG_STD_C99,
 
@@ -90,23 +88,22 @@ typedef enum cflag_e {
 } cflag_t;
 
 static const str_t s_cflags[] = {
-	[CFLAG_UNKNOWN] = { "", 0 },
 	[CFLAG_NONE]	= { "NONE", 4 },
 	[CFLAG_STD_C99] = { "STD_C99", 7 },
 };
 
 typedef enum ldflag_e {
-	LDFLAG_UNKNOWN,
 	LDFLAG_NONE,
 	LDFLAG_WHOLEARCHIVE,
+	LDFLAG_MATH,
 
 	__LDFLAG_MAX,
 } ldflag_t;
 
 static const str_t s_ldflags[] = {
-	[LDFLAG_UNKNOWN]      = { "", 0 },
 	[LDFLAG_NONE]	      = { "NONE", 4 },
 	[LDFLAG_WHOLEARCHIVE] = { "WHOLEARCHIVE", 12 },
+	[LDFLAG_MATH]	      = { "MATH", 4 },
 };
 
 typedef struct proj_s {

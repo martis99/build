@@ -63,7 +63,6 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	// clang-format off
 	const char *langs[] = {
-		[LANG_UNKNOWN] = "",
 		[LANG_NONE]    = "",
 		[LANG_C]       = " C",
 		[LANG_ASM]     = " ASM",
@@ -109,7 +108,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	}
 
 	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
-		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line + 1, startup->start - startup->line_start + 1, startup->len, startup->data);
+		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, startup->len, startup->data);
 		ret = 1;
 	} else {
 		p_fprintf(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);

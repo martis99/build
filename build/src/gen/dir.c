@@ -7,7 +7,7 @@
 #include "md5.h"
 
 static const prop_pol_t s_dir_props[] = {
-	[DIR_PROP_DIRS] = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
+	[DIR_PROP_DIRS] = { .name = STR("DIRS"), .arr = 1 },
 };
 
 static int add_dir(path_t *path, const char *folder, void *priv)
@@ -15,12 +15,9 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 	unsigned int folder_len = cstr_len(folder);
 
 	prop_str_t dir = {
-		.path	    = NULL,
-		.data	    = m_calloc((size_t)folder_len + 1, sizeof(char)),
-		.start	    = 0,
-		.len	    = folder_len,
-		.line	    = 0,
-		.line_start = 0,
+		.path = NULL,
+		.data = m_calloc((size_t)folder_len + 1, sizeof(char)),
+		.len  = folder_len,
 	};
 
 	m_cpy(dir.data, dir.len, folder, folder_len);
@@ -55,9 +52,8 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 		dir->data.path = dir->file_path.path;
 		dir->data.data = dir->file;
-		dir->data.cur  = 0;
 
-		ret += props_parse_file(&dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
+		ret += props_parse_file(dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
 
 	} else {
 		array_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
@@ -83,11 +79,12 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
 			if (on_dir(&child_path, dir->data, &read_dir_data)) {
-				ret = 1;
+				ret	       = 1;
+				child_path.len = child_path_len;
 				continue;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line + 1, dir->start - dir->line_start + 1, dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, dir->len, dir->data);
 			ret = 1;
 		}
 		child_path.len = child_path_len;

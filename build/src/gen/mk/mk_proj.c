@@ -195,7 +195,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	if (type == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "LDFLAGS += -static");
 
-		for (int i = 0; i < proj->all_depends.count; i++) {
+		for (int i = proj->all_depends.count - 1; i >= 0; i--) {
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
@@ -243,6 +243,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		if (lang & (1 << LANG_CPP)) {
 			p_fprintf(fp, " -lstdc++");
+		}
+
+		if (proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_MATH)) {
+			p_fprintf(fp, " -lm");
 		}
 
 		p_fprintf(fp, "\n");

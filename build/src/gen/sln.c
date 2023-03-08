@@ -8,17 +8,16 @@
 #include "md5.h"
 
 static const prop_pol_t s_sln_props[] = {
-	[SLN_PROP_NAME]	     = { .name = "NAME", .parse = prop_parse_word },
-	[SLN_PROP_LANGS]     = { .name = "LANGS", .parse = prop_parse_word, .str_table = s_langs, .str_table_len = __LANG_MAX, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_DIRS]	     = { .name = "DIRS", .parse = prop_parse_path, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_STARTUP]   = { .name = "STARTUP", .parse = prop_parse_word },
-	[SLN_PROP_CONFIGS]   = { .name = "CONFIGS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_PLATFORMS] = { .name = "PLATFORMS", .parse = prop_parse_word, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_CHARSET]   = { .name = "CHARSET", .parse = prop_parse_word, .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[SLN_PROP_CFLAGS]    = { .name = "CFLAGS", .parse = prop_parse_word, .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .dim = PROP_DIM_ARRAY },
-	[SLN_PROP_OUTDIR]    = { .name = "OUTDIR", .parse = prop_parse_path },
-	[SLN_PROP_INTDIR]    = { .name = "INTDIR", .parse = prop_parse_path },
-
+	[SLN_PROP_NAME]	     = { .name = STR("NAME"), },
+	[SLN_PROP_LANGS]     = { .name = STR("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
+	[SLN_PROP_DIRS]	     = { .name = STR("DIRS"),  .arr = 1 },
+	[SLN_PROP_STARTUP]   = { .name = STR("STARTUP"), },
+	[SLN_PROP_CONFIGS]   = { .name = STR("CONFIGS"),.arr = 1 },
+	[SLN_PROP_PLATFORMS] = { .name = STR("PLATFORMS"), .arr = 1 },
+	[SLN_PROP_CHARSET]   = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[SLN_PROP_CFLAGS]    = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
+	[SLN_PROP_OUTDIR]    = { .name = STR("OUTDIR"), },
+	[SLN_PROP_INTDIR]    = { .name = STR("INTDIR"), },
 };
 
 typedef struct read_dir_data_s {
@@ -45,8 +44,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
 			hashmap_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
-			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len,
-				   name->data);
+			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line, name->col, name->len, name->data);
 			m_free(proj, sizeof(proj_t));
 		}
 
@@ -87,11 +85,11 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 			continue;
 		}
 
+		get_all_depends(arr, dproj, projects);
+
 		if (array_index_cb(arr, &dname, proj_cmp_name) == -1) {
 			array_add(arr, &dproj);
 		}
-
-		get_all_depends(arr, dproj, projects);
 	}
 }
 
@@ -104,6 +102,30 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 		array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
 		array_init(&proj->all_depends, depends->capacity * 2, sizeof(proj_t *));
 		get_all_depends(&proj->all_depends, proj, &sln->projects);
+
+		for (int i = 0; i < proj->all_depends.count; i++) {
+			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+
+			if (!dproj->props[PROJ_PROP_DEPEND].set) {
+				continue;
+			}
+
+			const array_t *depend = &dproj->props[PROJ_PROP_DEPEND].arr;
+
+			for (int i = 0; i < depend->count; i++) {
+				prop_str_t *dpname = array_get(depend, i);
+
+				proj_t *dpproj = NULL;
+				if (hashmap_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
+					ERR("project doesn't exists: '%.*s'", dpname->len, dpname->data);
+					continue;
+				}
+
+				if (array_index_cb(&proj->all_depends, &dpname, proj_cmp_name) == -1) {
+					array_add(&proj->all_depends, &dpproj);
+				}
+			}
+		}
 	}
 }
 
@@ -119,11 +141,11 @@ static void get_all_includes(array_t *arr, proj_t *proj, hashmap_t *projects)
 			continue;
 		}
 
+		get_all_includes(arr, iproj, projects);
+
 		if (array_index_cb(arr, &iname, proj_cmp_name) == -1) {
 			array_add(arr, &iproj);
 		}
-
-		get_all_includes(arr, iproj, projects);
 	}
 }
 
@@ -152,9 +174,8 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	sln->data.path = sln->file_path.path;
 	sln->data.data = sln->file;
-	sln->data.cur  = 0;
 
-	int ret = props_parse_file(&sln->data, sln->props, s_sln_props, sizeof(s_sln_props));
+	int ret = props_parse_file(sln->data, sln->props, s_sln_props, sizeof(s_sln_props));
 
 	path_t name = { 0 };
 	path_init(&name, sln->props[SLN_PROP_NAME].value.data, sln->props[SLN_PROP_NAME].value.len);
@@ -179,12 +200,9 @@ int sln_read(sln_t *sln, const path_t *path)
 		prop_str_t *dir = array_get(dirs, i);
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
-			if (read_dir(&child_path, dir->data, &read_dir_data)) {
-				ret += 1;
-				continue;
-			}
+			ret += read_dir(&child_path, dir->data, &read_dir_data);
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line + 1, dir->start - dir->line_start + 1, dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, dir->len, dir->data);
 			ret += 1;
 		}
 		child_path.len = child_path_len;

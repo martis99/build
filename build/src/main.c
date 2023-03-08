@@ -68,8 +68,8 @@ typedef int (*gen_fn)(const sln_t *sln, const path_t *path);
 
 int main(int argc, const char **argv)
 {
-	size_t mem = 0;
-	mem_init(&mem);
+	mem_stats_t mem_stats = { 0 };
+	mem_init(&mem_stats);
 
 	const char *name	= "build";
 	const char *description = "Build solution";
@@ -139,9 +139,6 @@ int main(int argc, const char **argv)
 
 	ret += sln_read(&sln, &sln_dir);
 
-	if (ret != 0) {
-		return ret;
-	}
 	sln_print(&sln);
 
 	path_t build_dir = { 0 };
@@ -153,10 +150,12 @@ int main(int argc, const char **argv)
 		ret += gen_fns[gen](&sln, &build_dir);
 	}
 
-	INF("mem: %zd", mem);
+	INF("mem: %zd", mem_stats.mem);
 
 	sln_free(&sln);
 
-	INF("mem: %zd", mem);
+	INF("mem: %zd", mem_stats.mem);
+	INF("max mem: %zd", mem_stats.max_mem);
+	INF("reallocs: %d", mem_stats.reallocs);
 	return ret;
 }
