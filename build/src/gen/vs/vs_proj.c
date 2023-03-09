@@ -200,8 +200,9 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 	unsigned int len = 0;
 	int first	 = 0;
 
-	ldflag_t ldflags = proj->props[PROJ_PROP_LDFLAGS].mask;
-	if (ldflags & (1 << LDFLAG_WHOLEARCHIVE)) {
+	const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
+
+	if (ldflags->set && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s/WHOLEARCHIVE", first, "");
 		first = 1;
 	}

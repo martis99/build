@@ -96,15 +96,21 @@ typedef enum ldflag_e {
 	LDFLAG_NONE,
 	LDFLAG_WHOLEARCHIVE,
 	LDFLAG_MATH,
+	LDFLAG_X11,
+	LDFLAG_GL,
 
 	__LDFLAG_MAX,
 } ldflag_t;
 
+// clang-format off
 static const str_t s_ldflags[] = {
 	[LDFLAG_NONE]	      = { "NONE", 4 },
 	[LDFLAG_WHOLEARCHIVE] = { "WHOLEARCHIVE", 12 },
 	[LDFLAG_MATH]	      = { "MATH", 4 },
+	[LDFLAG_X11]	      = { "X11", 3 },
+	[LDFLAG_GL]	      = { "GL", 2 },
 };
+// clang-format on
 
 typedef struct proj_s {
 	pathv_t path;
