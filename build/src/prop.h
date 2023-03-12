@@ -47,6 +47,6 @@ void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_tab
 
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
-void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len);
+int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_len);
 
 #endif

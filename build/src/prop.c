@@ -212,12 +212,13 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 	}
 }
 
-void convert_slash(char *dst, unsigned int dst_len, const char *src, size_t len)
+int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_len)
 {
-	m_cpy(dst, dst_len, src, len);
-	for (int i = 0; i < len; i++) {
+	m_cpy(dst, dst_len, src, src_len);
+	for (int i = 0; i < src_len; i++) {
 		if (dst[i] == '\\') {
 			dst[i] = '/';
 		}
 	}
+	return src_len;
 }

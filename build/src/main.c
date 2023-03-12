@@ -1,5 +1,6 @@
 #include "gen/cm/cm_sln.h"
 #include "gen/mk/mk_sln.h"
+#include "gen/vc/vc_sln.h"
 #include "gen/vs/vs_sln.h"
 
 #include "defines.h"
@@ -23,6 +24,7 @@ typedef enum gen_e {
 	GEN_CMAKE,
 	GEN_MAKE,
 	GEN_VS,
+	GEN_VC,
 
 	__GEN_MAX,
 } gen_t;
@@ -38,6 +40,8 @@ static inline gen_t gen_enum(char c)
 		return GEN_MAKE;
 	case 'V':
 		return GEN_VS;
+	case 'W':
+		return GEN_VC;
 	default:
 		return __GEN_MAX;
 	}
@@ -80,7 +84,7 @@ int main(int argc, const char **argv)
 #if defined(P_WIN)
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: V)", handle_gen),
 #else
-		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: M)", handle_gen),
+		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: W)", handle_gen),
 #endif
 		[ARG_D] = ARG('D', "debug", PARAM_SWITCH, "<0/1>", "Turn on/off debug messages (default: 0)", NULL),
 		[ARG_C] = ARG('C', "success", PARAM_SWITCH, "<0/1>", "Turn on/off success messages (default: 0)", NULL),
@@ -92,10 +96,9 @@ int main(int argc, const char **argv)
 	};
 
 	mode_t gen_modes[] = {
-		[GEN_NONE]  = { .c = 'N', .desc = "None" },
-		[GEN_CMAKE] = { .c = 'C', .desc = "CMake" },
-		[GEN_MAKE]  = { .c = 'M', .desc = "Make" },
-		[GEN_VS]    = { .c = 'V', .desc = "Visual Studio 17 2022" },
+		[GEN_NONE] = { .c = 'N', .desc = "None" },  [GEN_CMAKE] = { .c = 'C', .desc = "CMake" },
+		[GEN_MAKE] = { .c = 'M', .desc = "Make" },  [GEN_VS] = { .c = 'V', .desc = "Visual Studio 17 2022" },
+		[GEN_VC] = { .c = 'W', .desc = "VS Code" },
 	};
 
 	mode_desc_t modes[] = {
@@ -106,6 +109,7 @@ int main(int argc, const char **argv)
 		[GEN_CMAKE] = cm_sln_gen,
 		[GEN_MAKE]  = mk_sln_gen,
 		[GEN_VS]    = vs_sln_gen,
+		[GEN_VC]    = vc_sln_gen,
 	};
 
 	char *solution = ".";
@@ -115,7 +119,7 @@ int main(int argc, const char **argv)
 #if defined(P_WIN)
 	gen = GEN_VS;
 #else
-	gen = GEN_MAKE;
+	gen = GEN_VC;
 #endif
 
 	void *params[] = {

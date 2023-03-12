@@ -284,6 +284,8 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "\n");
 
+	p_fprintf(fp, ".PHONY: all check %.*s clean\n\n", name->len, name->data);
+
 	p_fprintf(fp, "all: %.*s", name->len, name->data);
 
 	p_fprintf(fp, "\n\n");
@@ -336,8 +338,6 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@$(CC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
-
-	p_fprintf(fp, ".PHONY: all check %.*s clean\n\n", name->len, name->data);
 
 	p_fprintf(fp, "clean:\n"
 		      "\t@$(RM) $(TARGET)");

@@ -99,7 +99,8 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	const prop_str_t *name	   = &sln->props[SLN_PROP_NAME].value;
 	const char *targets_folder = "CMake";
 	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
-	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
+	const prop_t *startup	   = &sln->props[SLN_PROP_STARTUP];
+	const prop_t *configs	   = &sln->props[SLN_PROP_CONFIGS];
 
 	path_t cmake_path = *path;
 	if (path_child(&cmake_path, "Makefile", 8)) {
@@ -114,8 +115,6 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	MSG("generating solution: %s", cmake_path.path);
 
 	int ret = 0;
-
-	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 
 	gen_proj_make_data_t gen_proj_make_data = {
 		.path	  = path,
@@ -141,13 +140,17 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		p_fprintf(fp, "\nCONFIG = %.*s\n\n", config->len, config->data);
 	}
 
-	p_fprintf(fp, ".PHONY:");
-
-	if (configs->set && configs->arr.count > 0) {
-		p_fprintf(fp, " check");
-	}
+	p_fprintf(fp, ".PHONY: all check");
 
 	hashmap_iterate_hc(&sln->projects, add_phony_make, fp);
+
+	p_fprintf(fp, " clean\n"
+		      "\n"
+		      "all:");
+
+	if (startup->set) {
+		p_fprintf(fp, " %.*s", startup->value.len, startup->value.data);
+	}
 
 	p_fprintf(fp, "\n\ncheck:\n");
 
