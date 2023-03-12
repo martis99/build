@@ -26,7 +26,7 @@ static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 }
 
 typedef struct proj_config_plat_vs_s {
-	const array_t *configs;
+	const prop_t *configs;
 	const array_t *platforms;
 	FILE *fp;
 } proj_config_plat_vs_t;
@@ -36,8 +36,8 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 	proj_config_plat_vs_t *data = priv;
 	proj_t *proj		    = value;
 
-	for (int i = 0; i < data->configs->count; i++) {
-		prop_str_t *config = array_get(data->configs, i);
+	for (int i = 0; i < data->configs->arr.count; i++) {
+		prop_str_t *config = array_get(&data->configs->arr, i);
 		for (int j = 0; j < data->platforms->count; j++) {
 			prop_str_t *platform   = array_get(data->platforms, j);
 			const char *platf      = platform->data;
@@ -79,7 +79,7 @@ static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *priv)
 typedef struct gen_proj_vs_data_s {
 	const path_t *path;
 	const hashmap_t *projects;
-	const array_t *configs;
+	const prop_t *configs;
 	const array_t *platforms;
 	const prop_t *langs;
 	const prop_t *charset;
@@ -136,11 +136,11 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		return ret + 1;
 	}
 
-	const array_t *configs	 = &sln->props[SLN_PROP_CONFIGS].arr;
+	const prop_t *configs	 = &sln->props[SLN_PROP_CONFIGS];
 	const array_t *platforms = &sln->props[SLN_PROP_PLATFORMS].arr;
 
-	for (int i = 0; i < configs->count; i++) {
-		prop_str_t *config = array_get(configs, i);
+	for (int i = 0; i < configs->arr.count; i++) {
+		prop_str_t *config = array_get(&configs->arr, i);
 		for (int j = 0; j < platforms->count; j++) {
 			prop_str_t *platform = array_get(platforms, j);
 			p_fprintf(fp, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
@@ -186,7 +186,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	gen_proj_vs_data_t gen_proj_vs_data = {
 		.path	   = path,
 		.projects  = &sln->projects,
-		.configs   = &sln->props[SLN_PROP_CONFIGS].arr,
+		.configs   = configs,
 		.platforms = &sln->props[SLN_PROP_PLATFORMS].arr,
 		.langs	   = &sln->props[SLN_PROP_LANGS],
 		.charset   = &sln->props[SLN_PROP_CHARSET],

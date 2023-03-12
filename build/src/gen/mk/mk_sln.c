@@ -7,6 +7,7 @@
 typedef struct gen_proj_make_data_s {
 	const path_t *path;
 	const hashmap_t *projects;
+	const prop_t *configs;
 	const prop_t *langs;
 	charset_t charset;
 	const prop_t *cflags;
@@ -17,7 +18,7 @@ typedef struct gen_proj_make_data_s {
 static void gen_proj_make(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_make_data_t *data = priv;
-	mk_proj_gen(value, data->projects, data->path, data->langs, data->cflags, data->outdir, data->intdir);
+	mk_proj_gen(value, data->projects, data->path, data->configs, data->langs, data->cflags, data->outdir, data->intdir);
 }
 
 static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
@@ -29,6 +30,7 @@ static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 typedef struct add_target_make_data_s {
 	const hashmap_t *projects;
 	FILE *fp;
+	const prop_t *configs;
 } add_target_make_data_t;
 
 static void add_target_make(void *key, size_t ksize, void *value, void *priv)
@@ -40,7 +42,7 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	char buf[P_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(data->fp, "%.*s:", proj->name->len, proj->name->data);
+	p_fprintf(data->fp, "%.*s: check", proj->name->len, proj->name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		for (int i = 0; i < proj->all_depends.count; i++) {
@@ -54,19 +56,37 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 
 	p_fprintf(data->fp,
 		  "\n"
-		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)\n"
-		  "\n",
+		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)",
 		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
+
+	if (data->configs->set && data->configs->arr.count > 0) {
+		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
+	}
+
+	p_fprintf(data->fp, "\n\n");
 }
+
+typedef struct add_clean_make_data_s {
+	FILE *fp;
+	const prop_t *configs;
+} add_clean_make_data_t;
 
 static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 {
+	const add_clean_make_data_t *data = priv;
+
 	proj_t *proj = value;
 
 	char buf[P_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(priv, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)\n", proj->rel_path.len, buf);
+	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", proj->rel_path.len, buf);
+
+	if (data->configs->set && data->configs->arr.count > 0) {
+		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
+	}
+
+	p_fprintf(data->fp, "\n");
 }
 
 int mk_sln_gen(const sln_t *sln, const path_t *path)
@@ -95,32 +115,65 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
+	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
+
 	gen_proj_make_data_t gen_proj_make_data = {
 		.path	  = path,
 		.projects = &sln->projects,
+		.configs  = configs,
 		.langs	  = &sln->props[SLN_PROP_LANGS],
 		.cflags	  = &sln->props[SLN_PROP_CFLAGS],
 		.outdir	  = &sln->props[SLN_PROP_OUTDIR],
 		.intdir	  = &sln->props[SLN_PROP_INTDIR],
 	};
 
-	p_fprintf(fp, "SLNDIR=$(CURDIR)\n"
-		      "\n"
-		      ".PHONY:");
+	p_fprintf(fp, "SLNDIR=$(CURDIR)\n\n");
+
+	if (configs->set && configs->arr.count > 0) {
+		p_fprintf(fp, "CONFIGS =");
+
+		for (int i = 0; i < configs->arr.count; i++) {
+			const prop_str_t *config = array_get(&configs->arr, i);
+			p_fprintf(fp, " %.*s", config->len, config->data);
+		}
+
+		prop_str_t *config = array_get(&configs->arr, 0);
+		p_fprintf(fp, "\nCONFIG = %.*s\n\n", config->len, config->data);
+	}
+
+	p_fprintf(fp, ".PHONY:");
+
+	if (configs->set && configs->arr.count > 0) {
+		p_fprintf(fp, " check");
+	}
 
 	hashmap_iterate_hc(&sln->projects, add_phony_make, fp);
 
-	p_fprintf(fp, "\n\n");
+	p_fprintf(fp, "\n\ncheck:\n");
+
+	if (configs->set && configs->arr.count > 0) {
+		p_fprintf(fp, "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
+			      "\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
+			      "endif\n");
+	}
+
+	p_fprintf(fp, "\n");
 
 	add_target_make_data_t add_target_make_data = {
 		.projects = &sln->projects,
 		.fp	  = fp,
+		.configs  = configs,
 	};
 
 	hashmap_iterate_hc(&sln->projects, add_target_make, &add_target_make_data);
 
-	p_fprintf(fp, "clean:\n");
-	hashmap_iterate_hc(&sln->projects, add_clean_make, fp);
+	add_clean_make_data_t add_clean_make_data = {
+		.fp	 = fp,
+		.configs = configs,
+	};
+
+	p_fprintf(fp, "clean: check\n");
+	hashmap_iterate_hc(&sln->projects, add_clean_make, &add_clean_make_data);
 
 	fclose(fp);
 	if (ret == 0) {

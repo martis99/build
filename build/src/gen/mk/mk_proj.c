@@ -12,7 +12,7 @@ static const var_pol_t vars = {
 	},
 	.tos = {
 		[VAR_SLN_DIR] = "$(SLNDIR)",
-		[VAR_CONFIG] = "Debug",
+		[VAR_CONFIG] = "$(CONFIG)",
 		[VAR_PLATFORM] = "x64",
 	},
 };
@@ -32,7 +32,8 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 	}
 }
 
-int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *langs, const prop_t *cflags, const prop_t *outdir, const prop_t *intdir)
+int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *configs, const prop_t *langs, const prop_t *cflags, const prop_t *outdir,
+		const prop_t *intdir)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -287,7 +288,17 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "\n\n");
 
-	p_fprintf(fp, "%.*s: $(TARGET)", name->len, name->data);
+	p_fprintf(fp, "check:\n");
+
+	if (configs->set && configs->arr.count > 0) {
+		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
+			      "CONFIG_FLAGS = -ggdb3 -O0\n"
+			      "endif\n");
+	}
+
+	p_fprintf(fp, "\n");
+
+	p_fprintf(fp, "%.*s: check $(TARGET)", name->len, name->data);
 
 	p_fprintf(fp, "\n\n");
 
@@ -308,7 +319,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "\t@ar rcs $@ $^\n");
 		break;
 	case PROJ_TYPE_EXE:
-		p_fprintf(fp, "\t@$(CC) -o $@ $^ $(LDFLAGS)\n");
+		p_fprintf(fp, "\t@$(CC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
 		break;
 	}
 
@@ -317,16 +328,16 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	if (lang & (1 << LANG_C)) {
 		p_fprintf(fp, "$(INTDIR)%%.o: %%.c\n"
 			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(CC) $(CFLAGS) -c -o $@ $<\n\n");
+			      "\t@$(CC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
 		p_fprintf(fp, "$(INTDIR)%%.o: %%.cpp\n"
 			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(CC) $(CXXFLAGS) -c -o $@ $<\n\n");
+			      "\t@$(CC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
 
-	p_fprintf(fp, ".PHONY: all %.*s clean\n\n", name->len, name->data);
+	p_fprintf(fp, ".PHONY: all check %.*s clean\n\n", name->len, name->data);
 
 	p_fprintf(fp, "clean:\n"
 		      "\t@$(RM) $(TARGET)");

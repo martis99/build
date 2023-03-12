@@ -215,7 +215,7 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 }
 
 //TODO: Make proj const
-int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const array_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
+int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
 		const prop_t *cflags, const prop_t *outdir, const prop_t *intdir)
 {
 	const prop_str_t *name = proj->name;
@@ -266,8 +266,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->count; j++) {
-			prop_str_t *config = array_get(configs, j);
+		for (int j = 0; j < configs->arr.count; j++) {
+			prop_str_t *config = array_get(&configs->arr, j);
 
 			xml_tag_t *xml_proj_conf = xml_add_child(xml_proj_confs, "ProjectConfiguration", 20);
 			xml_add_attr_f(xml_proj_conf, "Include", 7, "%.*s|%.*s", config->len, config->data, platf_len, platf);
@@ -314,8 +314,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->count; j++) {
-			prop_str_t *config = array_get(configs, j);
+		for (int j = 0; j < configs->arr.count; j++) {
+			prop_str_t *config = array_get(&configs->arr, j);
 
 			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
 			const int release = cstr_cmp(config->data, config->len, "Release", 7);
@@ -357,8 +357,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->count; j++) {
-			prop_str_t *config = array_get(configs, j);
+		for (int j = 0; j < configs->arr.count; j++) {
+			prop_str_t *config = array_get(&configs->arr, j);
 
 			xml_tag_t *xml_sheets = xml_add_child(xml_proj, "ImportGroup", 11);
 			xml_add_attr(xml_sheets, "Label", 5, "PropertySheets", 14);
@@ -381,8 +381,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->count; j++) {
-			prop_str_t *config = array_get(configs, j);
+		for (int j = 0; j < configs->arr.count; j++) {
+			prop_str_t *config = array_get(&configs->arr, j);
 
 			const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 
@@ -419,8 +419,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->count; j++) {
-			prop_str_t *config = array_get(configs, j);
+		for (int j = 0; j < configs->arr.count; j++) {
+			prop_str_t *config = array_get(&configs->arr, j);
 
 			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
 			const int release = cstr_cmp(config->data, config->len, "Release", 7);
@@ -609,8 +609,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				platf	  = "Win32";
 				platf_len = 5;
 			}
-			for (int j = 0; j < configs->count; j++) {
-				prop_str_t *config = array_get(configs, j);
+			for (int j = 0; j < configs->arr.count; j++) {
+				prop_str_t *config = array_get(&configs->arr, j);
 
 				const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 
