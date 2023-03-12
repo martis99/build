@@ -11,12 +11,10 @@
 static const var_pol_t vars = {
 	.names = {
 		[VAR_SLN_DIR] = "$(SLN_DIR)",
-		[VAR_CONFIG] = "$(CONFIG)",
 		[VAR_PLATFORM] = "$(PLATFORM)",
 	},
 	.tos = {
 		[VAR_SLN_DIR] = "${workspaceFolder}",
-		[VAR_CONFIG] = "Debug",
 		[VAR_PLATFORM] = "x64",
 	},
 };
@@ -24,25 +22,37 @@ static const var_pol_t vars = {
 static const var_pol_t vars2 = {
 	.names = {
 		[VAR_SLN_DIR] = "$(SolutionDir)",
-		[VAR_CONFIG] = "$(CONFIG)",
 		[VAR_PLATFORM] = "$(PLATFORM)",
 	},
 	.tos = {
 		[VAR_SLN_DIR] = "${workspaceFolder}/",
-		[VAR_CONFIG] = "Debug",
 		[VAR_PLATFORM] = "x64",
 	},
 };
+
+static int resolve(const char *src, unsigned int src_len, char *dst, unsigned int dst_max_len, const prop_str_t *name, const var_pol_t *vars)
+{
+	char buf2[P_MAX_PATH] = { 0 };
+	unsigned int buf2_len;
+
+	unsigned int dst_len;
+
+	dst_len	 = convert_slash(dst, dst_max_len, src, src_len);
+	buf2_len = cstr_replaces(dst, dst_len, buf2, sizeof(buf2) - 1, vars->names, vars->tos, __VAR_MAX);
+	dst_len	 = cstr_replace(buf2, buf2_len, dst, dst_max_len, "$(PROJ_NAME)", 12, name->data, name->len);
+
+	return dst_len;
+}
 
 int vc_sln_gen(const sln_t *sln, const path_t *path)
 {
 	mk_sln_gen(sln, path);
 
-	char buf[P_MAX_PATH]  = { 0 };
-	char buf2[P_MAX_PATH] = { 0 };
+	char buf[P_MAX_PATH]	    = { 0 };
+	char outdir_buf[P_MAX_PATH] = { 0 };
 
 	unsigned int buf_len;
-	unsigned int buf2_len;
+	unsigned int outdir_buf_len;
 
 	MSG("%s", "generating tasks");
 
@@ -67,20 +77,45 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
+	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
+
 	p_fprintf(fp, "{\n"
 		      "        \"version\": \"2.0.0\",\n"
-		      "        \"tasks\": [\n"
-		      "                {\n"
-		      "                        \"label\": \"Build\",\n"
-		      "                        \"type\": \"shell\",\n"
-		      "                        \"command\": \"make\",\n"
-		      "                        \"args\": [],\n"
-		      "                        \"group\": {\n"
-		      "                                \"kind\": \"build\",\n"
-		      "                                \"isDefault\": true\n"
-		      "                        }\n"
-		      "                }\n"
-		      "        ]\n"
+		      "        \"tasks\": [\n");
+
+	if (!configs->set) {
+		p_fprintf(fp, "                {\n"
+			      "                        \"label\": \"Build\",\n"
+			      "                        \"type\": \"shell\",\n"
+			      "                        \"command\": \"make\",\n"
+			      "                        \"args\": [],\n"
+			      "                        \"group\": {\n"
+			      "                                \"kind\": \"build\",\n"
+			      "                                \"isDefault\": true\n"
+			      "                        }\n"
+			      "                }\n");
+	} else {
+		for (int i = 0; i < configs->arr.count; i++) {
+			const prop_str_t *config = array_get(&configs->arr, i);
+
+			p_fprintf(fp,
+				  "                {\n"
+				  "                        \"label\": \"Build-%.*s\",\n"
+				  "                        \"type\": \"shell\",\n"
+				  "                        \"command\": \"make\",\n"
+				  "                        \"args\": [\n"
+				  "                                \"CONFIG=%.*s\"\n"
+				  "                        ],\n"
+				  "                        \"group\": {\n"
+				  "                                \"kind\": \"build\",\n"
+				  "                                \"isDefault\": true\n"
+				  "                        }\n"
+				  "                }%.*s\n",
+				  config->len, config->data, config->len, config->data, i < configs->arr.count - 1, ",");
+		}
+	}
+
+	p_fprintf(fp, "        ]\n"
 		      "}");
 
 	fclose(fp);
@@ -111,9 +146,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	buf_len	 = convert_slash(buf, sizeof(buf) - 1, outdir->value.data, outdir->value.len);
-	buf2_len = cstr_replaces(buf, buf_len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
-	buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, startup->value.data, startup->value.len);
+	outdir_buf_len = resolve(outdir->value.data, outdir->value.len, outdir_buf, sizeof(outdir_buf) - 1, &startup->value, &vars);
 
 	const prop_str_t *cwd;
 
@@ -128,70 +161,138 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	cwd = wdir->set ? &wdir->value : &startup->value;
 
-	p_fprintf(fp,
-		  "{\n"
-		  "        \"version\": \"0.2.0\",\n"
-		  "        \"configurations\": [\n"
-		  "                {\n"
-		  "                        \"name\": \"Launch\",\n"
-		  "                        \"type\": \"cppdbg\",\n"
-		  "                        \"request\": \"launch\",\n"
-		  "                        \"program\": \"%.*s%.*s\",\n"
-		  "                        \"args\": [",
-		  buf_len, buf, startup->value.len, startup->value.data);
+	p_fprintf(fp, "{\n"
+		      "        \"version\": \"0.2.0\",\n"
+		      "        \"configurations\": [\n");
 
-	if (args->set) {
-		p_fprintf(fp, "\n");
-		int end = 0;
+	if (!configs->set) {
+		buf_len = cstr_replace(outdir_buf, outdir_buf_len, buf, sizeof(buf) - 1, "$(CONFIG)", 9, "Debug", 5);
 
-		str_t arg = {
-			.data = args->value.data,
-			.len  = args->value.len,
-		};
-		str_t next = { 0 };
+		p_fprintf(fp,
+			  "                {\n"
+			  "                        \"name\": \"Launch\",\n"
+			  "                        \"type\": \"cppdbg\",\n"
+			  "                        \"request\": \"launch\",\n"
+			  "                        \"program\": \"%.*s%.*s\",\n"
+			  "                        \"args\": [",
+			  buf_len, buf, startup->value.len, startup->value.data);
 
-		while (!end) {
-			if (str_chr(&arg, &arg, &next, ' ')) {
-				str_chr(&arg, &arg, &next, '\n');
-				end = 1;
+		if (args->set) {
+			p_fprintf(fp, "\n");
+			int end = 0;
+
+			str_t arg = {
+				.data = args->value.data,
+				.len  = args->value.len,
+			};
+			str_t next = { 0 };
+
+			while (!end) {
+				if (str_chr(&arg, &arg, &next, ' ')) {
+					str_chr(&arg, &arg, &next, '\n');
+					end = 1;
+				}
+
+				buf_len = resolve(arg.data, arg.len, buf, sizeof(buf) - 1, &startup->value, &vars2);
+
+				p_fprintf(fp, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
+
+				arg = next;
 			}
 
-			buf_len	 = convert_slash(buf, sizeof(buf) - 1, arg.data, arg.len);
-			buf2_len = cstr_replaces(buf, buf_len, buf2, sizeof(buf2) - 1, vars2.names, vars2.tos, __VAR_MAX);
-			buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, startup->value.data, startup->value.len);
-
-			p_fprintf(fp, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
-
-			arg = next;
+			p_fprintf(fp, "                        ");
 		}
 
-		p_fprintf(fp, "                        ");
+		p_fprintf(fp,
+			  "],\n"
+			  "                        \"preLaunchTask\": \"Build\",\n"
+			  "                        \"stopAtEntry\": false,\n"
+			  "                        \"cwd\": \"${workspaceFolder}/%.*s\",\n"
+			  "                        \"environment\": [],\n"
+			  "                        \"externalConsole\": false,\n"
+			  "                        \"MIMode\": \"gdb\",\n"
+			  "                        \"setupCommands\": [\n"
+			  "                                {\n"
+			  "                                        \"description\": \"Enable pretty-printing for gdb\",\n"
+			  "                                        \"text\": \"-enable-pretty-printing\",\n"
+			  "                                        \"ignoreFailures\": true\n"
+			  "                                },\n"
+			  "                                {\n"
+			  "                                        \"description\": \"Set Disassembly Flavor to Intel\",\n"
+			  "                                        \"text\": \"-gdb-set disassembly-flavor intel\",\n"
+			  "                                        \"ignoreFailures\": true\n"
+			  "                                }\n"
+			  "                        ]\n"
+			  "                }\n",
+			  cwd->len, cwd->data);
+	} else {
+		for (int i = 0; i < configs->arr.count; i++) {
+			const prop_str_t *config = array_get(&configs->arr, i);
+
+			buf_len = cstr_replace(outdir_buf, outdir_buf_len, buf, sizeof(buf) - 1, "$(CONFIG)", 9, config->data, config->len);
+
+			p_fprintf(fp,
+				  "                {\n"
+				  "                        \"name\": \"%.*s\",\n"
+				  "                        \"type\": \"cppdbg\",\n"
+				  "                        \"request\": \"launch\",\n"
+				  "                        \"program\": \"%.*s%.*s\",\n"
+				  "                        \"args\": [",
+				  config->len, config->data, buf_len, buf, startup->value.len, startup->value.data);
+
+			if (args->set) {
+				p_fprintf(fp, "\n");
+				int end = 0;
+
+				str_t arg = {
+					.data = args->value.data,
+					.len  = args->value.len,
+				};
+				str_t next = { 0 };
+
+				while (!end) {
+					if (str_chr(&arg, &arg, &next, ' ')) {
+						str_chr(&arg, &arg, &next, '\n');
+						end = 1;
+					}
+
+					buf_len = resolve(arg.data, arg.len, buf, sizeof(buf) - 1, &startup->value, &vars2);
+
+					p_fprintf(fp, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
+
+					arg = next;
+				}
+
+				p_fprintf(fp, "                        ");
+			}
+
+			p_fprintf(fp,
+				  "],\n"
+				  "                        \"preLaunchTask\": \"Build-%.*s\",\n"
+				  "                        \"stopAtEntry\": false,\n"
+				  "                        \"cwd\": \"${workspaceFolder}/%.*s\",\n"
+				  "                        \"environment\": [],\n"
+				  "                        \"externalConsole\": false,\n"
+				  "                        \"MIMode\": \"gdb\",\n"
+				  "                        \"setupCommands\": [\n"
+				  "                                {\n"
+				  "                                        \"description\": \"Enable pretty-printing for gdb\",\n"
+				  "                                        \"text\": \"-enable-pretty-printing\",\n"
+				  "                                        \"ignoreFailures\": true\n"
+				  "                                },\n"
+				  "                                {\n"
+				  "                                        \"description\": \"Set Disassembly Flavor to Intel\",\n"
+				  "                                        \"text\": \"-gdb-set disassembly-flavor intel\",\n"
+				  "                                        \"ignoreFailures\": true\n"
+				  "                                }\n"
+				  "                        ]\n"
+				  "                }%.*s\n",
+				  config->len, config->data, cwd->len, cwd->data, i < configs->arr.count - 1, ",");
+		}
 	}
 
-	p_fprintf(fp,
-		  "],\n"
-		  "                        \"preLaunchTask\": \"Build\",\n"
-		  "                        \"stopAtEntry\": false,\n"
-		  "                        \"cwd\": \"${workspaceFolder}/%.*s\",\n"
-		  "                        \"environment\": [],\n"
-		  "                        \"externalConsole\": false,\n"
-		  "                        \"MIMode\": \"gdb\",\n"
-		  "                        \"setupCommands\": [\n"
-		  "                                {\n"
-		  "                                        \"description\": \"Enable pretty-printing for gdb\",\n"
-		  "                                        \"text\": \"-enable-pretty-printing\",\n"
-		  "                                        \"ignoreFailures\": true\n"
-		  "                                },\n"
-		  "                                {\n"
-		  "                                        \"description\": \"Set Disassembly Flavor to Intel\",\n"
-		  "                                        \"text\": \"-gdb-set disassembly-flavor intel\",\n"
-		  "                                        \"ignoreFailures\": true\n"
-		  "                                }\n"
-		  "                        ]\n"
-		  "                }\n"
-		  "        ]\n"
-		  "}",
-		  cwd->len, cwd->data);
+	p_fprintf(fp, "        ]\n"
+		      "}");
 
 	fclose(fp);
 	if (ret == 0) {
