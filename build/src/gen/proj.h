@@ -95,22 +95,24 @@ static const str_t s_cflags[] = {
 typedef enum ldflag_e {
 	LDFLAG_NONE,
 	LDFLAG_WHOLEARCHIVE,
+	LDFLAG_ALLOWMULTIPLEDEFINITION,
 	LDFLAG_MATH,
 	LDFLAG_X11,
 	LDFLAG_GL,
+	LDFLAG_GLX,
 
 	__LDFLAG_MAX,
 } ldflag_t;
 
-// clang-format off
 static const str_t s_ldflags[] = {
-	[LDFLAG_NONE]	      = { "NONE", 4 },
-	[LDFLAG_WHOLEARCHIVE] = { "WHOLEARCHIVE", 12 },
-	[LDFLAG_MATH]	      = { "MATH", 4 },
-	[LDFLAG_X11]	      = { "X11", 3 },
-	[LDFLAG_GL]	      = { "GL", 2 },
+	[LDFLAG_NONE]			 = { "NONE", 4 },
+	[LDFLAG_WHOLEARCHIVE]		 = { "WHOLEARCHIVE", 12 },
+	[LDFLAG_ALLOWMULTIPLEDEFINITION] = { "ALLOWMULTIPLEDEFINITION", 23 },
+	[LDFLAG_MATH]			 = { "MATH", 4 },
+	[LDFLAG_X11]			 = { "X11", 3 },
+	[LDFLAG_GL]			 = { "GL", 2 },
+	[LDFLAG_GLX]			 = { "GLX", 3 },
 };
-// clang-format on
 
 typedef struct proj_s {
 	pathv_t path;

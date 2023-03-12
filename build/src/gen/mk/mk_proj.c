@@ -197,8 +197,13 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
 
-		if (ldflags->set && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
-			p_fprintf(fp, " -Wl,--whole-archive");
+		if (ldflags->set) {
+			if (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE)) {
+				p_fprintf(fp, " -Wl,--whole-archive");
+			}
+			if (ldflags->mask & (1 << LDFLAG_ALLOWMULTIPLEDEFINITION)) {
+				p_fprintf(fp, " -Wl,--allow-multiple-definition");
+			}
 		}
 
 		for (int i = proj->all_depends.count - 1; i >= 0; i--) {
@@ -266,6 +271,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 			if (ldflags->mask & (1 << LDFLAG_GL)) {
 				p_fprintf(fp, " -lGL");
+			}
+
+			if (ldflags->mask & (1 << LDFLAG_GLX)) {
+				p_fprintf(fp, " -lGLX");
 			}
 		}
 
