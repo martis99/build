@@ -309,8 +309,8 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				  buf);
 		}
 	} else {
-		p_fprintf(fp, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data, name->len,
-			  name->data);
+		p_fprintf(fp, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data,
+			  proj->rel_path.len, proj->rel_path.path);
 	}
 
 done:

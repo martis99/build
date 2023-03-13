@@ -159,7 +159,12 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	const prop_t *wdir = &startup_proj->props[PROJ_PROP_WDIR];
 	const prop_t *args = &startup_proj->props[PROJ_PROP_ARGS];
 
-	cwd = wdir->set ? &wdir->value : &startup->value;
+	prop_str_t rel_path = {
+		.cdata = startup_proj->rel_path.path,
+		.len   = startup_proj->rel_path.len,
+	};
+
+	cwd = wdir->set ? &wdir->value : &rel_path;
 
 	p_fprintf(fp, "{\n"
 		      "        \"version\": \"0.2.0\",\n"
