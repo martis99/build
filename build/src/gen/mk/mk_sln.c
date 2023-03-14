@@ -146,7 +146,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	p_fprintf(fp, " clean\n"
 		      "\n"
-		      "all:");
+		      "all: clean");
 
 	if (startup->set) {
 		p_fprintf(fp, " %.*s", startup->value.len, startup->value.data);

@@ -20,7 +20,7 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 		.len  = folder_len,
 	};
 
-	m_cpy(dir.data, dir.len, folder, folder_len);
+	m_memcpy(dir.data, dir.len, folder, folder_len);
 	array_add(priv, &dir);
 	return 0;
 }
