@@ -49,7 +49,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 
 static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_t *table, size_t table_len, const str_t *line)
 {
-	array_init(&prop->arr, 4, sizeof(prop_str_t));
+	array_init(&prop->arr, 8, sizeof(prop_str_t));
 	prop->mask = 0;
 
 	str_t value = *arr;
@@ -220,5 +220,5 @@ int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_l
 			dst[i] = '/';
 		}
 	}
-	return src_len;
+	return (int)src_len;
 }

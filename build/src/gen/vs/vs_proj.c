@@ -27,7 +27,8 @@ static const var_pol_t vars = {
 
 typedef struct add_file_s {
 	path_t path;
-	xml_tag_t *xml_items;
+	xml_t *xml;
+	xml_tag_t xml_items;
 	unsigned int langs;
 } add_file_t;
 
@@ -38,19 +39,19 @@ static int add_src_file(path_t *path, const char *folder, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".c", 2)) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".asm", 4)) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".cpp", 4));
+	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".c"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".asm"))) ||
+		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".cpp")));
 
 	if (!add) {
 		return 0;
 	}
 
-	if (path_ends(&new_path, ".asm", 4)) {
-		xml_tag_t *xml_inc = xml_add_child(data->xml_items, "MASM", 9);
-		xml_add_attr_c(xml_inc, "Include", 7, new_path.path, new_path.len);
-		xml_add_child_val(xml_inc, "FileType", 8, "Document", 8);
+	if (path_ends(&new_path, CSTR(".asm"))) {
+		xml_tag_t xml_inc = xml_add_child(data->xml, data->xml_items, CSTR("MASM"));
+		xml_add_attr_c(data->xml, xml_inc, CSTR("Include"), new_path.path, new_path.len);
+		xml_add_child_val(data->xml, xml_inc, CSTR("FileType"), CSTR("Document"));
 	} else {
-		xml_add_attr_c(xml_add_child(data->xml_items, "ClCompile", 9), "Include", 7, new_path.path, new_path.len);
+		xml_add_attr_c(data->xml, xml_add_child(data->xml, data->xml_items, CSTR("ClCompile")), CSTR("Include"), new_path.path, new_path.len);
 	}
 	return 0;
 }
@@ -73,11 +74,11 @@ static int add_inc_file(path_t *path, const char *folder, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, folder, cstr_len(folder));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, ".h", 2)) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, ".inc", 4)) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".h", 2)) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, ".hpp", 4));
+	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".inc"))) ||
+		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
 
 	if (add) {
-		xml_add_attr_c(xml_add_child(data->xml_items, "ClInclude", 9), "Include", 7, new_path.path, new_path.len);
+		xml_add_attr_c(data->xml, xml_add_child(data->xml, data->xml_items, CSTR("ClInclude")), CSTR("Include"), new_path.path, new_path.len);
 	}
 
 	return 0;
@@ -175,11 +176,11 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 				if (libdir->len > 0) {
 					tmp_len = cstr_replaces(libdir->data, libdir->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
 
-					if (cstrn_cmp(tmp, tmp_len, "$(SolutionDir)", 14, 14)) {
+					if (cstrn_cmp(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", tmp_len, tmp);
 					} else {
 						path_t dir = { 0 };
-						path_init(&dir, "$(SolutionDir)", 14);
+						path_init(&dir, CSTR("$(SolutionDir)"));
 						path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
 						path_child(&dir, tmp, tmp_len);
 
@@ -236,27 +237,21 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			proj->props[PROJ_PROP_DEFINES].set = 1;
 		}
 
-		prop_str_t unicode = {
-			.data = "UNICODE",
-			.len  = 7,
-		};
+		prop_str_t unicode = STR("UNICODE");
 		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode);
-		prop_str_t unicode2 = {
-			.data = "_UNICODE",
-			.len  = 8,
-		};
+		prop_str_t unicode2 = STR("_UNICODE");
 		array_add(&proj->props[PROJ_PROP_DEFINES].arr, &unicode2);
 	}
 
 	int ret = 0;
 
 	xml_t xml = { 0 };
-	xml_init(&xml);
-	xml_tag_t *xml_proj = xml_add_child(&xml.root, "Project", 7);
-	xml_add_attr(xml_proj, "DefaultTargets", 14, "Build", 5);
-	xml_add_attr(xml_proj, "xmlns", 5, "http://schemas.microsoft.com/developer/msbuild/2003", 51);
-	xml_tag_t *xml_proj_confs = xml_add_child(xml_proj, "ItemGroup", 9);
-	xml_add_attr(xml_proj_confs, "Label", 5, "ProjectConfigurations", 21);
+	xml_init(&xml, 256);
+	xml_tag_t xml_proj = xml_add_child(&xml, 0, CSTR("Project"));
+	xml_add_attr(&xml, xml_proj, CSTR("DefaultTargets"), CSTR("Build"));
+	xml_add_attr(&xml, xml_proj, CSTR("xmlns"), CSTR("http://schemas.microsoft.com/developer/msbuild/2003"));
+	xml_tag_t xml_proj_confs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
+	xml_add_attr(&xml, xml_proj_confs, CSTR("Label"), CSTR("ProjectConfigurations"));
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
 		prop_str_t *platform   = array_get(platforms, i);
@@ -269,41 +264,41 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		for (int j = 0; j < configs->arr.count; j++) {
 			prop_str_t *config = array_get(&configs->arr, j);
 
-			xml_tag_t *xml_proj_conf = xml_add_child(xml_proj_confs, "ProjectConfiguration", 20);
-			xml_add_attr_f(xml_proj_conf, "Include", 7, "%.*s|%.*s", config->len, config->data, platf_len, platf);
-			xml_add_child_val(xml_proj_conf, "Configuration", 13, config->data, config->len);
-			xml_add_child_val(xml_proj_conf, "Platform", 8, platf, platf_len);
+			xml_tag_t xml_proj_conf = xml_add_child(&xml, xml_proj_confs, CSTR("ProjectConfiguration"));
+			xml_add_attr_f(&xml, xml_proj_conf, CSTR("Include"), "%.*s|%.*s", config->len, config->data, platf_len, platf);
+			xml_add_child_val(&xml, xml_proj_conf, CSTR("Configuration"), config->data, config->len);
+			xml_add_child_val(&xml, xml_proj_conf, CSTR("Platform"), platf, platf_len);
 		}
 	}
 
-	xml_tag_t *xml_globals = xml_add_child(xml_proj, "PropertyGroup", 13);
-	xml_add_attr(xml_globals, "Label", 5, "Globals", 7);
-	xml_add_child_val(xml_globals, "VCProjectVersion", 16, "16.0", 4);
-	xml_add_child_val(xml_globals, "Keyword", 7, "Win32Proj", 9);
-	xml_add_child_val_f(xml_globals, "ProjectGuid", 11, "{%s}", proj->guid);
-	xml_add_child_val(xml_globals, "RootNamespace", 13, proj->folder.path, proj->folder.len);
-	xml_add_child_val(xml_globals, "WindowsTargetPlatformVersion", 28, "10.0", 4);
+	xml_tag_t xml_globals = xml_add_child(&xml, xml_proj, CSTR("PropertyGroup"));
+	xml_add_attr(&xml, xml_globals, CSTR("Label"), CSTR("Globals"));
+	xml_add_child_val(&xml, xml_globals, CSTR("VCProjectVersion"), CSTR("16.0"));
+	xml_add_child_val(&xml, xml_globals, CSTR("Keyword"), CSTR("Win32Proj"));
+	xml_add_child_val_f(&xml, xml_globals, CSTR("ProjectGuid"), "{%s}", proj->guid);
+	xml_add_child_val(&xml, xml_globals, CSTR("RootNamespace"), proj->folder.path, proj->folder.len);
+	xml_add_child_val(&xml, xml_globals, CSTR("WindowsTargetPlatformVersion"), CSTR("10.0"));
 
-	xml_tag_t *xml_import = xml_add_child(xml_proj, "Import", 6);
-	xml_add_attr(xml_import, "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.Default.props", 44);
+	xml_tag_t xml_import = xml_add_child(&xml, xml_proj, CSTR("Import"));
+	xml_add_attr(&xml, xml_import, CSTR("Project"), CSTR("$(VCTargetsPath)\\Microsoft.Cpp.Default.props"));
 
 	const struct {
 		const char *name;
 		unsigned int len;
 	} config_types[] = {
-		[PROJ_TYPE_UNKNOWN] = { "", 0 },
-		[PROJ_TYPE_LIB]	    = { "StaticLibrary", 13 },
-		[PROJ_TYPE_EXE]	    = { "Application", 11 },
-		[PROJ_TYPE_EXT]	    = { "StaticLibrary", 13 },
+		[PROJ_TYPE_UNKNOWN] = { CSTR("") },
+		[PROJ_TYPE_LIB]	    = { CSTR("StaticLibrary") },
+		[PROJ_TYPE_EXE]	    = { CSTR("Application") },
+		[PROJ_TYPE_EXT]	    = { CSTR("StaticLibrary") },
 	};
 
 	const struct {
 		const char *name;
 		unsigned int len;
 	} charsets[] = {
-		[CHARSET_UNKNOWN]    = { "", 0 },
-		[CHARSET_UNICODE]    = { "Unicode", 7 },
-		[CHARSET_MULTI_BYTE] = { "MultiByte", 9 },
+		[CHARSET_UNKNOWN]    = { CSTR("") },
+		[CHARSET_UNICODE]    = { CSTR("Unicode") },
+		[CHARSET_MULTI_BYTE] = { CSTR("MultiByte") },
 	};
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
@@ -317,87 +312,87 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		for (int j = 0; j < configs->arr.count; j++) {
 			prop_str_t *config = array_get(&configs->arr, j);
 
-			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
-			const int release = cstr_cmp(config->data, config->len, "Release", 7);
+			const int debug	  = cstr_cmp(config->data, config->len, CSTR("Debug"));
+			const int release = cstr_cmp(config->data, config->len, CSTR("Release"));
 
-			xml_tag_t *xml_conf = xml_add_child(xml_proj, "PropertyGroup", 13);
-			xml_add_attr_f(xml_conf, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
-			xml_add_attr(xml_conf, "Label", 5, "Configuration", 13);
-			xml_add_child_val(xml_conf, "ConfigurationType", 17, config_types[proj->props[PROJ_PROP_TYPE].mask].name,
+			xml_tag_t xml_conf = xml_add_child(&xml, xml_proj, CSTR("PropertyGroup"));
+			xml_add_attr_f(&xml, xml_conf, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+			xml_add_attr(&xml, xml_conf, CSTR("Label"), CSTR("Configuration"));
+			xml_add_child_val(&xml, xml_conf, CSTR("ConfigurationType"), config_types[proj->props[PROJ_PROP_TYPE].mask].name,
 					  config_types[proj->props[PROJ_PROP_TYPE].mask].len);
-			xml_add_child_val(xml_conf, "UseDebugLibraries", 17, debug ? "true" : "false", debug ? 4 : 5);
-			xml_add_child_val(xml_conf, "PlatformToolset", 15, "v143", 4);
+			xml_add_child_val(&xml, xml_conf, CSTR("UseDebugLibraries"), debug ? "true" : "false", debug ? 4 : 5);
+			xml_add_child_val(&xml, xml_conf, CSTR("PlatformToolset"), CSTR("v143"));
 
 			if (release) {
-				xml_add_child_val(xml_conf, "WholeProgramOptimization", 24, "true", 4);
+				xml_add_child_val(&xml, xml_conf, CSTR("WholeProgramOptimization"), CSTR("true"));
 			}
 
 			if (charset->set && charset->mask != CHARSET_UNKNOWN) {
-				xml_add_child_val(xml_conf, "CharacterSet", 12, charsets[charset->mask].name, charsets[charset->mask].len);
+				xml_add_child_val(&xml, xml_conf, CSTR("CharacterSet"), charsets[charset->mask].name, charsets[charset->mask].len);
 			}
 		}
 	}
 
-	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.props", 36);
+	xml_add_attr(&xml, xml_add_child(&xml, xml_proj, CSTR("Import")), CSTR("Project"), CSTR("$(VCTargetsPath)\\Microsoft.Cpp.props"));
 
 	if (langs->mask & (1 << LANG_ASM)) {
-		xml_tag_t *xml_ext_set = xml_add_child(xml_proj, "ImportGroup", 11);
-		xml_add_attr(xml_ext_set, "Label", 5, "ExtensionSettings", 17);
-		xml_add_attr(xml_add_child(xml_ext_set, "Import", 6), "Project", 7, "$(VCTargetsPath)\\BuildCustomizations\\masm.props", 47);
+		xml_tag_t xml_ext_set = xml_add_child(&xml, xml_proj, CSTR("ImportGroup"));
+		xml_add_attr(&xml, xml_ext_set, CSTR("Label"), CSTR("ExtensionSettings"));
+		xml_add_attr(&xml, xml_add_child(&xml, xml_ext_set, CSTR("Import")), CSTR("Project"), CSTR("$(VCTargetsPath)\\BuildCustomizations\\masm.props"));
 	} else {
-		xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "ExtensionSettings", 17);
+		xml_add_attr(&xml, xml_add_child_val(&xml, xml_proj, CSTR("ImportGroup"), CSTR("\n")), CSTR("Label"), CSTR("ExtensionSettings"));
 	}
-	xml_add_attr(xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1), "Label", 5, "Shared", 6);
+	xml_add_attr(&xml, xml_add_child_val(&xml, xml_proj, CSTR("ImportGroup"), CSTR("\n")), CSTR("Label"), CSTR("Shared"));
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
+		if (cstr_cmp(platform->data, platform->len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->arr.count; j++) {
 			prop_str_t *config = array_get(&configs->arr, j);
 
-			xml_tag_t *xml_sheets = xml_add_child(xml_proj, "ImportGroup", 11);
-			xml_add_attr(xml_sheets, "Label", 5, "PropertySheets", 14);
-			xml_add_attr_f(xml_sheets, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
-			xml_tag_t *xml_data = xml_add_child(xml_sheets, "Import", 6);
-			xml_add_attr(xml_data, "Project", 7, "$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props", 51);
-			xml_add_attr(xml_data, "Condition", 9, "exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')", 61);
-			xml_add_attr(xml_data, "Label", 5, "LocalAppDataPlatform", 20);
+			xml_tag_t xml_sheets = xml_add_child(&xml, xml_proj, CSTR("ImportGroup"));
+			xml_add_attr(&xml, xml_sheets, CSTR("Label"), CSTR("PropertySheets"));
+			xml_add_attr_f(&xml, xml_sheets, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+			xml_tag_t xml_data = xml_add_child(&xml, xml_sheets, CSTR("Import"));
+			xml_add_attr(&xml, xml_data, CSTR("Project"), CSTR("$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props"));
+			xml_add_attr(&xml, xml_data, CSTR("Condition"), CSTR("exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')"));
+			xml_add_attr(&xml, xml_data, CSTR("Label"), CSTR("LocalAppDataPlatform"));
 		}
 	}
 
-	xml_tag_t *xml_macros = xml_add_child(xml_proj, "PropertyGroup", 13);
-	xml_add_attr(xml_macros, "Label", 5, "UserMacros", 10);
+	xml_tag_t xml_macros = xml_add_child(&xml, xml_proj, CSTR("PropertyGroup"));
+	xml_add_attr(&xml, xml_macros, CSTR("Label"), CSTR("UserMacros"));
 
 	for (int i = platforms->count - 1; i >= 0; i--) {
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
+		if (cstr_cmp(platform->data, platform->len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->arr.count; j++) {
 			prop_str_t *config = array_get(&configs->arr, j);
 
-			const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
+			const int debug = cstr_cmp(config->data, config->len, CSTR("Debug"));
 
-			xml_tag_t *xml_plat = xml_add_child(xml_proj, "PropertyGroup", 13);
-			xml_add_attr_f(xml_plat, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+			xml_tag_t xml_plat = xml_add_child(&xml, xml_proj, CSTR("PropertyGroup"));
+			xml_add_attr_f(&xml, xml_plat, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
 
 			if (proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXE) {
-				xml_add_child_val(xml_plat, "LinkIncremental", 15, debug ? "true" : "false", debug ? 4 : 5);
+				xml_add_child_val(&xml, xml_plat, CSTR("LinkIncremental"), debug ? "true" : "false", debug ? 4 : 5);
 			}
 
 			if (outdir->set) {
 				buf_len = cstr_replaces(outdir->value.data, outdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
-					xml_add_child_val(xml_plat, "OutDir", 6, buf, buf_len);
+					xml_add_child_val(&xml, xml_plat, CSTR("OutDir"), buf, buf_len);
 				}
 			}
 
@@ -405,7 +400,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				buf_len = cstr_replaces(intdir->value.data, intdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
 
 				if (buf_len >= 0) {
-					xml_add_child_val(xml_plat, "IntDir", 6, buf, buf_len);
+					xml_add_child_val(&xml, xml_plat, CSTR("IntDir"), buf, buf_len);
 				}
 			}
 		}
@@ -415,91 +410,86 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		prop_str_t *platform   = array_get(platforms, i);
 		const char *platf      = platform->data;
 		unsigned int platf_len = platform->len;
-		if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
+		if (cstr_cmp(platform->data, platform->len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (int j = 0; j < configs->arr.count; j++) {
 			prop_str_t *config = array_get(&configs->arr, j);
 
-			const int debug	  = cstr_cmp(config->data, config->len, "Debug", 5);
-			const int release = cstr_cmp(config->data, config->len, "Release", 7);
+			const int debug	  = cstr_cmp(config->data, config->len, CSTR("Debug"));
+			const int release = cstr_cmp(config->data, config->len, CSTR("Release"));
 
-			xml_tag_t *xml_def = xml_add_child(xml_proj, "ItemDefinitionGroup", 19);
-			xml_add_attr_f(xml_def, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
-			xml_tag_t *xml_comp = xml_add_child(xml_def, "ClCompile", 9);
-			xml_add_child_val(xml_comp, "WarningLevel", 12, "Level3", 6);
+			xml_tag_t xml_def = xml_add_child(&xml, xml_proj, CSTR("ItemDefinitionGroup"));
+			xml_add_attr_f(&xml, xml_def, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+			xml_tag_t xml_comp = xml_add_child(&xml, xml_def, CSTR("ClCompile"));
+			xml_add_child_val(&xml, xml_comp, CSTR("WarningLevel"), CSTR("Level3"));
 
 			if (release) {
-				xml_add_child_val(xml_comp, "FunctionLevelLinking", 20, "true", 4);
-				xml_add_child_val(xml_comp, "IntrinsicFunctions", 18, "true", 4);
+				xml_add_child_val(&xml, xml_comp, CSTR("FunctionLevelLinking"), CSTR("true"));
+				xml_add_child_val(&xml, xml_comp, CSTR("IntrinsicFunctions"), CSTR("true"));
 			}
 
-			xml_add_child_val(xml_comp, "SDLCheck", 8, "true", 4);
-			xml_add_child_val(xml_comp, "ConformanceMode", 15, "true", 4);
+			xml_add_child_val(&xml, xml_comp, CSTR("SDLCheck"), CSTR("true"));
+			xml_add_child_val(&xml, xml_comp, CSTR("ConformanceMode"), CSTR("true"));
 
 			if (proj->props[PROJ_PROP_INCLUDE].set || proj->props[PROJ_PROP_INCLUDES].set) {
-				xml_tag_t *xml_inc_dirs = xml_add_child(xml_comp, "AdditionalIncludeDirectories", 28);
-				xml_inc_dirs->val.len	= print_includes(NULL, 0, proj, projects);
-				xml_inc_dirs->val.data	= m_calloc((size_t)xml_inc_dirs->val.len + 1, sizeof(char));
-				print_includes(xml_inc_dirs->val.tdata, xml_inc_dirs->val.len + 1, proj, projects);
-				xml_inc_dirs->val.mem = 1;
+				unsigned int inc_len = print_includes(NULL, 0, proj, projects) + 1;
+				char *inc_data	     = m_malloc((size_t)inc_len);
+				print_includes(inc_data, inc_len, proj, projects);
+				xml_add_child_val_r(&xml, xml_comp, CSTR("AdditionalIncludeDirectories"), inc_data, inc_len, 1);
 			}
 
 			if (proj->props[PROJ_PROP_DEFINES].set) {
-				xml_tag_t *xml_defines = xml_add_child(xml_comp, "PreprocessorDefinitions", 23);
-				xml_defines->val.len   = print_defines(NULL, 0, proj, projects);
-				xml_defines->val.data  = m_calloc((size_t)xml_defines->val.len + 1, sizeof(char));
-				print_defines(xml_defines->val.tdata, xml_defines->val.len + 1, proj, projects);
-				xml_defines->val.mem = 1;
+				unsigned int def_len = print_defines(NULL, 0, proj, projects) + 1;
+				char *def_data	     = m_malloc((size_t)def_len);
+				print_defines(def_data, def_len, proj, projects);
+				xml_add_child_val_r(&xml, xml_comp, CSTR("PreprocessorDefinitions"), def_data, def_len, 1);
 			}
 
-			xml_tag_t *xml_link = xml_add_child(xml_def, "Link", 4);
-			xml_add_child_val(xml_link, "SubSystem", 9, "Console", 7);
+			xml_tag_t xml_link = xml_add_child(&xml, xml_def, CSTR("Link"));
+			xml_add_child_val(&xml, xml_link, CSTR("SubSystem"), CSTR("Console"));
 
 			if (release) {
-				xml_add_child_val(xml_link, "EnableCOMDATFolding", 19, "true", 4);
-				xml_add_child_val(xml_link, "OptimizeReferences", 18, "true", 4);
+				xml_add_child_val(&xml, xml_link, CSTR("EnableCOMDATFolding"), CSTR("true"));
+				xml_add_child_val(&xml, xml_link, CSTR("OptimizeReferences"), CSTR("true"));
 			}
 
-			xml_add_child_val(xml_link, "GenerateDebugInformation", 24, "true", 4);
+			xml_add_child_val(&xml, xml_link, CSTR("GenerateDebugInformation"), CSTR("true"));
 
 			if (proj->props[PROJ_PROP_LDFLAGS].set) {
-				unsigned int len = print_ldflags(NULL, 0, proj, projects);
-				if (len > 0) {
-					xml_tag_t *xml_ldflags = xml_add_child(xml_link, "AdditionalOptions", 17);
-					xml_ldflags->val.len   = len;
-					xml_ldflags->val.data  = m_calloc((size_t)xml_ldflags->val.len + 1, sizeof(char));
-					print_ldflags(xml_ldflags->val.tdata, xml_ldflags->val.len + 1, proj, projects);
-					xml_ldflags->val.mem = 1;
+				unsigned int ldf_len = print_ldflags(NULL, 0, proj, projects) + 1;
+				if (ldf_len > 1) {
+					char *ldf_data = m_malloc((size_t)ldf_len);
+					print_ldflags(ldf_data, ldf_len, proj, projects);
+					xml_add_child_val_r(&xml, xml_link, CSTR("AdditionalOptions"), ldf_data, ldf_len, 1);
 				}
 
 				if (proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_NONE)) {
-					xml_add_child(xml_link, "AdditionalDependencies", 22);
+					xml_add_child(&xml, xml_link, CSTR("AdditionalDependencies"));
 				}
 			}
 
 			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-				unsigned int len = print_libs(NULL, 0, proj, projects);
-				if (len > 0) {
-					xml_tag_t *xml_libs = xml_add_child(xml_link, "AdditionalLibraryDirectories", 28);
-					xml_libs->val.len   = len;
-					xml_libs->val.data  = m_calloc((size_t)xml_libs->val.len + 1, sizeof(char));
-					print_libs(xml_libs->val.tdata, xml_libs->val.len + 1, proj, projects);
-					xml_libs->val.mem = 1;
+				unsigned int libs_len = print_libs(NULL, 0, proj, projects) + 1;
+				if (libs_len > 1) {
+					char *libs_data = m_malloc((size_t)libs_len);
+					print_libs(libs_data, libs_len, proj, projects);
+					xml_add_child_val_r(&xml, xml_link, CSTR("AdditionalLibraryDirectories"), libs_data, libs_len, 1);
 				}
 			}
 		}
 	}
 
 	add_file_t afd = {
+		.xml   = &xml,
 		.langs = langs->mask,
 	};
 
 	path_init(&afd.path, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 
 	if (proj->props[PROJ_PROP_SOURCE].set) {
-		xml_tag_t *xml_srcs = xml_add_child(xml_proj, "ItemGroup", 9);
+		xml_tag_t xml_srcs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 
 		afd.xml_items = xml_srcs;
 
@@ -514,7 +504,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		const array_t *depends = &proj->all_depends;
 
 		if (depends->count > 0) {
-			xml_tag_t *xml_refs = xml_add_child(xml_proj, "ItemGroup", 9);
+			xml_tag_t xml_refs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 
 			for (int i = 0; i < depends->count; i++) {
 				const proj_t *dproj = *(proj_t **)array_get(depends, i);
@@ -523,17 +513,18 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 					path_t rel_path = { 0 };
 					path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
 
-					xml_tag_t *xml_ref = xml_add_child(xml_refs, "ProjectReference", 16);
-					xml_add_attr_f(xml_ref, "Include", 7, "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len, dproj->name->data);
-					xml_add_child_val_f(xml_ref, "Project", 7, "{%s}", dproj->guid);
+					xml_tag_t xml_ref = xml_add_child(&xml, xml_refs, CSTR("ProjectReference"));
+					xml_add_attr_f(&xml, xml_ref, CSTR("Include"), "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len,
+						       dproj->name->data);
+					xml_add_child_val_f(&xml, xml_ref, CSTR("Project"), "{%s}", dproj->guid);
 				}
 			}
 		}
 	}
 
 	if (proj->props[PROJ_PROP_SOURCE].set || proj->props[PROJ_PROP_INCLUDE].set) {
-		xml_tag_t *xml_incs = xml_add_child(xml_proj, "ItemGroup", 9);
-		afd.xml_items	    = xml_incs;
+		xml_tag_t xml_incs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
+		afd.xml_items	   = xml_incs;
 
 		const prop_str_t *srcv = &proj->props[PROJ_PROP_SOURCE].value;
 		const prop_str_t *incv = &proj->props[PROJ_PROP_INCLUDE].value;
@@ -557,12 +548,12 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		}
 	}
 
-	xml_add_attr(xml_add_child(xml_proj, "Import", 6), "Project", 7, "$(VCTargetsPath)\\Microsoft.Cpp.targets", 38);
+	xml_add_attr(&xml, xml_add_child(&xml, xml_proj, CSTR("Import")), CSTR("Project"), CSTR("$(VCTargetsPath)\\Microsoft.Cpp.targets"));
 
-	xml_tag_t *xml_ext_tar = xml_add_child_val(xml_proj, "ImportGroup", 11, "\n", 1);
-	xml_add_attr(xml_ext_tar, "Label", 5, "ExtensionTargets", 16);
+	xml_tag_t xml_ext_tar = xml_add_child_val(&xml, xml_proj, CSTR("ImportGroup"), CSTR("\n"));
+	xml_add_attr(&xml, xml_ext_tar, CSTR("Label"), CSTR("ExtensionTargets"));
 	if (langs->mask & (1 << LANG_ASM)) {
-		xml_add_attr(xml_add_child(xml_ext_tar, "Import", 6), "Project", 7, "$(VCTargetsPath)\\BuildCustomizations\\masm.targets", 49);
+		xml_add_attr(&xml, xml_add_child(&xml, xml_ext_tar, CSTR("Import")), CSTR("Project"), CSTR("$(VCTargetsPath)\\BuildCustomizations\\masm.targets"));
 	}
 
 	path_t cmake_path = *path;
@@ -578,27 +569,27 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		return 1;
 	}
 
-	if (path_child_s(&cmake_path, "vcxproj", 7, '.')) {
+	if (path_child_s(&cmake_path, CSTR("vcxproj"), '.')) {
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
+	FILE *fp = file_open(cmake_path.path, CSTR("w"));
 	if (fp == NULL) {
 		return 1;
 	}
 
 	MSG("generating project: %s", cmake_path.path);
 
-	xml_save(&xml, fp);
+	xml_print(&xml, fp);
 	fclose(fp);
 
 	xml_free(&xml);
 
 	xml_t xml_user = { 0 };
-	xml_init(&xml_user);
-	xml_tag_t *xml_proj_user = xml_add_child(&xml_user.root, "Project", 7);
-	xml_add_attr(xml_proj_user, "ToolsVersion", 14, "Current", 7);
-	xml_add_attr(xml_proj_user, "xmlns", 5, "http://schemas.microsoft.com/developer/msbuild/2003", 51);
+	xml_init(&xml_user, 16);
+	xml_tag_t xml_proj_user = xml_add_child(&xml_user, 0, CSTR("Project"));
+	xml_add_attr(&xml_user, xml_proj_user, CSTR("ToolsVersion"), CSTR("Current"));
+	xml_add_attr(&xml_user, xml_proj_user, CSTR("xmlns"), CSTR("http://schemas.microsoft.com/developer/msbuild/2003"));
 
 	if (proj->props[PROJ_PROP_ARGS].set) {
 		for (int i = platforms->count - 1; i >= 0; i--) {
@@ -614,17 +605,18 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 
 				const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 
-				xml_tag_t *xml_group = xml_add_child(xml_proj_user, "PropertyGroup", 13);
-				xml_add_attr_f(xml_group, "Condition", 9, "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf);
+				xml_tag_t xml_group = xml_add_child(&xml_user, xml_proj_user, CSTR("PropertyGroup"));
+				xml_add_attr_f(&xml_user, xml_group, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data,
+					       platf_len, platf);
 
-				xml_add_child_val(xml_group, "LocalDebuggerCommandArguments", 29, proj->props[PROJ_PROP_ARGS].value.data,
+				xml_add_child_val(&xml_user, xml_group, CSTR("LocalDebuggerCommandArguments"), proj->props[PROJ_PROP_ARGS].value.data,
 						  proj->props[PROJ_PROP_ARGS].value.len);
 			}
 		}
 	}
 
-	xml_tag_t *xml_proj_props = xml_add_child(xml_proj_user, "PropertyGroup", 13);
-	xml_add_child_val(xml_proj_props, "ShowAllFiles", 12, "true", 4);
+	xml_tag_t xml_proj_props = xml_add_child(&xml_user, xml_proj_user, CSTR("PropertyGroup"));
+	xml_add_child_val(&xml_user, xml_proj_props, CSTR("ShowAllFiles"), CSTR("true"));
 
 	path_t cmake_path_user = *path;
 	if (path_child(&cmake_path_user, proj->rel_path.path, proj->rel_path.len)) {
@@ -648,7 +640,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		return 1;
 	}
 
-	xml_save(&xml_user, fpu);
+	xml_print(&xml_user, fpu);
 	fclose(fpu);
 	xml_free(&xml_user);
 
