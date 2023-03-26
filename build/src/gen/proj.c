@@ -1,6 +1,7 @@
 #include "proj.h"
 
 #include "dir.h"
+#include "sln.h"
 
 #include "common.h"
 
@@ -28,7 +29,16 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_ARGS]     = { .name = STR("ARGS"), },
 };
 
-int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent)
+static void replace_prop(prop_t *proj_prop, const prop_t *sln_prop)
+{
+	if (!(proj_prop->flags & PROP_SET)) {
+		prop_free(proj_prop);
+		*proj_prop = *sln_prop;
+		proj_prop->flags &= ~PROP_ARR;
+	}
+}
+
+int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props)
 {
 	proj->file_path = *path;
 	pathv_path(&proj->path, &proj->file_path);
@@ -55,7 +65,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	int ret = props_parse_file(proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
 
-	if (!proj->props[PROJ_PROP_NAME].set) {
+	if (!proj->props[PROJ_PROP_NAME].flags & PROP_SET) {
 		ERR("%.*s: project name is not set", proj->file_path.len, proj->file_path.path);
 		ret++;
 		return ret;
@@ -70,7 +80,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	unsigned char buf[256] = { 0 };
 	md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
-	if (proj->props[PROJ_PROP_SOURCE].set) {
+	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		prop_str_t *source = &proj->props[PROJ_PROP_SOURCE].value;
 		path_t path	   = { 0 };
 		path_init(&path, proj->path.path, proj->path.len);
@@ -84,7 +94,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 		}
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDE].set) {
+	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		prop_str_t *include = &proj->props[PROJ_PROP_INCLUDE].value;
 		path_t path	    = { 0 };
 		path_init(&path, proj->path.path, proj->path.len);
@@ -97,6 +107,12 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 			}
 		}
 	}
+
+	replace_prop(&proj->props[PROJ_PROP_LANGS], &sln_props[SLN_PROP_LANGS]);
+	replace_prop(&proj->props[PROJ_PROP_CHARSET], &sln_props[SLN_PROP_CHARSET]);
+	replace_prop(&proj->props[PROJ_PROP_CFLAGS], &sln_props[SLN_PROP_CFLAGS]);
+	replace_prop(&proj->props[PROJ_PROP_OUTDIR], &sln_props[SLN_PROP_OUTDIR]);
+	replace_prop(&proj->props[PROJ_PROP_INTDIR], &sln_props[SLN_PROP_INTDIR]);
 
 	return ret;
 }

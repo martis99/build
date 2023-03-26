@@ -50,6 +50,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_t *table, size_t table_len, const str_t *line)
 {
 	array_init(&prop->arr, 8, sizeof(prop_str_t));
+	prop->flags |= PROP_ARR;
 	prop->mask = 0;
 
 	str_t value = *arr;
@@ -100,18 +101,18 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 	for (int i = 0; i < props_pol_len; i++) {
 		const prop_pol_t *pol = &props_pol[i];
 		if (str_eq_str(&name, &pol->name)) {
-			if (props[i].set) {
+			if (props[i].flags & PROP_SET) {
 				ERR_LOGICS("property redefinition", data.path, data.line, 0);
 				return 1;
 			}
-			props[i].set = 1;
+			props[i].flags |= PROP_SET;
 
 			if (props_pol[i].arr) {
 				return parse_arr(data, &props[i], &value, props_pol[i].str_table, props_pol[i].str_table_len, line);
 			}
 
 			if (parse_value(&data, &props[i], &value, props_pol[i].str_table, props_pol[i].str_table_len, line, 0)) {
-				props[i].set = 0;
+				props[i].flags &= ~PROP_SET;
 			} else {
 				props[i].value = data;
 			}
@@ -202,13 +203,33 @@ void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_tab
 	}
 }
 
+void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
+{
+	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
+	for (size_t i = 0; i < props_pol_len; i++) {
+		if (!(props[i].flags & PROP_SET) && props_pol[i].def.data != NULL) {
+			props[i].value = (prop_str_t){
+				.cdata = props_pol[i].def.data,
+				.len   = props_pol[i].def.len,
+			};
+			props[i].flags |= PROP_SET;
+		}
+	}
+}
+
+void prop_free(prop_t *prop)
+{
+	if (prop->flags & PROP_ARR) {
+		array_free(&prop->arr);
+		prop->flags &= ~PROP_ARR;
+	}
+}
+
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 {
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
 	for (size_t i = 0; i < props_pol_len; i++) {
-		if (props_pol[i].arr) {
-			array_free(&props[i].arr);
-		}
+		prop_free(&props[i]);
 	}
 }
 

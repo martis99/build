@@ -122,10 +122,19 @@ int main(int argc, const char **argv)
 	gen = GEN_VC;
 #endif
 
+	// clang-format off
 	void *params[] = {
-		[ARG_S] = &solution, [ARG_B] = &build, [ARG_G] = &gen,	 [ARG_D] = &G_DBG, [ARG_C] = &G_SUC,
-		[ARG_I] = &G_INF,    [ARG_W] = &G_WRN, [ARG_E] = &G_ERR, [ARG_M] = &G_MSG,
+		[ARG_S] = &solution,
+		[ARG_B] = &build,
+		[ARG_G] = &gen,
+		[ARG_D] = &G_DBG,
+		[ARG_C] = &G_SUC,
+		[ARG_I] = &G_INF,
+		[ARG_W] = &G_WRN,
+		[ARG_E] = &G_ERR,
+		[ARG_M] = &G_MSG,
 	};
+	// clang-format on
 
 	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params)) {
 		return 1;

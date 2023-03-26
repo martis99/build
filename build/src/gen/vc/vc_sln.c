@@ -12,7 +12,7 @@
 
 typedef struct generate_build_priv_s {
 	const sln_t *sln;
-	FILE *f;
+	FILE *file;
 	int first;
 } generate_build_priv_t;
 
@@ -23,10 +23,10 @@ static void generate_build(void *key, size_t ksize, void *value, const void *pri
 
 	const prop_t *configs = &p->sln->props[SLN_PROP_CONFIGS];
 
-	p_fprintf(p->f, "%.*s\n", !p->first, ",");
+	p_fprintf(p->file, "%.*s\n", !p->first, ",");
 	((generate_build_priv_t *)p)->first = 0;
 
-	vc_proj_gen_build(proj, configs, p->f);
+	vc_proj_gen_build(proj, configs, p->file);
 }
 
 static void generate_launch(void *key, size_t ksize, void *value, const void *priv)
@@ -34,17 +34,14 @@ static void generate_launch(void *key, size_t ksize, void *value, const void *pr
 	const generate_build_priv_t *p = priv;
 	const proj_t *proj	       = value;
 
-	const prop_t *configs = &p->sln->props[SLN_PROP_CONFIGS];
-	const prop_t *outdir  = &p->sln->props[SLN_PROP_OUTDIR];
-
 	if (proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXE) {
 		return;
 	}
 
-	p_fprintf(p->f, "%.*s\n", !p->first, ",");
+	p_fprintf(p->file, "%.*s\n", !p->first, ",");
 	((generate_build_priv_t *)p)->first = 0;
 
-	vc_proj_gen_launch(proj, &p->sln->projects, configs, outdir, p->f);
+	vc_proj_gen_launch(proj, &p->sln->projects, p->sln->props, p->file);
 }
 
 int vc_sln_gen(const sln_t *sln, const path_t *path)
@@ -68,8 +65,8 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	FILE *fp = file_open(tasks_path.path, "w", 1);
-	if (fp == NULL) {
+	FILE *file = file_open(tasks_path.path, "w", 1);
+	if (file == NULL) {
 		printf("Failed to create file: %s, errno: %d\n", tasks_path.path, errno);
 		return 1;
 	}
@@ -84,29 +81,29 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	p_fprintf(fp, "{\n"
-		      "        \"version\": \"2.0.0\",\n"
-		      "        \"tasks\": [");
+	p_fprintf(file, "{\n"
+			"        \"version\": \"2.0.0\",\n"
+			"        \"tasks\": [");
 
 	generate_build_priv_t generate_build_priv = {
 		.sln   = sln,
-		.f     = fp,
+		.file  = file,
 		.first = 1,
 	};
 
 	hashmap_iterate_c(&sln->projects, generate_build, &generate_build_priv);
 
-	p_fprintf(fp, "\n        ]\n"
-		      "}");
+	p_fprintf(file, "\n        ]\n"
+			"}");
 
-	fclose(fp);
+	fclose(file);
 	if (ret == 0) {
 		SUC("generating tasks: %s success", tasks_path.path);
 	} else {
 		ERR("generating tasks: %s failed", tasks_path.path);
 	}
 
-	if (!startup->set || !outdir->set) {
+	if (!(startup->flags & PROP_SET) || !(outdir->flags & PROP_SET)) {
 		return 0;
 	}
 
@@ -118,25 +115,25 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	fp = file_open(launch_path.path, "w", 1);
-	if (fp == NULL) {
+	file = file_open(launch_path.path, "w", 1);
+	if (file == NULL) {
 		printf("Failed to create file: %s, errno: %d\n", launch_path.path, errno);
 		return 1;
 	}
 
-	p_fprintf(fp, "{\n"
-		      "        \"version\": \"0.2.0\",\n"
-		      "        \"configurations\": [");
+	p_fprintf(file, "{\n"
+			"        \"version\": \"0.2.0\",\n"
+			"        \"configurations\": [");
 
-	generate_build_priv.f	  = fp;
+	generate_build_priv.file  = file;
 	generate_build_priv.first = 1;
 
 	hashmap_iterate_c(&sln->projects, generate_launch, &generate_build_priv);
 
-	p_fprintf(fp, "\n        ]\n"
-		      "}");
+	p_fprintf(file, "\n        ]\n"
+			"}");
 
-	fclose(fp);
+	fclose(file);
 	if (ret == 0) {
 		SUC("generating tasks: %s success", launch_path.path);
 	} else {

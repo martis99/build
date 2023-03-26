@@ -1,5 +1,6 @@
 #include "mk_proj.h"
 
+#include "gen/sln.h"
 #include "gen/var.h"
 
 #include "common.h"
@@ -32,18 +33,16 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 	}
 }
 
-int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *configs, const prop_t *langs, const prop_t *cflags, const prop_t *outdir,
-		const prop_t *intdir)
+int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *sln_props)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	const prop_t *sln_outdir = outdir;
-
-	langs  = proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
-	cflags = proj->props[PROJ_PROP_CFLAGS].set ? &proj->props[PROJ_PROP_CFLAGS] : cflags;
-	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
-	intdir = proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
+	const prop_t *configs = &sln_props[SLN_PROP_CONFIGS];
+	const prop_t *langs   = &proj->props[PROJ_PROP_LANGS];
+	const prop_t *cflags  = &proj->props[PROJ_PROP_CFLAGS];
+	const prop_t *outdir  = &proj->props[PROJ_PROP_OUTDIR];
+	const prop_t *intdir  = &proj->props[PROJ_PROP_INTDIR];
 
 	char buf[P_MAX_PATH]  = { 0 };
 	char buf2[P_MAX_PATH] = { 0 };
@@ -79,7 +78,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	int deps_first = 0;
 
-	if (outdir->set) {
+	if (outdir->flags & PROP_SET) {
 		convert_slash(buf, sizeof(buf) - 1, outdir->value.data, outdir->value.len);
 		buf2_len = cstr_replaces(buf, outdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
 		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
@@ -87,7 +86,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "OUTDIR = %.*s\n", buf_len, buf);
 	}
 
-	if (intdir->set) {
+	if (intdir->flags & PROP_SET) {
 		convert_slash(buf, sizeof(buf) - 1, intdir->value.data, intdir->value.len);
 		buf2_len = cstr_replaces(buf, intdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
 		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
@@ -95,7 +94,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "INTDIR = %.*s\n", buf_len, buf);
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDE].set) {
+	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", inc->len, inc->data);
 			deps_first = 1;
@@ -107,7 +106,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		}
 	}
 
-	if (proj->props[PROJ_PROP_SOURCE].set) {
+	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", src->len, src->data);
 			deps_first = 1;
@@ -146,10 +145,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "FLAGS =");
 
-	int include_diff = proj->props[PROJ_PROP_INCLUDE].set &&
-			   (!proj->props[PROJ_PROP_SOURCE].set || !prop_cmp(&proj->props[PROJ_PROP_INCLUDE].value, &proj->props[PROJ_PROP_SOURCE].value));
+	int include_diff = (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) &&
+			   (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !prop_cmp(&proj->props[PROJ_PROP_INCLUDE].value, &proj->props[PROJ_PROP_SOURCE].value));
 
-	if (proj->props[PROJ_PROP_SOURCE].set) {
+	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 		p_fprintf(fp, " -I%.*s", proj->props[PROJ_PROP_SOURCE].value.len, buf);
 	}
@@ -162,13 +161,13 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
-		if (iproj->props[PROJ_PROP_INCLUDE].set) {
+		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 			convert_slash(buf, sizeof(buf) - 1, iproj->rel_path.path, iproj->rel_path.len);
 			p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buf, iproj->props[PROJ_PROP_INCLUDE].value.len,
 				  iproj->props[PROJ_PROP_INCLUDE].value.data);
 		}
 
-		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
+		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buf, sizeof(buf) - 1, vars.names,
 						 vars.tos, __VAR_MAX);
 			buf2_len = cstr_replace(buf, buf_len, buf2, sizeof(buf2) - 1, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
@@ -183,7 +182,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	if (lang & (1 << LANG_C)) {
 		p_fprintf(fp, "CFLAGS += $(FLAGS)");
 
-		if (cflags->set && cflags->mask & (1 << CFLAG_STD_C99)) {
+		if ((cflags->flags & PROP_SET) && cflags->mask & (1 << CFLAG_STD_C99)) {
 			p_fprintf(fp, " -std=c99");
 		}
 		p_fprintf(fp, "\n");
@@ -198,7 +197,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
 
-		if (ldflags->set) {
+		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE)) {
 				p_fprintf(fp, " -Wl,--whole-archive");
 			}
@@ -211,9 +210,9 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				const prop_t *doutdir = dproj->props[PROJ_PROP_OUTDIR].set ? &dproj->props[PROJ_PROP_OUTDIR] : sln_outdir;
+				const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
 
-				if (doutdir->set) {
+				if (doutdir->flags & PROP_SET) {
 					convert_slash(buf, sizeof(buf) - 1, doutdir->value.data, doutdir->value.len);
 					buf2_len = cstr_replaces(buf, doutdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
 					buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
@@ -228,7 +227,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				}
 			}
 
-			if (dproj->props[PROJ_PROP_LIBDIRS].set) {
+			if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
 				const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 				for (int j = 0; j < libdirs->count; j++) {
 					prop_str_t *libdir = array_get(libdirs, j);
@@ -242,7 +241,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				}
 			}
 
-			if (dproj->props[PROJ_PROP_LINK].set) {
+			if (dproj->props[PROJ_PROP_LINK].flags & PROP_SET) {
 				const array_t *links = &dproj->props[PROJ_PROP_LINK].arr;
 				for (int j = 0; j < links->count; j++) {
 					prop_str_t *link = array_get(links, j);
@@ -253,7 +252,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			}
 		}
 
-		if (ldflags->set && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
+		if ((ldflags->flags & PROP_SET) && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
 			p_fprintf(fp, " -Wl,--no-whole-archive");
 		}
 
@@ -261,7 +260,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			p_fprintf(fp, " -lstdc++");
 		}
 
-		if (ldflags->set) {
+		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_MATH)) {
 				p_fprintf(fp, " -lm");
 			}
@@ -292,7 +291,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "check:\n");
 
-	if (configs->set && configs->arr.count > 0) {
+	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
 		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
 			      "CONFIG_FLAGS = -ggdb3 -O0\n"
 			      "endif\n");

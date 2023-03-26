@@ -20,17 +20,13 @@ static void gen_dir_cmake(void *key, size_t ksize, void *value, const void *priv
 typedef struct gen_proj_cmake_data_s {
 	const path_t *path;
 	const hashmap_t *projects;
-	const prop_t *langs;
-	charset_t charset;
-	const prop_t *cflags;
-	const prop_t *outdir;
-	const prop_t *intdir;
+	const prop_t *sln_props;
 } gen_proj_cmake_data_t;
 
 static void gen_proj_cmake(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_cmake_data_t *data = priv;
-	cm_proj_gen(value, data->projects, data->path, data->langs, data->charset, data->cflags, data->outdir, data->intdir);
+	cm_proj_gen(value, data->projects, data->path, data->sln_props);
 }
 
 int cm_sln_gen(const sln_t *sln, const path_t *path)
@@ -77,7 +73,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	}
 	p_fprintf(fp, ")\n");
 
-	if (sln->props[SLN_PROP_CONFIGS].set) {
+	if (sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) {
 		p_fprintf(fp, "\nset(CMAKE_CONFIGURATION_TYPES \"");
 
 		const array_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
@@ -124,12 +120,9 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	hashmap_iterate_c(&sln->dirs, gen_dir_cmake, path);
 
 	gen_proj_cmake_data_t gen_proj_cmake_data = {
-		.path	  = path,
-		.projects = &sln->projects,
-		.langs	  = &sln->props[SLN_PROP_LANGS],
-		.charset  = sln->props[SLN_PROP_CHARSET].mask,
-		.outdir	  = &sln->props[SLN_PROP_OUTDIR],
-		.intdir	  = &sln->props[SLN_PROP_INTDIR],
+		.path	   = path,
+		.projects  = &sln->projects,
+		.sln_props = sln->props,
 	};
 	hashmap_iterate_c(&sln->projects, gen_proj_cmake, &gen_proj_cmake_data);
 

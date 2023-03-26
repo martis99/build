@@ -16,8 +16,8 @@ static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_PLATFORMS] = { .name = STR("PLATFORMS"), .arr = 1 },
 	[SLN_PROP_CHARSET]   = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[SLN_PROP_CFLAGS]    = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
-	[SLN_PROP_OUTDIR]    = { .name = STR("OUTDIR"), },
-	[SLN_PROP_INTDIR]    = { .name = STR("INTDIR"), },
+	[SLN_PROP_OUTDIR]    = { .name = STR("OUTDIR"), .def = STR("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\")},
+	[SLN_PROP_INTDIR]    = { .name = STR("INTDIR"), .def = STR("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\int\\")},
 };
 
 typedef struct read_dir_data_s {
@@ -39,7 +39,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	read_dir_data_t *data = priv;
 	if (file_exists(file_path.path)) {
 		proj_t *proj = m_calloc(1, sizeof(proj_t));
-		ret += proj_read(proj, &data->sln->path, path, data->parent);
+		ret += proj_read(proj, &data->sln->path, path, data->parent, data->sln->props);
 		const prop_str_t *name = proj->name;
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
 			hashmap_set(&data->sln->projects, name->data, name->len, proj);
@@ -106,7 +106,7 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
-			if (!dproj->props[PROJ_PROP_DEPEND].set) {
+			if (!(dproj->props[PROJ_PROP_DEPEND].flags & PROP_SET)) {
 				continue;
 			}
 
@@ -195,6 +195,8 @@ int sln_read(sln_t *sln, const path_t *path)
 		.sln	= sln,
 		.parent = NULL,
 	};
+
+	prop_def(sln->props, s_sln_props, sizeof(s_sln_props));
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);

@@ -130,7 +130,7 @@ typedef struct proj_s {
 	const struct dir_s *parent;
 } proj_t;
 
-int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent);
+int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
 void proj_print(proj_t *proj);
 
 void proj_free(proj_t *proj);

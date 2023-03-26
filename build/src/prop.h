@@ -17,8 +17,13 @@ typedef struct prop_str_s {
 	unsigned int col;
 } prop_str_t;
 
+typedef enum prop_flag_s {
+	PROP_SET = 1 << 0,
+	PROP_ARR = 1 << 1,
+} prop_flag_t;
+
 typedef struct prop_s {
-	int set;
+	unsigned char flags;
 	union {
 		array_t arr;
 		prop_str_t value;
@@ -35,6 +40,7 @@ typedef struct prop_pol_s {
 	unsigned int arr;
 	const str_t *str_table;
 	size_t str_table_len;
+	str_t def;
 } prop_pol_t;
 
 int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
@@ -45,6 +51,9 @@ int prop_cmp(const prop_str_t *l, const prop_str_t *r);
 void prop_print_arr(const prop_t *prop);
 void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len);
 
+void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
+
+void prop_free(prop_t *prop);
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
 int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_len);

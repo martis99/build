@@ -7,18 +7,13 @@
 typedef struct gen_proj_make_data_s {
 	const path_t *path;
 	const hashmap_t *projects;
-	const prop_t *configs;
-	const prop_t *langs;
-	charset_t charset;
-	const prop_t *cflags;
-	const prop_t *outdir;
-	const prop_t *intdir;
+	const prop_t *sln_props;
 } gen_proj_make_data_t;
 
 static void gen_proj_make(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_make_data_t *data = priv;
-	mk_proj_gen(value, data->projects, data->path, data->configs, data->langs, data->cflags, data->outdir, data->intdir);
+	mk_proj_gen(value, data->projects, data->path, data->sln_props);
 }
 
 static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
@@ -29,7 +24,7 @@ static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 
 typedef struct add_target_make_data_s {
 	const hashmap_t *projects;
-	FILE *fp;
+	FILE *file;
 	const prop_t *configs;
 } add_target_make_data_t;
 
@@ -42,28 +37,28 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	char buf[P_MAX_PATH] = { 0 };
 
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(data->fp, "%.*s: check", proj->name->len, proj->name->data);
+	p_fprintf(data->file, "%.*s: check", proj->name->len, proj->name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		for (int i = 0; i < proj->all_depends.count; i++) {
 			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				p_fprintf(data->fp, " %.*s", dproj->name->len, dproj->name->data);
+				p_fprintf(data->file, " %.*s", dproj->name->len, dproj->name->data);
 			}
 		}
 	}
 
-	p_fprintf(data->fp,
+	p_fprintf(data->file,
 		  "\n"
 		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)",
 		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
 
-	if (data->configs->set && data->configs->arr.count > 0) {
-		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
+	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
+		p_fprintf(data->file, " CONFIG=$(CONFIG)");
 	}
 
-	p_fprintf(data->fp, "\n\n");
+	p_fprintf(data->file, "\n\n");
 }
 
 typedef struct add_clean_make_data_s {
@@ -82,7 +77,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
 	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", proj->rel_path.len, buf);
 
-	if (data->configs->set && data->configs->arr.count > 0) {
+	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
 		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
 	}
 
@@ -96,9 +91,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	const prop_str_t *name	   = &sln->props[SLN_PROP_NAME].value;
 	const char *targets_folder = "CMake";
-	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
 	const prop_t *startup	   = &sln->props[SLN_PROP_STARTUP];
 	const prop_t *configs	   = &sln->props[SLN_PROP_CONFIGS];
 
@@ -107,8 +100,8 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
-	if (fp == NULL) {
+	FILE *file = file_open(cmake_path.path, "w", 1);
+	if (file == NULL) {
 		return 1;
 	}
 
@@ -117,68 +110,64 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	int ret = 0;
 
 	gen_proj_make_data_t gen_proj_make_data = {
-		.path	  = path,
-		.projects = &sln->projects,
-		.configs  = configs,
-		.langs	  = &sln->props[SLN_PROP_LANGS],
-		.cflags	  = &sln->props[SLN_PROP_CFLAGS],
-		.outdir	  = &sln->props[SLN_PROP_OUTDIR],
-		.intdir	  = &sln->props[SLN_PROP_INTDIR],
+		.path	   = path,
+		.projects  = &sln->projects,
+		.sln_props = sln->props,
 	};
 
-	p_fprintf(fp, "SLNDIR=$(CURDIR)\n\n");
+	p_fprintf(file, "SLNDIR=$(CURDIR)\n\n");
 
-	if (configs->set && configs->arr.count > 0) {
-		p_fprintf(fp, "CONFIGS =");
+	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+		p_fprintf(file, "CONFIGS =");
 
 		for (int i = 0; i < configs->arr.count; i++) {
 			const prop_str_t *config = array_get(&configs->arr, i);
-			p_fprintf(fp, " %.*s", config->len, config->data);
+			p_fprintf(file, " %.*s", config->len, config->data);
 		}
 
 		prop_str_t *config = array_get(&configs->arr, 0);
-		p_fprintf(fp, "\nCONFIG = %.*s\n\n", config->len, config->data);
+		p_fprintf(file, "\nCONFIG = %.*s\n\n", config->len, config->data);
 	}
 
-	p_fprintf(fp, ".PHONY: all check");
+	p_fprintf(file, ".PHONY: all check");
 
-	hashmap_iterate_hc(&sln->projects, add_phony_make, fp);
+	hashmap_iterate_hc(&sln->projects, add_phony_make, file);
 
-	p_fprintf(fp, " clean\n"
-		      "\n"
-		      "all: clean");
+	p_fprintf(file, " clean\n"
+			"\n"
+			"all: clean");
 
-	if (startup->set) {
-		p_fprintf(fp, " %.*s", startup->value.len, startup->value.data);
+	if (startup->flags & PROP_SET) {
+		p_fprintf(file, " %.*s", startup->value.len, startup->value.data);
 	}
 
-	p_fprintf(fp, "\n\ncheck:\n");
+	p_fprintf(file, "\n\ncheck:\n");
 
-	if (configs->set && configs->arr.count > 0) {
-		p_fprintf(fp, "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
-			      "\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
-			      "endif\n");
+	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+		p_fprintf(file, "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
+				"\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
+				"endif\n");
 	}
 
-	p_fprintf(fp, "\n");
+	p_fprintf(file, "\n");
 
 	add_target_make_data_t add_target_make_data = {
 		.projects = &sln->projects,
-		.fp	  = fp,
+		.file	  = file,
 		.configs  = configs,
 	};
 
 	hashmap_iterate_hc(&sln->projects, add_target_make, &add_target_make_data);
 
 	add_clean_make_data_t add_clean_make_data = {
-		.fp	 = fp,
+		.fp	 = file,
 		.configs = configs,
 	};
 
-	p_fprintf(fp, "clean: check\n");
+	p_fprintf(file, "clean: check\n");
 	hashmap_iterate_hc(&sln->projects, add_clean_make, &add_clean_make_data);
 
-	fclose(fp);
+	fclose(file);
 	if (ret == 0) {
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {

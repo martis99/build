@@ -1,11 +1,6 @@
 #ifndef VAR_H
 #define VAR_H
 
-typedef struct var_pol_s {
-	const char *names[64];
-	const char *tos[64];
-} var_pol_t;
-
 typedef enum var_e {
 	VAR_SLN_DIR,
 	VAR_SLN_NAME,
@@ -16,5 +11,10 @@ typedef enum var_e {
 
 	__VAR_MAX,
 } var_t;
+
+typedef struct var_pol_s {
+	const char *names[__VAR_MAX];
+	const char *tos[__VAR_MAX];
+} var_pol_t;
 
 #endif

@@ -1,5 +1,6 @@
 #include "vs_proj.h"
 
+#include "gen/sln.h"
 #include "gen/var.h"
 
 #include "common.h"
@@ -24,6 +25,17 @@ static const var_pol_t vars = {
 		[VAR_PLATFORM] = "$(PlatformTarget)",
 	},
 };
+
+static unsigned int resolve(const prop_str_t *prop, char *dst, unsigned int dst_max_len, const proj_t *proj)
+{
+	char buf[P_MAX_PATH] = { 0 };
+	unsigned int buf_len, dst_len;
+
+	buf_len = cstr_replaces(prop->data, prop->len, CSTR(buf), vars.names, vars.tos, __VAR_MAX);
+	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
+
+	return dst_len;
+}
 
 typedef struct add_file_s {
 	path_t path;
@@ -106,12 +118,12 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
 	const prop_str_t *enc = &proj->props[PROJ_PROP_ENCLUDE].value;
 
-	if (proj->props[PROJ_PROP_INCLUDE].set) {
+	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", inc->len, inc->data);
 		first = 1;
 	}
 
-	if (proj->props[PROJ_PROP_ENCLUDE].set) {
+	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 		tmp_len = cstr_replaces(enc->data, enc->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", tmp_len, tmp);
 		first = 1;
@@ -120,14 +132,14 @@ static inline int print_includes(char *buf, unsigned int buf_size, const proj_t 
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
-		if (iproj->props[PROJ_PROP_INCLUDE].set) {
+		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", iproj->rel_path.len, iproj->rel_path.path,
 					iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
 
 			first = 1;
 		}
 
-		if (iproj->props[PROJ_PROP_ENCLUDE].set) {
+		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, tmp, sizeof(tmp) - 1, vars.names,
 						vars.tos, __VAR_MAX);
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", tmp_len, tmp);
@@ -144,7 +156,7 @@ static inline int print_defines(char *buf, unsigned int buf_size, const proj_t *
 	unsigned int len = 0;
 	int first	 = 1;
 
-	if (proj->props[PROJ_PROP_DEFINES].set) {
+	if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
 		const array_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
 
 		for (int k = 0; k < defines->count; k++) {
@@ -169,7 +181,7 @@ static inline int print_libs(char *buf, unsigned int buf_size, const proj_t *pro
 	for (int i = 0; i < proj->all_depends.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
 
-		if (dproj->props[PROJ_PROP_LIBDIRS].set) {
+		if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
 			const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 			for (int j = 0; j < libdirs->count; j++) {
 				prop_str_t *libdir = array_get(libdirs, j);
@@ -203,7 +215,7 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 
 	const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
 
-	if (ldflags->set && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
+	if ((ldflags->flags & PROP_SET) && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s/WHOLEARCHIVE", first, "");
 		first = 1;
 	}
@@ -216,25 +228,37 @@ static inline int print_ldflags(char *buf, unsigned int buf_size, const proj_t *
 }
 
 //TODO: Make proj const
-int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *configs, const array_t *platforms, const prop_t *langs, const prop_t *charset,
-		const prop_t *cflags, const prop_t *outdir, const prop_t *intdir)
+int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *sln_props)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	langs	= proj->props[PROJ_PROP_LANGS].set ? &proj->props[PROJ_PROP_LANGS] : langs;
-	charset = proj->props[PROJ_PROP_CHARSET].set ? &proj->props[PROJ_PROP_CHARSET] : charset;
-	cflags	= proj->props[PROJ_PROP_CFLAGS].set ? &proj->props[PROJ_PROP_CFLAGS] : cflags;
-	outdir	= proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
-	intdir	= proj->props[PROJ_PROP_INTDIR].set ? &proj->props[PROJ_PROP_INTDIR] : intdir;
+	const array_t *platforms = &sln_props[SLN_PROP_PLATFORMS].arr;
+	const array_t *configs	 = &sln_props[SLN_PROP_CONFIGS].arr;
+	const prop_t *langs	 = &proj->props[PROJ_PROP_LANGS];
+	const prop_t *charset	 = &proj->props[PROJ_PROP_CHARSET];
+	const prop_t *cflags	 = &proj->props[PROJ_PROP_CFLAGS];
+	const prop_t *p_outdir	 = &proj->props[PROJ_PROP_OUTDIR];
+	const prop_t *p_intdir	 = &proj->props[PROJ_PROP_INTDIR];
 
-	char buf[P_MAX_PATH] = { 0 };
-	unsigned int buf_len;
+	char outdir[P_MAX_PATH] = { 0 };
+	char intdir[P_MAX_PATH] = { 0 };
+
+	unsigned int outdir_len = 0;
+	unsigned int intdir_len = 0;
+
+	if (p_outdir->flags & PROP_SET) {
+		outdir_len = resolve(&p_outdir->value, CSTR(outdir), proj);
+	}
+
+	if (p_intdir->flags & PROP_SET) {
+		intdir_len = resolve(&p_intdir->value, CSTR(intdir), proj);
+	}
 
 	if (charset->mask == CHARSET_UNICODE) {
-		if (!proj->props[PROJ_PROP_DEFINES].set) {
+		if (!(proj->props[PROJ_PROP_DEFINES].flags & PROP_SET)) {
 			array_init(&proj->props[PROJ_PROP_DEFINES].arr, 2, sizeof(prop_str_t));
-			proj->props[PROJ_PROP_DEFINES].set = 1;
+			proj->props[PROJ_PROP_DEFINES].flags |= PROP_SET | PROP_ARR;
 		}
 
 		prop_str_t unicode = STR("UNICODE");
@@ -261,8 +285,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->arr.count; j++) {
-			prop_str_t *config = array_get(&configs->arr, j);
+		for (int j = 0; j < configs->count; j++) {
+			prop_str_t *config = array_get(configs, j);
 
 			xml_tag_t xml_proj_conf = xml_add_child(&xml, xml_proj_confs, CSTR("ProjectConfiguration"));
 			xml_add_attr_f(&xml, xml_proj_conf, CSTR("Include"), "%.*s|%.*s", config->len, config->data, platf_len, platf);
@@ -309,8 +333,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->arr.count; j++) {
-			prop_str_t *config = array_get(&configs->arr, j);
+		for (int j = 0; j < configs->count; j++) {
+			prop_str_t *config = array_get(configs, j);
 
 			const int debug	  = cstr_cmp(config->data, config->len, CSTR("Debug"));
 			const int release = cstr_cmp(config->data, config->len, CSTR("Release"));
@@ -327,7 +351,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				xml_add_child_val(&xml, xml_conf, CSTR("WholeProgramOptimization"), CSTR("true"));
 			}
 
-			if (charset->set && charset->mask != CHARSET_UNKNOWN) {
+			if ((charset->flags & PROP_SET) && charset->mask != CHARSET_UNKNOWN) {
 				xml_add_child_val(&xml, xml_conf, CSTR("CharacterSet"), charsets[charset->mask].name, charsets[charset->mask].len);
 			}
 		}
@@ -352,8 +376,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->arr.count; j++) {
-			prop_str_t *config = array_get(&configs->arr, j);
+		for (int j = 0; j < configs->count; j++) {
+			prop_str_t *config = array_get(configs, j);
 
 			xml_tag_t xml_sheets = xml_add_child(&xml, xml_proj, CSTR("ImportGroup"));
 			xml_add_attr(&xml, xml_sheets, CSTR("Label"), CSTR("PropertySheets"));
@@ -376,8 +400,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->arr.count; j++) {
-			prop_str_t *config = array_get(&configs->arr, j);
+		for (int j = 0; j < configs->count; j++) {
+			prop_str_t *config = array_get(configs, j);
 
 			const int debug = cstr_cmp(config->data, config->len, CSTR("Debug"));
 
@@ -388,20 +412,12 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				xml_add_child_val(&xml, xml_plat, CSTR("LinkIncremental"), debug ? "true" : "false", debug ? 4 : 5);
 			}
 
-			if (outdir->set) {
-				buf_len = cstr_replaces(outdir->value.data, outdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
-
-				if (buf_len >= 0) {
-					xml_add_child_val(&xml, xml_plat, CSTR("OutDir"), buf, buf_len);
-				}
+			if ((p_outdir->flags & PROP_SET)) {
+				xml_add_child_val(&xml, xml_plat, CSTR("OutDir"), outdir, outdir_len);
 			}
 
-			if (intdir->set) {
-				buf_len = cstr_replaces(intdir->value.data, intdir->value.len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
-
-				if (buf_len >= 0) {
-					xml_add_child_val(&xml, xml_plat, CSTR("IntDir"), buf, buf_len);
-				}
+			if ((p_intdir->flags & PROP_SET)) {
+				xml_add_child_val(&xml, xml_plat, CSTR("IntDir"), intdir, intdir_len);
 			}
 		}
 	}
@@ -414,8 +430,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			platf	  = "Win32";
 			platf_len = 5;
 		}
-		for (int j = 0; j < configs->arr.count; j++) {
-			prop_str_t *config = array_get(&configs->arr, j);
+		for (int j = 0; j < configs->count; j++) {
+			prop_str_t *config = array_get(configs, j);
 
 			const int debug	  = cstr_cmp(config->data, config->len, CSTR("Debug"));
 			const int release = cstr_cmp(config->data, config->len, CSTR("Release"));
@@ -433,14 +449,14 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			xml_add_child_val(&xml, xml_comp, CSTR("SDLCheck"), CSTR("true"));
 			xml_add_child_val(&xml, xml_comp, CSTR("ConformanceMode"), CSTR("true"));
 
-			if (proj->props[PROJ_PROP_INCLUDE].set || proj->props[PROJ_PROP_INCLUDES].set) {
+			if ((proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDES].flags & PROP_SET)) {
 				unsigned int inc_len = print_includes(NULL, 0, proj, projects) + 1;
 				char *inc_data	     = m_malloc((size_t)inc_len);
 				print_includes(inc_data, inc_len, proj, projects);
 				xml_add_child_val_r(&xml, xml_comp, CSTR("AdditionalIncludeDirectories"), inc_data, inc_len, 1);
 			}
 
-			if (proj->props[PROJ_PROP_DEFINES].set) {
+			if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
 				unsigned int def_len = print_defines(NULL, 0, proj, projects) + 1;
 				char *def_data	     = m_malloc((size_t)def_len);
 				print_defines(def_data, def_len, proj, projects);
@@ -457,7 +473,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 
 			xml_add_child_val(&xml, xml_link, CSTR("GenerateDebugInformation"), CSTR("true"));
 
-			if (proj->props[PROJ_PROP_LDFLAGS].set) {
+			if (proj->props[PROJ_PROP_LDFLAGS].flags & PROP_SET) {
 				unsigned int ldf_len = print_ldflags(NULL, 0, proj, projects) + 1;
 				if (ldf_len > 1) {
 					char *ldf_data = m_malloc((size_t)ldf_len);
@@ -488,7 +504,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 
 	path_init(&afd.path, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
 
-	if (proj->props[PROJ_PROP_SOURCE].set) {
+	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		xml_tag_t xml_srcs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 
 		afd.xml_items = xml_srcs;
@@ -500,7 +516,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		files_foreach(&src, add_src_folder, add_src_file, &afd);
 	}
 
-	if (proj->props[PROJ_PROP_DEPENDS].set) {
+	if (proj->props[PROJ_PROP_DEPENDS].flags & PROP_SET) {
 		const array_t *depends = &proj->all_depends;
 
 		if (depends->count > 0) {
@@ -522,14 +538,14 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		}
 	}
 
-	if (proj->props[PROJ_PROP_SOURCE].set || proj->props[PROJ_PROP_INCLUDE].set) {
+	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET)) {
 		xml_tag_t xml_incs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 		afd.xml_items	   = xml_incs;
 
 		const prop_str_t *srcv = &proj->props[PROJ_PROP_SOURCE].value;
 		const prop_str_t *incv = &proj->props[PROJ_PROP_INCLUDE].value;
 
-		if (proj->props[PROJ_PROP_SOURCE].set) {
+		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 			path_t src = { 0 };
 			path_init(&src, proj->path.path, proj->path.len);
 			path_child(&src, srcv->data, srcv->len);
@@ -537,7 +553,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			files_foreach(&src, add_inc_folder, add_inc_file, &afd);
 		}
 
-		if (proj->props[PROJ_PROP_INCLUDE].set && (!proj->props[PROJ_PROP_SOURCE].set || !cstr_cmp(srcv->data, srcv->len, incv->data, incv->len))) {
+		if ((proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) &&
+		    (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !cstr_cmp(srcv->data, srcv->len, incv->data, incv->len))) {
 			path_init(&afd.path, incv->data, incv->len);
 
 			path_t inc = { 0 };
@@ -591,7 +608,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 	xml_add_attr(&xml_user, xml_proj_user, CSTR("ToolsVersion"), CSTR("Current"));
 	xml_add_attr(&xml_user, xml_proj_user, CSTR("xmlns"), CSTR("http://schemas.microsoft.com/developer/msbuild/2003"));
 
-	if (proj->props[PROJ_PROP_ARGS].set) {
+	if (proj->props[PROJ_PROP_ARGS].flags & PROP_SET) {
 		for (int i = platforms->count - 1; i >= 0; i--) {
 			prop_str_t *platform   = array_get(platforms, i);
 			const char *platf      = platform->data;
@@ -600,8 +617,8 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				platf	  = "Win32";
 				platf_len = 5;
 			}
-			for (int j = 0; j < configs->arr.count; j++) {
-				prop_str_t *config = array_get(&configs->arr, j);
+			for (int j = 0; j < configs->count; j++) {
+				prop_str_t *config = array_get(configs, j);
 
 				const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
 

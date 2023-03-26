@@ -79,19 +79,13 @@ static void add_proj_nested_vs(void *key, size_t ksize, void *value, void *priv)
 typedef struct gen_proj_vs_data_s {
 	const path_t *path;
 	const hashmap_t *projects;
-	const prop_t *configs;
-	const array_t *platforms;
-	const prop_t *langs;
-	const prop_t *charset;
-	const prop_t *cflags;
-	const prop_t *outdir;
-	const prop_t *intdir;
+	const prop_t *sln_props;
 } gen_proj_vs_data_t;
 
 static void gen_proj_vs(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_vs_data_t *data = priv;
-	vs_proj_gen(value, data->projects, data->path, data->configs, data->platforms, data->langs, data->charset, data->cflags, data->outdir, data->intdir);
+	vs_proj_gen(value, data->projects, data->path, data->sln_props);
 }
 
 int vs_sln_gen(const sln_t *sln, const path_t *path)
@@ -130,7 +124,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(fp, "Global\n"
 		      "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
-	if (!sln->props[SLN_PROP_CONFIGS].set || !sln->props[SLN_PROP_PLATFORMS].set || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
+	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_PLATFORMS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
 	    sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
 		ERR("%s", "at least one config and platform must be set");
 		return ret + 1;
@@ -186,13 +180,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	gen_proj_vs_data_t gen_proj_vs_data = {
 		.path	   = path,
 		.projects  = &sln->projects,
-		.configs   = configs,
-		.platforms = &sln->props[SLN_PROP_PLATFORMS].arr,
-		.langs	   = &sln->props[SLN_PROP_LANGS],
-		.charset   = &sln->props[SLN_PROP_CHARSET],
-		.cflags	   = &sln->props[SLN_PROP_CFLAGS],
-		.outdir	   = &sln->props[SLN_PROP_OUTDIR],
-		.intdir	   = &sln->props[SLN_PROP_INTDIR],
+		.sln_props = sln->props,
 	};
 
 	hashmap_iterate_c(&sln->projects, gen_proj_vs, &gen_proj_vs_data);

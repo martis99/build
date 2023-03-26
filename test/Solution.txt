@@ -4,6 +4,4 @@ DIRS: app, libs
 STARTUP: app
 CONFIGS: Debug, Release
 PLATFORMS: x64, x86
-OUTDIR: $(SLN_DIR)\bin\$(PROJ_NAME)\$(CONFIG)-$(PLATFORM)\
-INTDIR: $(SLN_DIR)\bin\$(PROJ_NAME)\$(CONFIG)-$(PLATFORM)\int\
 CHARSET: Unicode

@@ -57,6 +57,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	} else {
 		array_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
+		dir->props[DIR_PROP_DIRS].flags |= PROP_ARR;
 		ret += files_foreach(path, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
 	}
 
@@ -119,7 +120,7 @@ static void free_dir(int index, void *value, void *priv)
 
 void dir_free(dir_t *dir)
 {
-	if (!dir->props[DIR_PROP_DIRS].set) {
+	if (!(dir->props[DIR_PROP_DIRS].flags & PROP_SET)) {
 		array_iterate(&dir->props[DIR_PROP_DIRS].arr, free_dir, NULL);
 	}
 	props_free(dir->props, s_dir_props, sizeof(s_dir_props));

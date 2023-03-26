@@ -1,5 +1,6 @@
 #include "vc_proj.h"
 
+#include "gen/sln.h"
 #include "gen/var.h"
 
 #include "common.h"
@@ -40,12 +41,14 @@ static int resolve(const char *src, unsigned int src_len, char *dst, unsigned in
 	return dst_len;
 }
 
-int vc_proj_gen_build(const proj_t *proj, const prop_t *configs, FILE *f)
+int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	if (!configs->set) {
+	const prop_t *configs = &sln_props[SLN_PROP_CONFIGS];
+
+	if (!(configs->flags & PROP_SET)) {
 		p_fprintf(f,
 			  "                {\n"
 			  "                        \"label\": \"Build-%.*s\",\n"
@@ -91,7 +94,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *configs, FILE *f)
 	return 0;
 }
 
-int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop_t *configs, const prop_t *outdir, FILE *f)
+int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -100,9 +103,8 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 		return 0;
 	}
 
-	const prop_t *sln_outdir = outdir;
-
-	outdir = proj->props[PROJ_PROP_OUTDIR].set ? &proj->props[PROJ_PROP_OUTDIR] : outdir;
+	const prop_t *configs = &sln_props[SLN_PROP_CONFIGS];
+	const prop_t *outdir  = &proj->props[PROJ_PROP_OUTDIR];
 
 	char buf[P_MAX_PATH]	    = { 0 };
 	char outdir_buf[P_MAX_PATH] = { 0 };
@@ -122,9 +124,9 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 		.len   = proj->rel_path.len,
 	};
 
-	cwd = wdir->set ? &wdir->value : &rel_path;
+	cwd = (wdir->flags & PROP_SET) ? &wdir->value : &rel_path;
 
-	if (!configs->set) {
+	if (!(configs->flags & PROP_SET)) {
 		buf_len = cstr_replace(outdir_buf, outdir_buf_len, buf, sizeof(buf) - 1, "$(CONFIG)", 9, "Debug", 5);
 
 		p_fprintf(f,
@@ -136,7 +138,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			  "                        \"args\": [",
 			  buf_len, buf, name->len, name->data);
 
-		if (args->set) {
+		if (args->flags & PROP_SET) {
 			p_fprintf(f, "\n");
 			int end = 0;
 
@@ -199,7 +201,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 				  "                        \"args\": [",
 				  name->len, name->data, config->len, config->data, buf_len, buf, name->len, name->data);
 
-			if (args->set) {
+			if (args->flags & PROP_SET) {
 				p_fprintf(f, "\n");
 				int end = 0;
 
