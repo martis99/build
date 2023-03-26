@@ -46,7 +46,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	int ret = 0;
 
 	if (file_exists(dir->file_path.path)) {
-		if ((dir->data.len = (unsigned int)file_read(dir->file_path.path, 1, dir->file, DATA_LEN)) == -1) {
+		if ((dir->data.len = (unsigned int)file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
 			return 1;
 		}
 

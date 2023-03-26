@@ -48,14 +48,14 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
-	if (fp == NULL) {
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
 		return 1;
 	}
 
 	MSG("generating solution: %s", cmake_path.path);
 
-	p_fprintf(fp, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
+	p_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
 
 	// clang-format off
 	const char *langs[] = {
@@ -68,49 +68,49 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	for (int i = 0; i < __LANG_MAX; i++) {
 		if (languages & (1 << i)) {
-			p_fprintf(fp, langs[i]);
+			p_fprintf(file, langs[i]);
 		}
 	}
-	p_fprintf(fp, ")\n");
+	p_fprintf(file, ")\n");
 
 	if (sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) {
-		p_fprintf(fp, "\nset(CMAKE_CONFIGURATION_TYPES \"");
+		p_fprintf(file, "\nset(CMAKE_CONFIGURATION_TYPES \"");
 
 		const array_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
 		int first	       = 0;
 		for (int i = 0; i < configs->count; i++) {
 			prop_str_t *config = array_get(configs, i);
-			p_fprintf(fp, "%.*s%.*s", first, ";", config->len, config->data);
+			p_fprintf(file, "%.*s%.*s", first, ";", config->len, config->data);
 			first = 1;
 		}
 
-		p_fprintf(fp, "\" CACHE STRING \"\" FORCE)\n");
+		p_fprintf(file, "\" CACHE STRING \"\" FORCE)\n");
 	}
 
 	if (properties & SLN_CMAKE_USER_FOLDERS) {
-		p_fprintf(fp, "\nset_property(GLOBAL PROPERTY USE_FOLDERS ON)\n");
+		p_fprintf(file, "\nset_property(GLOBAL PROPERTY USE_FOLDERS ON)\n");
 		if (targets_folder) {
-			p_fprintf(fp, "set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER %s)\n", targets_folder);
+			p_fprintf(file, "set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER %s)\n", targets_folder);
 		}
 	}
 
-	p_fprintf(fp, "\n");
+	p_fprintf(file, "\n");
 
 	int ret = 0;
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
-		p_fprintf(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		p_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 
 	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
 		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, startup->len, startup->data);
 		ret = 1;
 	} else {
-		p_fprintf(fp, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
+		p_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
 	}
 
-	fclose(fp);
+	file_close(file);
 	if (ret == 0) {
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {

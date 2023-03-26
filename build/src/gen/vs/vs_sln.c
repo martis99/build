@@ -28,7 +28,7 @@ static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 typedef struct proj_config_plat_vs_s {
 	const prop_t *configs;
 	const array_t *platforms;
-	FILE *fp;
+	FILE *file;
 } proj_config_plat_vs_t;
 
 static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv)
@@ -47,7 +47,7 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 				platf_len = 5;
 			}
 
-			p_fprintf(data->fp,
+			p_fprintf(data->file,
 				  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 				  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
 				  proj->guid, config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf, proj->guid,
@@ -104,8 +104,8 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
-	if (fp == NULL) {
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
 		return 1;
 	}
 
@@ -113,16 +113,16 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	p_fprintf(fp, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
-		      "# Visual Studio Version 17\n"
-		      "VisualStudioVersion = 17.4.33205.214\n"
-		      "MinimumVisualStudioVersion = 10.0.40219.1\n");
+	p_fprintf(file, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
+			"# Visual Studio Version 17\n"
+			"VisualStudioVersion = 17.4.33205.214\n"
+			"MinimumVisualStudioVersion = 10.0.40219.1\n");
 
-	hashmap_iterate_hc(&sln->dirs, add_dir_sln_vs, fp);
-	hashmap_iterate_hc(&sln->projects, add_proj_sln_vs, fp);
+	hashmap_iterate_hc(&sln->dirs, add_dir_sln_vs, file);
+	hashmap_iterate_hc(&sln->projects, add_proj_sln_vs, file);
 
-	p_fprintf(fp, "Global\n"
-		      "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
+	p_fprintf(file, "Global\n"
+			"\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
 	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_PLATFORMS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
 	    sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
@@ -137,32 +137,32 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		prop_str_t *config = array_get(&configs->arr, i);
 		for (int j = 0; j < platforms->count; j++) {
 			prop_str_t *platform = array_get(platforms, j);
-			p_fprintf(fp, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
+			p_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
 				  platform->data);
 		}
 	}
 
-	p_fprintf(fp, "\tEndGlobalSection\n"
-		      "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
+	p_fprintf(file, "\tEndGlobalSection\n"
+			"\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
 
 	proj_config_plat_vs_t proj_config_plat_vs_data = {
 		.configs   = configs,
 		.platforms = platforms,
-		.fp	   = fp,
+		.file	   = file,
 	};
 
 	hashmap_iterate_hc(&sln->projects, proj_config_plat_vs, &proj_config_plat_vs_data);
 
-	p_fprintf(fp, "\tEndGlobalSection\n"
-		      "\tGlobalSection(SolutionProperties) = preSolution\n"
-		      "\t\tHideSolutionNode = FALSE\n"
-		      "\tEndGlobalSection\n"
-		      "\tGlobalSection(NestedProjects) = preSolution\n");
+	p_fprintf(file, "\tEndGlobalSection\n"
+			"\tGlobalSection(SolutionProperties) = preSolution\n"
+			"\t\tHideSolutionNode = FALSE\n"
+			"\tEndGlobalSection\n"
+			"\tGlobalSection(NestedProjects) = preSolution\n");
 
-	hashmap_iterate_hc(&sln->dirs, add_dir_nested_vs, fp);
-	hashmap_iterate_hc(&sln->projects, add_proj_nested_vs, fp);
+	hashmap_iterate_hc(&sln->dirs, add_dir_nested_vs, file);
+	hashmap_iterate_hc(&sln->projects, add_proj_nested_vs, file);
 
-	p_fprintf(fp,
+	p_fprintf(file,
 		  "\tEndGlobalSection\n"
 		  "\tGlobalSection(ExtensibilityGlobals) = postSolution\n"
 		  "\t\tSolutionGuid = {%s}\n"
@@ -170,7 +170,7 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 		  "EndGlobal\n",
 		  sln->guid);
 
-	fclose(fp);
+	file_close(file);
 	if (ret == 0) {
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {

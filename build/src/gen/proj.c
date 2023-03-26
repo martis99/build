@@ -56,7 +56,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 		return 1;
 	}
 
-	if ((proj->data.len = (unsigned int)file_read(proj->file_path.path, 1, proj->file, DATA_LEN)) == -1) {
+	if ((proj->data.len = (unsigned int)file_read_t(proj->file_path.path, proj->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 

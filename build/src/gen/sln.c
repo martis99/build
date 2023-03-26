@@ -168,7 +168,7 @@ int sln_read(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	if ((sln->data.len = (unsigned int)file_read(sln->file_path.path, 1, sln->file, DATA_LEN)) == -1) {
+	if ((sln->data.len = (unsigned int)file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 

@@ -65,7 +65,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
+	FILE *fp = file_open(cmake_path.path, "w");
 	if (fp == NULL) {
 		return 1;
 	}
@@ -351,7 +351,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "\n");
 
-	fclose(fp);
+	file_close(fp);
 	if (ret == 0) {
 		SUC("generating project: %s success", cmake_path.path);
 	} else {

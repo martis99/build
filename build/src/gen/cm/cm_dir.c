@@ -19,8 +19,8 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w", 1);
-	if (fp == NULL) {
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
 		return 1;
 	}
 
@@ -30,10 +30,10 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
-		p_fprintf(fp, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		p_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 
-	fclose(fp);
+	file_close(file);
 
 	if (ret == 0) {
 		SUC("generating directories: %s success", cmake_path.path);

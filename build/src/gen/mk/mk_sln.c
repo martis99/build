@@ -100,7 +100,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	FILE *file = file_open(cmake_path.path, "w", 1);
+	FILE *file = file_open(cmake_path.path, "w");
 	if (file == NULL) {
 		return 1;
 	}
@@ -167,7 +167,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(file, "clean: check\n");
 	hashmap_iterate_hc(&sln->projects, add_clean_make, &add_clean_make_data);
 
-	fclose(file);
+	file_close(file);
 	if (ret == 0) {
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {

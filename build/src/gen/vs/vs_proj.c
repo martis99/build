@@ -590,16 +590,15 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, CSTR("w"));
-	if (fp == NULL) {
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
 		return 1;
 	}
 
 	MSG("generating project: %s", cmake_path.path);
 
-	xml_print(&xml, fp);
-	fclose(fp);
-
+	xml_print(&xml, file);
+	file_close(file);
 	xml_free(&xml);
 
 	xml_t xml_user = { 0 };
@@ -652,13 +651,13 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		return 1;
 	}
 
-	FILE *fpu = file_open(cmake_path_user.path, "w", 1);
-	if (fpu == NULL) {
+	file = file_open(cmake_path_user.path, "w");
+	if (file == NULL) {
 		return 1;
 	}
 
-	xml_print(&xml_user, fpu);
-	fclose(fpu);
+	xml_print(&xml_user, file);
+	file_close(file);
 	xml_free(&xml_user);
 
 	if (ret == 0) {

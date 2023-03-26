@@ -65,7 +65,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	FILE *file = file_open(tasks_path.path, "w", 1);
+	FILE *file = file_open(tasks_path.path, "w");
 	if (file == NULL) {
 		printf("Failed to create file: %s, errno: %d\n", tasks_path.path, errno);
 		return 1;
@@ -96,7 +96,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(file, "\n        ]\n"
 			"}");
 
-	fclose(file);
+	file_close(file);
 	if (ret == 0) {
 		SUC("generating tasks: %s success", tasks_path.path);
 	} else {
@@ -115,7 +115,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	file = file_open(launch_path.path, "w", 1);
+	file = file_open(launch_path.path, "w");
 	if (file == NULL) {
 		printf("Failed to create file: %s, errno: %d\n", launch_path.path, errno);
 		return 1;
@@ -133,7 +133,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(file, "\n        ]\n"
 			"}");
 
-	fclose(file);
+	file_close(file);
 	if (ret == 0) {
 		SUC("generating tasks: %s success", launch_path.path);
 	} else {
