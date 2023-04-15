@@ -135,11 +135,9 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	p_fprintf(file, " clean\n"
 			"\n"
-			"all: clean");
+			"all:");
 
-	if (startup->flags & PROP_SET) {
-		p_fprintf(file, " %.*s", startup->value.len, startup->value.data);
-	}
+	hashmap_iterate_hc(&sln->projects, add_phony_make, file);
 
 	p_fprintf(file, "\n\ncheck:\n");
 
