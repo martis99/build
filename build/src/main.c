@@ -81,7 +81,7 @@ int main(int argc, const char **argv)
 	arg_t args[] = {
 		[ARG_S] = ARG('S', "solution", PARAM_STR, "<dir>", "Specify a solution directory (default: .)", NULL),
 		[ARG_B] = ARG('B', "build", PARAM_STR, "<dir>", "Specify a build directory (default: <solution>)", NULL),
-#if defined(P_WIN)
+#if defined(C_WIN)
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: V)", handle_gen),
 #else
 		[ARG_G] = ARG('G', "generator", PARAM_MODE, "<name>", "Specify a build system generator (default: W)", handle_gen),
@@ -116,7 +116,7 @@ int main(int argc, const char **argv)
 	char *build    = NULL;
 	gen_t gen;
 
-#if defined(P_WIN)
+#if defined(C_WIN)
 	gen = GEN_VS;
 #else
 	gen = GEN_VC;

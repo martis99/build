@@ -6,7 +6,7 @@
 #include "platform.h"
 #include "str.h"
 
-#if defined(P_WIN)
+#if defined(C_WIN)
 	#define PLATFORM "win"
 #else
 	#define PLATFORM "linux"
