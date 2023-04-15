@@ -18,13 +18,25 @@ static const var_pol_t vars = {
 	},
 };
 
+static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, const proj_t *proj)
+{
+	char buf[P_MAX_PATH] = { 0 };
+	size_t buf_len, dst_len;
+
+	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
+	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars.names, vars.tos, __VAR_MAX);
+	buf_len = cstr_replace(dst, dst_len, CSTR(buf), "$(PROJ_NAME)", 12, proj->name->data, proj->name->len);
+	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
+
+	return dst_len;
+}
+
 static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
 {
 	char path_b[P_MAX_PATH] = { 0 };
-	convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
+	path_len = convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
 	char rel_path[P_MAX_PATH] = { 0 };
-	convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
-	size_t rel_path_len = proj->rel_path.len;
+	size_t rel_path_len = convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
 
 	if (cstrn_cmp(path_b, path_len, "$(SLNDIR)", 9, 9)) {
 		p_fprintf(fp, "%.*s", path_len, path_b);
@@ -44,11 +56,8 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	const prop_t *outdir  = &proj->props[PROJ_PROP_OUTDIR];
 	const prop_t *intdir  = &proj->props[PROJ_PROP_INTDIR];
 
-	char buf[P_MAX_PATH]  = { 0 };
-	char buf2[P_MAX_PATH] = { 0 };
-
+	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
-	size_t buf2_len;
 
 	int ret = 0;
 
@@ -79,18 +88,12 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	int deps_first = 0;
 
 	if (outdir->flags & PROP_SET) {
-		convert_slash(buf, sizeof(buf) - 1, outdir->value.data, outdir->value.len);
-		buf2_len = cstr_replaces(buf, outdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
-		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
-
+		buf_len = resolve(&outdir->value, CSTR(buf), proj);
 		p_fprintf(fp, "OUTDIR = %.*s\n", buf_len, buf);
 	}
 
 	if (intdir->flags & PROP_SET) {
-		convert_slash(buf, sizeof(buf) - 1, intdir->value.data, intdir->value.len);
-		buf2_len = cstr_replaces(buf, intdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
-		buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, name->data, name->len);
-
+		buf_len = resolve(&intdir->value, CSTR(buf), proj);
 		p_fprintf(fp, "INTDIR = %.*s\n", buf_len, buf);
 	}
 
@@ -149,31 +152,31 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			   (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !prop_cmp(&proj->props[PROJ_PROP_INCLUDE].value, &proj->props[PROJ_PROP_SOURCE].value));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
-		p_fprintf(fp, " -I%.*s", proj->props[PROJ_PROP_SOURCE].value.len, buf);
+		buf_len = resolve(&proj->props[PROJ_PROP_SOURCE].value, CSTR(buf), proj);
+		p_fprintf(fp, " -I%.*s", buf_len, buf);
 	}
 
 	if (include_diff) {
-		convert_slash(buf, sizeof(buf) - 1, proj->props[PROJ_PROP_INCLUDE].value.data, proj->props[PROJ_PROP_INCLUDE].value.len);
-		p_fprintf(fp, " -I%.*s", proj->props[PROJ_PROP_INCLUDE].value.len, buf);
+		buf_len = resolve(&proj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), proj);
+		p_fprintf(fp, " -I%.*s", buf_len, buf);
 	}
 
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			convert_slash(buf, sizeof(buf) - 1, iproj->rel_path.path, iproj->rel_path.len);
-			p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", iproj->rel_path.len, buf, iproj->props[PROJ_PROP_INCLUDE].value.len,
-				  iproj->props[PROJ_PROP_INCLUDE].value.data);
+			char rel_path[P_MAX_PATH] = { 0 };
+			size_t rel_path_len;
+
+			buf_len = resolve(&iproj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), iproj);
+			rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
+			p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, buf, sizeof(buf) - 1, vars.names,
-						 vars.tos, __VAR_MAX);
-			buf2_len = cstr_replace(buf, buf_len, buf2, sizeof(buf2) - 1, "$(PROJ_NAME)", 12, iproj->name->data, iproj->name->len);
-
+			buf_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(buf), iproj);
 			p_fprintf(fp, " -I");
-			print_rel_path(fp, iproj, buf2, buf2_len);
+			print_rel_path(fp, iproj, buf, buf_len);
 		}
 	}
 
@@ -213,17 +216,14 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
 
 				if (doutdir->flags & PROP_SET) {
-					convert_slash(buf, sizeof(buf) - 1, doutdir->value.data, doutdir->value.len);
-					buf2_len = cstr_replaces(buf, doutdir->value.len, buf2, sizeof(buf2) - 1, vars.names, vars.tos, __VAR_MAX);
-					buf_len	 = cstr_replace(buf2, buf2_len, buf, sizeof(buf) - 1, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
-
+					buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
 					p_fprintf(fp, " -L");
 					print_rel_path(fp, dproj, buf, buf_len);
 
 					p_fprintf(fp, " -l:%.*s.a", dproj->name->len, dproj->name->data);
 				} else {
-					convert_slash(buf, sizeof(buf) - 1, dproj->rel_path.path, dproj->rel_path.len);
-					p_fprintf(fp, " -L$(SLNDIR)/%.*s -l:%.*s.a", dproj->rel_path.len, buf, dproj->name->len, dproj->name->data);
+					buf_len = convert_slash(CSTR(buf), dproj->rel_path.path, dproj->rel_path.len);
+					p_fprintf(fp, " -L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data);
 				}
 			}
 
@@ -232,11 +232,9 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				for (int j = 0; j < libdirs->count; j++) {
 					prop_str_t *libdir = array_get(libdirs, j);
 					if (libdir->len > 0) {
-						buf_len	 = cstr_replaces(libdir->data, libdir->len, buf, sizeof(buf) - 1, vars.names, vars.tos, __VAR_MAX);
-						buf2_len = cstr_replace(buf, buf_len, buf2, sizeof(buf2) - 1, "$(PROJ_NAME)", 12, dproj->name->data, dproj->name->len);
-
+						buf_len = resolve(libdir, CSTR(buf), dproj);
 						p_fprintf(fp, " -L");
-						print_rel_path(fp, dproj, buf2, buf2_len);
+						print_rel_path(fp, dproj, buf, buf_len);
 					}
 				}
 			}

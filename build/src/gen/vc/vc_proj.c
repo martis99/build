@@ -27,15 +27,15 @@ static const var_pol_t vars2 = {
 	},
 };
 
-static size_t resolve(const char *src, size_t src_len, char *dst, size_t dst_max_len, const prop_str_t *name, const var_pol_t *vars)
+static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, const proj_t *proj, const var_pol_t *vars)
 {
-	char buf2[P_MAX_PATH] = { 0 };
-	size_t buf2_len;
-	size_t dst_len;
+	char buf[P_MAX_PATH] = { 0 };
+	size_t buf_len, dst_len;
 
-	dst_len	 = convert_slash(dst, dst_max_len, src, src_len);
-	buf2_len = cstr_replaces(dst, dst_len, buf2, sizeof(buf2) - 1, vars->names, vars->tos, __VAR_MAX);
-	dst_len	 = cstr_replace(buf2, buf2_len, dst, dst_max_len, "$(PROJ_NAME)", 12, name->data, name->len);
+	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
+	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars->names, vars->tos, __VAR_MAX);
+	buf_len = cstr_replace(dst, dst_len, CSTR(buf), "$(PROJ_NAME)", 12, proj->name->data, proj->name->len);
+	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 
 	return dst_len;
 }
@@ -111,7 +111,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 	size_t buf_len;
 	size_t outdir_buf_len;
 
-	outdir_buf_len = resolve(outdir->value.data, outdir->value.len, outdir_buf, sizeof(outdir_buf) - 1, name, &vars);
+	outdir_buf_len = resolve(&outdir->value, CSTR(outdir_buf), proj, &vars);
 
 	const prop_str_t *cwd;
 
@@ -153,7 +153,12 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 					end = 1;
 				}
 
-				buf_len = resolve(arg.data, arg.len, buf, sizeof(buf) - 1, name, &vars2);
+				const prop_str_t argp = {
+					.cdata = arg.data,
+					.len  = arg.len,
+				};
+
+				buf_len = resolve(&argp, CSTR(buf), proj, &vars2);
 
 				p_fprintf(f, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
 
@@ -216,7 +221,12 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 						end = 1;
 					}
 
-					buf_len = resolve(arg.data, arg.len, buf, sizeof(buf) - 1, name, &vars2);
+					const prop_str_t argp = {
+						.cdata = arg.data,
+						.len  = arg.len,
+					};
+
+					buf_len = resolve(&argp, CSTR(buf), proj, &vars2);
 
 					p_fprintf(f, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
 

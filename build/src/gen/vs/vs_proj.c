@@ -32,7 +32,7 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 	size_t buf_len, dst_len;
 
 	buf_len = cstr_replaces(prop->data, prop->len, CSTR(buf), vars.names, vars.tos, __VAR_MAX);
-	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, (int)proj->rel_path.len);
+	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 
 	return dst_len;
 }

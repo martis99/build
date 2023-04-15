@@ -21,12 +21,10 @@ static void generate_build(void *key, size_t ksize, void *value, const void *pri
 	const generate_build_priv_t *p = priv;
 	const proj_t *proj	       = value;
 
-	const prop_t *configs = &p->sln->props[SLN_PROP_CONFIGS];
-
 	p_fprintf(p->file, "%.*s\n", !p->first, ",");
 	((generate_build_priv_t *)p)->first = 0;
 
-	vc_proj_gen_build(proj, configs, p->file);
+	vc_proj_gen_build(proj, p->sln->props, p->file);
 }
 
 static void generate_launch(void *key, size_t ksize, void *value, const void *priv)
