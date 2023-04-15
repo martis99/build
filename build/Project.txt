@@ -4,4 +4,4 @@ INCLUDE: src
 SOURCE: src
 DEPENDS: cutils
 INCLUDES: cutils
-ARGS: -S $(SolutionDir)test -G V -D 1 -I 1 -C 1
+ARGS: -S $(SolutionDir)test_sln -D 1 -I 1 -C 1

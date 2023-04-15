@@ -44,6 +44,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
 			hashmap_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
+			proj_free(proj);
 			m_free(proj, sizeof(proj_t));
 		}
 
