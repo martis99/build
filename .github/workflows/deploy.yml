@@ -1,0 +1,39 @@
+name: test
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: .\wbuild.exe
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore .
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=Release /p:Platform=${{matrix.platform}} .
+
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: wbuild
+        path: .\bin\Release-${{matrix.platform}}\build\build.exe
