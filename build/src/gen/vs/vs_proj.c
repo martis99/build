@@ -162,7 +162,7 @@ static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *pro
 		for (int k = 0; k < defines->count; k++) {
 			prop_str_t *define = array_get(defines, k);
 
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", define->len, define->data);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)define->len, define->data);
 			first = 0;
 		}
 	}
@@ -189,14 +189,14 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 					tmp_len = cstr_replaces(libdir->data, (int)libdir->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
 
 					if (cstrn_cmp(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
-						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", tmp_len, tmp);
+						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)tmp_len, tmp);
 					} else {
 						path_t dir = { 0 };
 						path_init(&dir, CSTR("$(SolutionDir)"));
 						path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
 						path_child(&dir, tmp, tmp_len);
 
-						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", dir.len, dir.path);
+						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)dir.len, dir.path);
 					}
 
 					first = 0;
