@@ -1,0 +1,54 @@
+name: test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  Windows-MSBuild:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug]
+        platform: [x64]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: .\wbuild.exe
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore .
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .
+
+    - name: Test - Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build.exe -S test_sln
+
+    - name: Test - Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore .\test_sln
+
+    - name: Test - Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .\test_sln
+
+    - name: Test - Run test
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: .\test_sln\bin\${{matrix.configuration}}-${{matrix.platform}}\app\app.exe
