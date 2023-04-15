@@ -1,6 +1,7 @@
-name: test
+name: Deploy
 
-on: workflow_dispatch
+on:
+  workflow_dispatch
 
 permissions:
   contents: read
@@ -10,7 +11,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [x64]
+        platform: [x64, x86]
 
     steps:
     - uses: actions/checkout@v3
@@ -32,8 +33,12 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=Release /p:Platform=${{matrix.platform}} .
 
+    - name: Copy binaries
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: cp .\bin\Release-${{matrix.platform}}\build\build.exe .\bin\Release-${{matrix.platform}}\build\build-win-${{matrix.platform}}.exe
+
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: wbuild
-        path: .\bin\Release-${{matrix.platform}}\build\build.exe
+        name: build-win-${{matrix.platform}}
+        path: .\bin\Release-${{matrix.platform}}\build\build-win-${{matrix.platform}}.exe
