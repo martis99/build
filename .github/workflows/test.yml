@@ -10,6 +10,37 @@ permissions:
   contents: read
 
 jobs:
+  Ubuntu-Make:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./build-linux
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: make CONFIG=${{matrix.configuration}}
+
+    - name: Test - Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./bin/${{matrix.configuration}}-x64/build/build -S test_sln
+
+    - name: Test - Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: make -C test_sln slib app CONFIG=${{matrix.configuration}}
+
+    - name: Test - Run test
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./test_sln/bin/${{matrix.configuration}}-x64/app/app
+
   Windows-MSBuild:
     runs-on: windows-latest
     strategy:
