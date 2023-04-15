@@ -7,6 +7,32 @@ permissions:
   contents: read
 
 jobs:
+  Linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Generate solution
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./build-linux
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: make CONFIG=Release
+
+    - name: Copy binaries
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: cp ./bin/Release-x64/build/build ./bin/Release-x64/build/build-linux
+
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-linux
+        path: ./bin/Release-x64/build/build-linux
+
   Windows:
     runs-on: windows-latest
     strategy:
