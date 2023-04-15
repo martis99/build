@@ -20,7 +20,7 @@ jobs:
 
     - name: Generate solution
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: .\wbuild.exe
+      run: .\build-win-x64.exe
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.1

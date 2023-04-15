@@ -14,8 +14,8 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        configuration: [Debug]
-        platform: [x64]
+        configuration: [Debug, Release]
+        platform: [x64, x86]
 
     steps:
     - uses: actions/checkout@v3
@@ -24,7 +24,7 @@ jobs:
 
     - name: Generate solution
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: .\wbuild.exe
+      run: .\build-win-x64.exe
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.1
