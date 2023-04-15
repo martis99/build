@@ -4,7 +4,7 @@
 
 #include "common.h"
 
-#include "md5.h"
+#include "c_md5.h"
 
 static const prop_pol_t s_dir_props[] = {
 	[DIR_PROP_DIRS] = { .name = STR("DIRS"), .arr = 1 },
@@ -12,11 +12,11 @@ static const prop_pol_t s_dir_props[] = {
 
 static int add_dir(path_t *path, const char *folder, void *priv)
 {
-	unsigned int folder_len = cstr_len(folder);
+	size_t folder_len = cstr_len(folder);
 
 	prop_str_t dir = {
 		.path = NULL,
-		.data = m_calloc((size_t)folder_len + 1, sizeof(char)),
+		.data = m_calloc(folder_len + 1, sizeof(char)),
 		.len  = folder_len,
 	};
 
@@ -46,7 +46,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	int ret = 0;
 
 	if (file_exists(dir->file_path.path)) {
-		if ((dir->data.len = (unsigned int)file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
+		if ((dir->data.len = file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
 			return 1;
 		}
 
@@ -61,13 +61,13 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		ret += files_foreach(path, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
 	}
 
-	unsigned char buf[256] = { 0 };
-	md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
+	byte buf[256] = { 0 };
+	c_md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
 
 	array_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
-	path_t child_path	    = *path;
-	unsigned int child_path_len = child_path.len;
+	path_t child_path     = *path;
+	size_t child_path_len = child_path.len;
 
 	read_dir_data_t *data	      = priv;
 	read_dir_data_t read_dir_data = {
@@ -85,7 +85,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 				continue;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->len, dir->data);
 			ret = 1;
 		}
 		child_path.len = child_path_len;
@@ -102,10 +102,11 @@ void dir_print(dir_t *dir)
 	     "    Dir    : %.*s\n"
 	     "    Folder : %.*s\n"
 	     "    GUID   : %s",
-	     dir->path.len, dir->path.path, dir->file_path.len, dir->file_path.path, dir->dir.len, dir->dir.path, dir->folder.len, dir->folder.path, dir->guid);
+	     (int)dir->path.len, dir->path.path, (int)dir->file_path.len, dir->file_path.path, (int)dir->dir.len, dir->dir.path, (int)dir->folder.len, dir->folder.path,
+	     dir->guid);
 
 	if (dir->parent) {
-		INFP("    Parent : %.*s", (unsigned int)dir->parent->folder.len, dir->parent->folder.path);
+		INFP("    Parent : %.*s", (int)dir->parent->folder.len, dir->parent->folder.path);
 	} else {
 		INFP("%s", "    Parent :");
 	}

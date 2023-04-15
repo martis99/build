@@ -21,13 +21,12 @@ static const var_pol_t vars = {
 	},
 };
 
-static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, unsigned int path_len)
+static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
 {
 	char path_b[P_MAX_PATH] = { 0 };
 	convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
 	char rel_path[P_MAX_PATH] = { 0 };
 	convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
-	unsigned int rel_path_len = proj->rel_path.len;
 
 	if (cstrn_cmp(path_b, path_len, "${CMAKE_SOURCE_DIR}", 19, 19)) {
 		p_fprintf(fp, "%.*s", path_len, path_b);
@@ -53,13 +52,13 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	char buf[P_MAX_PATH]	 = { 0 };
 	char buf2[P_MAX_PATH]	 = { 0 };
 
-	unsigned int source_len;
-	unsigned int include_len;
-	unsigned int enclude_len;
-	unsigned int buf_len;
-	unsigned int buf2_len;
+	size_t source_len;
+	size_t include_len;
+	size_t enclude_len;
+	size_t buf_len;
+	size_t buf2_len;
 
-	unsigned int include_diff = 0;
+	bool include_diff = 0;
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		source_len = proj->props[PROJ_PROP_SOURCE].value.len;
@@ -100,7 +99,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	MSG("generating project: %s", cmake_path.path);
 
-	unsigned int lang = langs->mask;
+	uint lang = langs->mask;
 
 	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET)) {
 		p_fprintf(file, "file(GLOB_RECURSE %.*s_SOURCE", name->len, name->data);
@@ -278,7 +277,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		if (proj->dir.len > 0) {
 			convert_slash(buf, sizeof(buf) - 1, proj->dir.path, proj->dir.len);
-			p_fprintf(file, "    FOLDER \"%.*s\"\n", (unsigned int)proj->dir.len, buf);
+			p_fprintf(file, "    FOLDER \"%.*s\"\n", (int)proj->dir.len, buf);
 		}
 
 		if (outdir->flags & PROP_SET) {

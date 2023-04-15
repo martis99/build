@@ -32,13 +32,13 @@ static void gen_proj_cmake(void *key, size_t ksize, void *value, const void *pri
 int cm_sln_gen(const sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
-		ERR("folder does not exists: %.*s", (unsigned int)path->len, path->path);
+		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
 	}
 
 	const prop_str_t *name	   = &sln->props[SLN_PROP_NAME].value;
-	unsigned int languages	   = sln->props[SLN_PROP_LANGS].mask;
-	unsigned int properties	   = SLN_CMAKE_USER_FOLDERS;
+	uint languages		   = sln->props[SLN_PROP_LANGS].mask;
+	uint properties		   = SLN_CMAKE_USER_FOLDERS;
 	const char *targets_folder = "CMake";
 	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
 	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
@@ -104,7 +104,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	}
 
 	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
-		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, startup->len, startup->data);
+		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, (int)startup->len, startup->data);
 		ret = 1;
 	} else {
 		p_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);

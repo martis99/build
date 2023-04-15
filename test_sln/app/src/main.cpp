@@ -12,7 +12,9 @@ int main(int argc, char *argv[])
 
 	App app;
 
-	app.print();
+	if (app.print()) {
+		return 1;
+	}
 
 	return 0;
 }

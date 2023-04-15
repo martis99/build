@@ -3,8 +3,7 @@
 
 #include "array.h"
 #include "str.h"
-
-#include <stddef.h>
+#include "type.h"
 
 typedef struct prop_str_s {
 	const char *path;
@@ -12,9 +11,9 @@ typedef struct prop_str_s {
 		char *data;
 		const char *cdata;
 	};
-	unsigned int len;
-	unsigned int line;
-	unsigned int col;
+	size_t len;
+	uint line;
+	uint col;
 } prop_str_t;
 
 typedef enum prop_flag_s {
@@ -23,12 +22,12 @@ typedef enum prop_flag_s {
 } prop_flag_t;
 
 typedef struct prop_s {
-	unsigned char flags;
+	uint flags;
 	union {
 		array_t arr;
 		prop_str_t value;
 	};
-	unsigned int mask;
+	uint mask;
 } prop_t;
 
 typedef int (*prop_parse_fn)(prop_str_t *data, prop_t *prop);
@@ -37,7 +36,7 @@ typedef void (*prop_print_fn)(const prop_t *prop);
 typedef struct prop_pol_s {
 	str_t name;
 	prop_print_fn print;
-	unsigned int arr;
+	bool arr;
 	const str_t *str_table;
 	size_t str_table_len;
 	str_t def;
@@ -56,6 +55,6 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 void prop_free(prop_t *prop);
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
-int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_len);
+int convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len);
 
 #endif

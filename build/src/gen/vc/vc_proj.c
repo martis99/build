@@ -27,12 +27,11 @@ static const var_pol_t vars2 = {
 	},
 };
 
-static int resolve(const char *src, unsigned int src_len, char *dst, unsigned int dst_max_len, const prop_str_t *name, const var_pol_t *vars)
+static size_t resolve(const char *src, size_t src_len, char *dst, size_t dst_max_len, const prop_str_t *name, const var_pol_t *vars)
 {
 	char buf2[P_MAX_PATH] = { 0 };
-	unsigned int buf2_len;
-
-	unsigned int dst_len;
+	size_t buf2_len;
+	size_t dst_len;
 
 	dst_len	 = convert_slash(dst, dst_max_len, src, src_len);
 	buf2_len = cstr_replaces(dst, dst_len, buf2, sizeof(buf2) - 1, vars->names, vars->tos, __VAR_MAX);
@@ -109,8 +108,8 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 	char buf[P_MAX_PATH]	    = { 0 };
 	char outdir_buf[P_MAX_PATH] = { 0 };
 
-	unsigned int buf_len;
-	unsigned int outdir_buf_len;
+	size_t buf_len;
+	size_t outdir_buf_len;
 
 	outdir_buf_len = resolve(outdir->value.data, outdir->value.len, outdir_buf, sizeof(outdir_buf) - 1, name, &vars);
 

@@ -87,7 +87,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 int mk_sln_gen(const sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
-		ERR("folder does not exists: %.*s", (unsigned int)path->len, path->path);
+		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
 	}
 

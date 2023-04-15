@@ -4,8 +4,12 @@
 
 #include <iostream>
 
-void Printer::print()
+int Printer::print()
 {
 	std::cout << "lib2" << std::endl;
-	lib3_print();
+	if (lib3_print()) {
+		return 1;
+	}
+
+	return 0;
 }

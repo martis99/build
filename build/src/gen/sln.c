@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "md5.h"
+#include "c_md5.h"
 
 static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_NAME]	     = { .name = STR("NAME"), },
@@ -44,7 +44,6 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
 			hashmap_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
-			ERR_LOGICS("Project '%.*s' with the same name already exists", name->path, name->line, name->col, name->len, name->data);
 			m_free(proj, sizeof(proj_t));
 		}
 
@@ -81,7 +80,7 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 		proj_t *dproj = NULL;
 		if (hashmap_get(projects, dname->data, dname->len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", dname->len, dname->data);
+			ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
 			continue;
 		}
 
@@ -117,7 +116,7 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 
 				proj_t *dpproj = NULL;
 				if (hashmap_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
-					ERR("project doesn't exists: '%.*s'", dpname->len, dpname->data);
+					ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 					continue;
 				}
 
@@ -137,7 +136,7 @@ static void get_all_includes(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 		proj_t *iproj = NULL;
 		if (hashmap_get(projects, iname->data, iname->len, (void **)&iproj)) {
-			ERR("project doesn't exists: '%.*s'", iname->len, iname->data);
+			ERR("project doesn't exists: '%.*s'", (int)iname->len, iname->data);
 			continue;
 		}
 
@@ -168,7 +167,7 @@ int sln_read(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	if ((sln->data.len = (unsigned int)file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
+	if ((sln->data.len = file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 
@@ -181,12 +180,12 @@ int sln_read(sln_t *sln, const path_t *path)
 	path_init(&name, sln->props[SLN_PROP_NAME].value.data, sln->props[SLN_PROP_NAME].value.len);
 	path_child_s(&name, "sln", 3, '.');
 
-	unsigned char buf[256] = { 0 };
-	md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
+	byte buf[256] = { 0 };
+	c_md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
 
-	array_t *dirs		    = &sln->props[SLN_PROP_DIRS].arr;
-	path_t child_path	    = sln->path;
-	unsigned int child_path_len = child_path.len;
+	array_t *dirs	      = &sln->props[SLN_PROP_DIRS].arr;
+	path_t child_path     = sln->path;
+	size_t child_path_len = child_path.len;
 
 	hashmap_create(&sln->projects, 16);
 	hashmap_create(&sln->dirs, 16);
@@ -204,7 +203,7 @@ int sln_read(sln_t *sln, const path_t *path)
 		if (folder_exists(child_path.path)) {
 			ret += read_dir(&child_path, dir->data, &read_dir_data);
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->len, dir->data);
 			ret += 1;
 		}
 		child_path.len = child_path_len;
@@ -232,7 +231,7 @@ void sln_print(sln_t *sln)
 	     "    Path: %.*s\n"
 	     "    File: %.*s\n"
 	     "    GUID: %s",
-	     sln->path.len, sln->path.path, sln->file_path.len, sln->file_path.path, sln->guid);
+	     (int)sln->path.len, sln->path.path, (int)sln->file_path.len, sln->file_path.path, sln->guid);
 
 	props_print(sln->props, s_sln_props, sizeof(s_sln_props));
 

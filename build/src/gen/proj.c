@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "md5.h"
+#include "c_md5.h"
 
 static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_NAME]     = { .name = STR("NAME"), },
@@ -56,7 +56,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 		return 1;
 	}
 
-	if ((proj->data.len = (unsigned int)file_read_t(proj->file_path.path, proj->file, DATA_LEN)) == -1) {
+	if ((proj->data.len = file_read_t(proj->file_path.path, proj->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 
@@ -66,7 +66,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	int ret = props_parse_file(proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
 
 	if (!proj->props[PROJ_PROP_NAME].flags & PROP_SET) {
-		ERR("%.*s: project name is not set", proj->file_path.len, proj->file_path.path);
+		ERR("%.*s: project name is not set", (int)proj->file_path.len, proj->file_path.path);
 		ret++;
 		return ret;
 	}
@@ -77,8 +77,8 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	path_init(&rel_path_name, proj->rel_path.path, proj->rel_path.len);
 	path_child(&rel_path_name, proj->name->data, proj->name->len);
 	path_child_s(&rel_path_name, "vcxproj", 7, '.');
-	unsigned char buf[256] = { 0 };
-	md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
+	byte buf[256] = { 0 };
+	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		prop_str_t *source = &proj->props[PROJ_PROP_SOURCE].value;
@@ -88,7 +88,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 			ret++;
 		} else {
 			if (!folder_exists(path.path)) {
-				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, source->len, source->data);
+				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, (int)source->len, source->data);
 				ret++;
 			}
 		}
@@ -102,7 +102,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 			ret++;
 		} else {
 			if (!folder_exists(path.path)) {
-				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, include->len, include->data);
+				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, (int)include->len, include->data);
 				ret++;
 			}
 		}
@@ -127,11 +127,11 @@ void proj_print(proj_t *proj)
 	     "    Folder : %.*s\n"
 	     "    Name   : %.*s\n"
 	     "    GUID   : %s",
-	     proj->path.len, proj->path.path, proj->file_path.len, proj->file_path.path, proj->rel_path.len, proj->rel_path.path, proj->dir.len, proj->dir.path,
-	     proj->folder.len, proj->folder.path, proj->name->len, proj->name->data, proj->guid);
+	     (int)proj->path.len, proj->path.path, (int)proj->file_path.len, proj->file_path.path, (int)proj->rel_path.len, proj->rel_path.path, (int)proj->dir.len,
+	     proj->dir.path, (int)proj->folder.len, proj->folder.path, (int)proj->name->len, proj->name->data, proj->guid);
 
 	if (proj->parent) {
-		INFP("    Parent : %.*s", (unsigned int)proj->parent->folder.len, proj->parent->folder.path);
+		INFP("    Parent : %.*s", (int)proj->parent->folder.len, proj->parent->folder.path);
 	} else {
 		INFP("%s", "    Parent :");
 	}
@@ -141,13 +141,13 @@ void proj_print(proj_t *proj)
 	INFP("%s", "    Depends:");
 	for (int i = 0; i < proj->all_depends.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
-		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
+		INFP("        '%.*s'", (int)dproj->name->len, dproj->name->data);
 	}
 
 	INFP("%s", "    Includes:");
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *dproj = *(proj_t **)array_get(&proj->includes, i);
-		INFP("        '%.*s'", dproj->name->len, dproj->name->data);
+		INFP("        '%.*s'", (int)dproj->name->len, dproj->name->data);
 	}
 
 	INFF();

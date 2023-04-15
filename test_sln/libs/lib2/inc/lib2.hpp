@@ -2,5 +2,5 @@
 
 class Printer {
     public:
-	void print();
+	int print();
 };

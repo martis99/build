@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 
-void slib_print()
+int slib_print()
 {
 	printf("slib\n");
+	return 0;
 }

@@ -20,7 +20,7 @@ static int val_to_mask(const prop_str_t *val, const str_t *table, size_t table_l
 		}
 	}
 
-	ERR_LOGICS("unknown value: '%.*s'", val->path, val->line, val->col, val->len, val->data);
+	ERR_LOGICS("unknown value: '%.*s'", val->path, val->line, val->col, (int)val->len, val->data);
 	return 0;
 }
 
@@ -34,7 +34,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 
 	data->cdata = value->data;
 	data->len   = value->len;
-	data->col   = (unsigned int)(value->data - line->data);
+	data->col   = (uint)(value->data - line->data);
 
 	if (table) {
 		if (arr) {
@@ -59,7 +59,7 @@ static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_
 
 	while (!end) {
 		if (str_cstr(&value, &value, &next, ", ", 2)) {
-			value.len = (unsigned int)(arr->data + arr->len - value.data);
+			value.len = (size_t)(arr->data + arr->len - value.data);
 			end	  = 1;
 		}
 
@@ -93,7 +93,7 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 	}
 
 	if (value.len <= 0) {
-		ERR_STRUCT("value of property '%.*s' is missing", data.path, data.line, (unsigned int)(value.data - line->data), name.len, name.data);
+		ERR_STRUCT("value of property '%.*s' is missing", data.path, data.line, (int)(value.data - line->data), (int)name.len, name.data);
 		return 1;
 	}
 
@@ -121,7 +121,7 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 		}
 	}
 
-	ERR_LOGICS("unknown property '%.*s'", data.path, data.line, 0, name.len, name.data);
+	ERR_LOGICS("unknown property '%.*s'", data.path, data.line, 0, (int)name.len, name.data);
 	return 1;
 }
 
@@ -163,7 +163,7 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 			props_pol[i].print(&props[i]);
 		} else {
 			if (props_pol[i].arr) {
-				INFP("    %.*s:", props_pol[i].name.len, props_pol[i].name.data);
+				INFP("    %.*s:", (int)props_pol[i].name.len, props_pol[i].name.data);
 				if (props_pol[i].str_table) {
 					prop_print_flags(&props[i], props_pol[i].str_table, props_pol[i].str_table_len);
 				} else {
@@ -171,9 +171,9 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 				}
 			} else {
 				if (props_pol[i].str_table) {
-					INFP("    %.*s: %s", props_pol[i].name.len, props_pol[i].name.data, props_pol[i].str_table[props[i].mask].data);
+					INFP("    %.*s: %s", (int)props_pol[i].name.len, props_pol[i].name.data, props_pol[i].str_table[props[i].mask].data);
 				} else {
-					INFP("    %.*s: '%.*s'", props_pol[i].name.len, props_pol[i].name.data, props[i].value.len, props[i].value.data);
+					INFP("    %.*s: '%.*s'", (int)props_pol[i].name.len, props_pol[i].name.data, (int)props[i].value.len, props[i].value.data);
 				}
 			}
 		}
@@ -190,7 +190,7 @@ void prop_print_arr(const prop_t *prop)
 {
 	for (int j = 0; j < prop->arr.count; j++) {
 		prop_str_t *val = array_get(&prop->arr, j);
-		INFP("        '%.*s'", val->len, val->data);
+		INFP("        '%.*s'", (int)val->len, val->data);
 	}
 }
 
@@ -198,7 +198,7 @@ void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_tab
 {
 	for (int i = 0; i < str_table_len; i++) {
 		if (prop->mask & (1 << i)) {
-			INFP("        '%.*s'", str_table[i].len, str_table[i].data);
+			INFP("        '%.*s'", (int)str_table[i].len, str_table[i].data);
 		}
 	}
 }
@@ -233,7 +233,7 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 	}
 }
 
-int convert_slash(char *dst, unsigned int dst_len, const char *src, size_t src_len)
+int convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 {
 	m_memcpy(dst, dst_len, src, src_len);
 	for (int i = 0; i < src_len; i++) {

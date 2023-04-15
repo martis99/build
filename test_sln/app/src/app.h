@@ -2,5 +2,5 @@
 
 class App {
     public:
-	void print();
+	int print();
 };

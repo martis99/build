@@ -12,8 +12,8 @@ static void add_dir_sln_vs(void *key, size_t ksize, void *value, void *priv)
 	dir_t *dir	= value;
 	pathv_t *folder = &dir->folder;
 
-	p_fprintf(fp, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (unsigned int)folder->len, folder->path,
-		  (unsigned int)folder->len, folder->path, dir->guid);
+	p_fprintf(fp, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)folder->len, folder->path,
+		  (int)folder->len, folder->path, dir->guid);
 }
 
 static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
@@ -21,8 +21,8 @@ static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 	FILE *fp	       = priv;
 	proj_t *proj	       = value;
 	const prop_str_t *name = proj->name;
-	p_fprintf(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (unsigned int)name->len,
-		  name->data, (unsigned int)proj->rel_path.len, proj->rel_path.path, (unsigned int)name->len, name->data, proj->guid);
+	p_fprintf(fp, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (int)name->len, name->data,
+		  (int)proj->rel_path.len, proj->rel_path.path, (int)name->len, name->data, proj->guid);
 }
 
 typedef struct proj_config_plat_vs_s {
@@ -39,9 +39,9 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 	for (int i = 0; i < data->configs->arr.count; i++) {
 		prop_str_t *config = array_get(&data->configs->arr, i);
 		for (int j = 0; j < data->platforms->count; j++) {
-			prop_str_t *platform   = array_get(data->platforms, j);
-			const char *platf      = platform->data;
-			unsigned int platf_len = platform->len;
+			prop_str_t *platform = array_get(data->platforms, j);
+			const char *platf    = platform->data;
+			size_t platf_len     = platform->len;
 			if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
 				platf	  = "Win32";
 				platf_len = 5;
@@ -91,7 +91,7 @@ static void gen_proj_vs(void *key, size_t ksize, void *value, const void *priv)
 int vs_sln_gen(const sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
-		ERR("folder does not exists: %.*s", path->len, path->path);
+		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
 	}
 

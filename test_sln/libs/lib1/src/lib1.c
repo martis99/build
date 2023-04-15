@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 
-void lib1_print()
+int lib1_print()
 {
 	printf("lib1\n");
+	return 0;
 }

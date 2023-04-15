@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void lib3_print();
+int lib3_print();
 
 #ifdef __cplusplus
 }

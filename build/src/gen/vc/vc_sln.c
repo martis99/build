@@ -77,7 +77,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	const proj_t *startup_proj = NULL;
 	if (hashmap_get(&sln->projects, startup->value.data, startup->value.len, (void **)&startup_proj)) {
-		ERR("project doesn't exists: '%.*s'", startup->value.len, startup->value.data);
+		ERR("project doesn't exists: '%.*s'", (int)startup->value.len, startup->value.data);
 		return 1;
 	}
 
