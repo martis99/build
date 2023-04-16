@@ -15,7 +15,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 		folder_create(cmake_path.path);
 	}
 
-	if (path_child(&cmake_path, "CMakeLists.txt", 14)) {
+	if (path_child(&cmake_path, CSTR("CMakeLists.txt"))) {
 		return 1;
 	}
 
@@ -30,7 +30,11 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
-		p_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		if (dir->data == NULL) {
+			continue;
+		}
+
+		p_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->len, dir->data);
 	}
 
 	file_close(file);

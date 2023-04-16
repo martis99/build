@@ -49,7 +49,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	MSG("%s", "generating tasks");
 
 	path_t tasks_path = *path;
-	if (path_child(&tasks_path, ".vscode", 7)) {
+	if (path_child(&tasks_path, CSTR(".vscode"))) {
 		return 1;
 	}
 
@@ -57,7 +57,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	path_t launch_path = tasks_path;
 
-	if (path_child(&tasks_path, "tasks.json", 11)) {
+	if (path_child(&tasks_path, CSTR("tasks.json"))) {
 		return 1;
 	}
 
@@ -109,7 +109,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	ret = 0;
 
-	if (path_child(&launch_path, "launch.json", 11)) {
+	if (path_child(&launch_path, CSTR("launch.json"))) {
 		return 1;
 	}
 

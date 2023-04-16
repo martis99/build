@@ -35,8 +35,9 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	proj_t *proj = value;
 
 	char buf[P_MAX_PATH] = { 0 };
+	size_t buf_len;
 
-	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
+	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
 	p_fprintf(data->file, "%.*s: check", proj->name->len, proj->name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
@@ -52,7 +53,7 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	p_fprintf(data->file,
 		  "\n"
 		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)",
-		  proj->rel_path.len, buf, proj->name->len, proj->name->data);
+		  buf_len, buf, proj->name->len, proj->name->data);
 
 	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
 		p_fprintf(data->file, " CONFIG=$(CONFIG)");
@@ -73,9 +74,10 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 	proj_t *proj = value;
 
 	char buf[P_MAX_PATH] = { 0 };
+	size_t buf_len;
 
-	convert_slash(buf, sizeof(buf) - 1, proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", proj->rel_path.len, buf);
+	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
+	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", buf_len, buf);
 
 	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
 		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
@@ -96,7 +98,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	const prop_t *configs	   = &sln->props[SLN_PROP_CONFIGS];
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, "Makefile", 8)) {
+	if (path_child(&cmake_path, CSTR("Makefile"))) {
 		return 1;
 	}
 

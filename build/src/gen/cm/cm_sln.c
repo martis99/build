@@ -44,7 +44,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, "CMakeLists.txt", 14)) {
+	if (path_child(&cmake_path, CSTR("CMakeLists.txt"))) {
 		return 1;
 	}
 
@@ -100,6 +100,10 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	for (int i = 0; i < dirs->count; i++) {
 		prop_str_t *dir = array_get(dirs, i);
+		if (dir->data == NULL) {
+			continue;
+		}
+
 		p_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 

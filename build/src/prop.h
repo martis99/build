@@ -55,6 +55,6 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 void prop_free(prop_t *prop);
 void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
-int convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len);
+size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len);
 
 #endif

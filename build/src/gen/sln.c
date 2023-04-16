@@ -32,7 +32,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	MSG("entering directory: %s", path->path);
 
 	path_t file_path = *path;
-	if (path_child(&file_path, "Project.txt", 11)) {
+	if (path_child(&file_path, CSTR("Project.txt"))) {
 		return 1;
 	}
 
@@ -46,13 +46,14 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 		} else {
 			proj_free(proj);
 			m_free(proj, sizeof(proj_t));
+			return -1;
 		}
 
 		return ret;
 	}
 
 	path_set_len(&file_path, path->len);
-	if (path_child(&file_path, "Directory.txt", 13)) {
+	if (path_child(&file_path, CSTR("Directory.txt"))) {
 		return 1;
 	}
 
@@ -164,7 +165,12 @@ int sln_read(sln_t *sln, const path_t *path)
 	sln->path      = *path;
 	sln->file_path = *path;
 
-	if (path_child(&sln->file_path, "Solution.txt", 12)) {
+	if (path_child(&sln->file_path, CSTR("Solution.txt"))) {
+		return 1;
+	}
+
+	if (!file_exists(sln->file_path.path)) {
+		ERR_INPUT("file doesn't exists: '%.*s'", __func__, (int)sln->file_path.len, sln->file_path.path);
 		return 1;
 	}
 
@@ -179,7 +185,7 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	path_t name = { 0 };
 	path_init(&name, sln->props[SLN_PROP_NAME].value.data, sln->props[SLN_PROP_NAME].value.len);
-	path_child_s(&name, "sln", 3, '.');
+	path_child_s(&name, CSTR("sln"), '.');
 
 	byte buf[256] = { 0 };
 	c_md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
@@ -202,7 +208,12 @@ int sln_read(sln_t *sln, const path_t *path)
 		prop_str_t *dir = array_get(dirs, i);
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
-			ret += read_dir(&child_path, dir->data, &read_dir_data);
+			const int r = read_dir(&child_path, dir->data, &read_dir_data);
+			if (r == -1) {
+				dir->data = NULL;
+			} else {
+				ret += r;
+			}
 		} else {
 			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->len, dir->data);
 			ret += 1;

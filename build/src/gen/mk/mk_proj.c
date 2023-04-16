@@ -25,7 +25,7 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 
 	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
 	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars.names, vars.tos, __VAR_MAX);
-	buf_len = cstr_replace(dst, dst_len, CSTR(buf), "$(PROJ_NAME)", 12, proj->name->data, proj->name->len);
+	buf_len = cstr_replace(dst, dst_len, CSTR(buf), CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
 	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 
 	return dst_len;
@@ -33,15 +33,15 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 
 static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
 {
-	char path_b[P_MAX_PATH] = { 0 };
-	path_len = convert_slash(path_b, sizeof(path_b) - 1, path, path_len);
+	char path_b[P_MAX_PATH]	  = { 0 };
+	size_t path_b_len	  = convert_slash(CSTR(path_b), path, path_len);
 	char rel_path[P_MAX_PATH] = { 0 };
-	size_t rel_path_len = convert_slash(rel_path, sizeof(rel_path) - 1, proj->rel_path.path, proj->rel_path.len);
+	size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
 
-	if (cstrn_cmp(path_b, path_len, "$(SLNDIR)", 9, 9)) {
-		p_fprintf(fp, "%.*s", path_len, path_b);
+	if (cstrn_cmp(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
+		p_fprintf(fp, "%.*s", path_b_len, path_b);
 	} else {
-		p_fprintf(fp, "$(SLNDIR)/%.*s/%.*s", proj->rel_path.len, rel_path, path_len, path_b);
+		p_fprintf(fp, "$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, path_b_len, path_b);
 	}
 }
 
@@ -70,7 +70,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		folder_create(cmake_path.path);
 	}
 
-	if (path_child(&cmake_path, "Makefile", 8)) {
+	if (path_child(&cmake_path, CSTR("Makefile"))) {
 		return 1;
 	}
 
@@ -168,7 +168,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			char rel_path[P_MAX_PATH] = { 0 };
 			size_t rel_path_len;
 
-			buf_len = resolve(&iproj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), iproj);
+			buf_len	     = resolve(&iproj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), iproj);
 			rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
 			p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
 		}

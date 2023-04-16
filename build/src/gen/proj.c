@@ -52,7 +52,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	proj->parent = parent;
 
-	if (path_child(&proj->file_path, "Project.txt", 11)) {
+	if (path_child(&proj->file_path, CSTR("Project.txt"))) {
 		return 1;
 	}
 
@@ -76,7 +76,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	path_t rel_path_name = { 0 };
 	path_init(&rel_path_name, proj->rel_path.path, proj->rel_path.len);
 	path_child(&rel_path_name, proj->name->data, proj->name->len);
-	path_child_s(&rel_path_name, "vcxproj", 7, '.');
+	path_child_s(&rel_path_name, CSTR("vcxproj"), '.');
 	byte buf[256] = { 0 };
 	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 

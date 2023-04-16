@@ -39,7 +39,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	dir->parent = parent;
 
-	if (path_child(&dir->file_path, "Directory.txt", 13)) {
+	if (path_child(&dir->file_path, CSTR("Directory.txt"))) {
 		return 1;
 	}
 
@@ -79,7 +79,11 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		prop_str_t *dir = array_get(subdirs, i);
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
-			if (on_dir(&child_path, dir->data, &read_dir_data)) {
+			int r = on_dir(&child_path, dir->data, &read_dir_data);
+			if (r == -1) {
+				m_free(dir->data, dir->len + 1);
+				dir->data = NULL;
+			} else if (r) {
 				ret	       = 1;
 				child_path.len = child_path_len;
 				continue;
@@ -116,7 +120,11 @@ void dir_print(dir_t *dir)
 static void free_dir(int index, void *value, void *priv)
 {
 	prop_str_t *dir = value;
-	m_free(dir->data, (size_t)dir->len + 1);
+	if (dir->data == NULL) {
+		return;
+	}
+
+	m_free(dir->data, dir->len + 1);
 }
 
 void dir_free(dir_t *dir)

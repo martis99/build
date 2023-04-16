@@ -34,7 +34,7 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 
 	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
 	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars->names, vars->tos, __VAR_MAX);
-	buf_len = cstr_replace(dst, dst_len, CSTR(buf), "$(PROJ_NAME)", 12, proj->name->data, proj->name->len);
+	buf_len = cstr_replace(dst, dst_len, CSTR(buf), CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
 	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 
 	return dst_len;
@@ -126,7 +126,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 	cwd = (wdir->flags & PROP_SET) ? &wdir->value : &rel_path;
 
 	if (!(configs->flags & PROP_SET)) {
-		buf_len = cstr_replace(outdir_buf, outdir_buf_len, buf, sizeof(buf) - 1, "$(CONFIG)", 9, "Debug", 5);
+		buf_len = cstr_replace(outdir_buf, outdir_buf_len, CSTR(buf), CSTR("$(CONFIG)"), CSTR("Debug"));
 
 		p_fprintf(f,
 			  "                {\n"
@@ -155,7 +155,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 
 				const prop_str_t argp = {
 					.cdata = arg.data,
-					.len  = arg.len,
+					.len   = arg.len,
 				};
 
 				buf_len = resolve(&argp, CSTR(buf), proj, &vars2);
@@ -194,7 +194,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 		for (int i = 0; i < configs->arr.count; i++) {
 			const prop_str_t *config = array_get(&configs->arr, i);
 
-			buf_len = cstr_replace(outdir_buf, outdir_buf_len, buf, sizeof(buf) - 1, "$(CONFIG)", 9, config->data, config->len);
+			buf_len = cstr_replace(outdir_buf, outdir_buf_len, CSTR(buf), CSTR("$(CONFIG)"), config->data, config->len);
 
 			p_fprintf(f,
 				  "                {\n"
@@ -223,7 +223,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 
 					const prop_str_t argp = {
 						.cdata = arg.data,
-						.len  = arg.len,
+						.len   = arg.len,
 					};
 
 					buf_len = resolve(&argp, CSTR(buf), proj, &vars2);

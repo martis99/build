@@ -124,7 +124,7 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-		tmp_len = cstr_replaces(enc->data, enc->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
+		tmp_len = cstr_replaces(enc->data, enc->len, CSTR(tmp), vars.names, vars.tos, __VAR_MAX);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
 		first = 1;
 	}
@@ -140,8 +140,8 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, tmp, sizeof(tmp) - 1, vars.names,
-						vars.tos, __VAR_MAX);
+			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, CSTR(tmp), vars.names, vars.tos,
+						__VAR_MAX);
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
 
 			first = 1;
@@ -186,7 +186,7 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 			for (int j = 0; j < libdirs->count; j++) {
 				prop_str_t *libdir = array_get(libdirs, j);
 				if (libdir->len > 0) {
-					tmp_len = cstr_replaces(libdir->data, (int)libdir->len, tmp, sizeof(tmp) - 1, vars.names, vars.tos, __VAR_MAX);
+					tmp_len = cstr_replaces(libdir->data, (int)libdir->len, CSTR(tmp), vars.names, vars.tos, __VAR_MAX);
 
 					if (cstrn_cmp(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)tmp_len, tmp);
@@ -619,7 +619,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 			for (int j = 0; j < configs->count; j++) {
 				prop_str_t *config = array_get(configs, j);
 
-				const int debug = cstr_cmp(config->data, config->len, "Debug", 5);
+				const int debug = cstr_cmp(config->data, config->len, CSTR("Debug"));
 
 				xml_tag_t xml_group = xml_add_child(&xml_user, xml_proj_user, CSTR("PropertyGroup"));
 				xml_add_attr_f(&xml_user, xml_group, CSTR("Condition"), "'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data,
@@ -647,7 +647,7 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		return 1;
 	}
 
-	if (path_child_s(&cmake_path_user, "vcxproj.user", 12, '.')) {
+	if (path_child_s(&cmake_path_user, CSTR("vcxproj.user"), '.')) {
 		return 1;
 	}
 

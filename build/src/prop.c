@@ -58,7 +58,7 @@ static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_
 	int end	    = 0;
 
 	while (!end) {
-		if (str_cstr(&value, &value, &next, ", ", 2)) {
+		if (str_cstr(&value, &value, &next, CSTR(", "))) {
 			value.len = (size_t)(arr->data + arr->len - value.data);
 			end	  = 1;
 		}
@@ -190,6 +190,11 @@ void prop_print_arr(const prop_t *prop)
 {
 	for (int j = 0; j < prop->arr.count; j++) {
 		prop_str_t *val = array_get(&prop->arr, j);
+		if (val->data == NULL) {
+			INFP("%s", "        <null>");
+			continue;
+		}
+
 		INFP("        '%.*s'", (int)val->len, val->data);
 	}
 }
@@ -233,7 +238,7 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 	}
 }
 
-int convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
+size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 {
 	m_memcpy(dst, dst_len, src, src_len);
 	for (int i = 0; i < src_len; i++) {
@@ -241,5 +246,5 @@ int convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 			dst[i] = '/';
 		}
 	}
-	return (int)src_len;
+	return src_len;
 }
