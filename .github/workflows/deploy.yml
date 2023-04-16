@@ -1,7 +1,7 @@
 name: Deploy
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,15 +16,12 @@ jobs:
         submodules: recursive
 
     - name: Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./build-linux
 
     - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: make CONFIG=Release
 
     - name: Copy binaries
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: cp ./bin/Release-x64/build/build ./bin/Release-x64/build/build-linux
 
     - name: Upload
@@ -45,22 +42,18 @@ jobs:
         submodules: recursive
 
     - name: Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: .\build-win-x64.exe
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.1
 
     - name: Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: nuget restore .
 
     - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=Release /p:Platform=${{matrix.platform}} .
 
     - name: Copy binaries
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: cp .\bin\Release-${{matrix.platform}}\build\build.exe .\bin\Release-${{matrix.platform}}\build\build-win-${{matrix.platform}}.exe
 
     - name: Upload

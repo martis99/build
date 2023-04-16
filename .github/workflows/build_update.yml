@@ -1,0 +1,47 @@
+name: Build Update
+
+on:
+  repository_dispatch:
+    types: [build_update]
+
+permissions:
+  contents: write
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{secrets.PAT}}
+
+    - name: Download
+      uses: actions/github-script@v6
+      env:
+        REPO: ${{github.event.client_payload.repo}}
+        ARTIFACTS: ${{github.event.client_payload.artifacts}}
+      with:
+        script: |
+          const { promises: fs } = require('fs');
+          await Promise.all(process.env.ARTIFACTS.split(' ').map(async (artifact_id, i) =>
+            fs.writeFile(`${process.env.GITHUB_WORKSPACE}/download${i}.zip`, Buffer.from((await github.rest.actions.downloadArtifact({
+              owner: process.env.REPO.split('/')[0],
+              repo: process.env.REPO.split('/')[1],
+              artifact_id,
+              archive_format: 'zip',
+            })).data))
+          ));
+
+    - name: Unzip
+      run: |
+        unzip -o 'download*.zip'
+        rm download*.zip
+        [ -a build-linux ] && chmod +x build-linux
+
+    - name: Commit
+      run: |
+        git config --global user.email ""
+        git config --global user.name "GitHub Actions"
+        git add . && git diff --staged --quiet || git commit -m "build: update"
+        git push

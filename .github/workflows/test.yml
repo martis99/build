@@ -3,8 +3,15 @@ name: Test
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+    - '.github/**'
+
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+    - '.github/**'
+
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,23 +29,18 @@ jobs:
         submodules: recursive
 
     - name: Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./build-linux
 
     - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: make CONFIG=${{matrix.configuration}}
 
     - name: Test - Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./bin/${{matrix.configuration}}-x64/build/build -S test_sln
 
     - name: Test - Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: make -C test_sln slib app CONFIG=${{matrix.configuration}}
 
     - name: Test - Run test
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./test_sln/bin/${{matrix.configuration}}-x64/app/app
 
   Windows-MSBuild:
@@ -54,32 +56,25 @@ jobs:
         submodules: recursive
 
     - name: Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: .\build-win-x64.exe
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.1
 
     - name: Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: nuget restore .
 
     - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .
 
     - name: Test - Generate solution
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build.exe -S test_sln
 
     - name: Test - Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: nuget restore .\test_sln
 
     - name: Test - Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .\test_sln
 
     - name: Test - Run test
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: .\test_sln\bin\${{matrix.configuration}}-${{matrix.platform}}\app\app.exe

@@ -1,0 +1,33 @@
+name: Notify
+
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types:
+    - completed
+
+jobs:
+  Notify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get artifacts
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: context.payload.workflow_run.id,
+          });
+          const artifacts = allArtifacts.data.artifacts.map(artifact => artifact.id).join(" ");
+          core.exportVariable('artifacts', artifacts);
+          console.log(`Artifacts: "${artifacts}"`);
+
+    - name: Notify
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{secrets.PAT}}
+        repository: ${{github.repository_owner}}/build-broadcast
+        event-type: build_update
+        client-payload: '{"repo": "${{github.repository}}", "artifacts": "${{env.artifacts}}"}'
