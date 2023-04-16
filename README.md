@@ -20,21 +20,20 @@ build - cross-platform build system generator
 
 ## Usage
 
-### Windows
+### Windows x64
 
-Run `build.exe` in solution directory.  
-Or execute in command line if arguments are needed:
-```
-./build.exe -G V
-```
+Run `build-win-x64.exe` in solution directory.  
+
+### Windows x86
+
+Run `build-win-x86.exe` in solution directory.  
 
 ### Linux
 
-In solution directory execute:
-```
-./build
-```
-  
+Run `build-linux` in solution directory.  
+
+### Arguments
+
 To change build system add `-G` argument with one of the options:
 | Option |   Build System   | Default on |
 | ------ |----------------- | ---------- |
@@ -43,10 +42,11 @@ To change build system add `-G` argument with one of the options:
 | M      | Make             |            |
 | W      | VS Code          | Linux      |
 
-Example:
-```
-./build -G C
-```
+Example: `./build-linux -G C`
+
+To change solution directory add `-S` argument with solution direcory
+
+Example: `./build-linux -S ./directory/to/solution`
 
 ## Build
 
@@ -54,4 +54,4 @@ Example:
 ```
 git clone --recursive https://github.com/martis99/build.git
 ```
-2. Refer to [build usage](https://github.com/martis99/build#usage) but instead `build` use `mbuild`
+2. Refer to [build usage](https://github.com/martis99/build#usage)
