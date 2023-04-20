@@ -48,7 +48,7 @@ jobs:
           script: |
             await github.rest.repos.createDispatchEvent({
               owner: 'martis99',
-              repo: 'build',
+              repo: 'build-broadcast',
               event_type: 'build_update',
               client_payload: {
                 run_id: "${{github.run_id}}"
