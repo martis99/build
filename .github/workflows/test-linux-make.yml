@@ -1,0 +1,35 @@
+name: test
+run-name: test-linux-make
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        required: false
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Download
+        uses: martis99/build-download-action@main
+        with:
+          run_id: ${{github.event.inputs.run_id}}
+          workflow: build-linux
+
+      - name: Generate
+        run: ./build-linux-${{matrix.configuration}} -S test_sln -G M
+
+      - name: Build
+        run: make -C test_sln slib app CONFIG=${{matrix.configuration}}
+
+      - name: Run
+        run: ./test_sln/bin/${{matrix.configuration}}-x64/app/app

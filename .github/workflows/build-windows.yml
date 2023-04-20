@@ -1,0 +1,69 @@
+name: build
+run-name: build-windows
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '.github/**'
+
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - '.github/**'
+
+  workflow_dispatch:
+
+jobs:
+  Build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64, x86]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Generate
+        run: .\build-win-x64.exe
+
+      - name: Setup
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Build
+        run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .
+
+      - name: Rename
+        run: cp .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build.exe .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build-win-${{matrix.platform}}-${{matrix.configuration}}.exe
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-win-${{matrix.platform}}-${{matrix.configuration}}
+          path: .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build-win-${{matrix.platform}}-${{matrix.configuration}}.exe
+
+  Notify:
+    needs: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        system: [cmake, msbuild]
+
+    steps:
+      - name: Notify
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-windows-${{matrix.system}}.yml',
+              ref: 'main',
+              inputs: {
+                run_id: "${{github.run_id}}"
+              }
+            });
+          github-token: ${{secrets.PAT}}

@@ -1,63 +1,57 @@
-name: Deploy
+name: deploy
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  Linux:
+  Deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+      - name: Download Linux
+        uses: martis99/build-download-action@main
+        with:
+          workflow: build-linux
 
-    - name: Generate solution
-      run: ./build-linux
+      - name: Download Windows
+        uses: martis99/build-download-action@main
+        with:
+          workflow: build-windows
 
-    - name: Build
-      run: make CONFIG=Release
+      - name: Rename
+        run: |
+          cp build-linux-Release build-linux
+          cp build-win-x64-Release.exe build-win-x64.exe
+          cp build-win-x86-Release.exe build-win-x86.exe
 
-    - name: Copy binaries
-      run: cp ./bin/Release-x64/build/build ./bin/Release-x64/build/build-linux
+      - name: Upload Linux
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-linux
+          path: build-linux
 
-    - name: Upload
-      uses: actions/upload-artifact@v3
-      with:
-        name: build-linux
-        path: ./bin/Release-x64/build/build-linux
+      - name: Upload Windows x64
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-win-x64
+          path: build-win-x64.exe
 
-  Windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        platform: [x64, x86]
+      - name: Upload Windows x86
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-win-x86
+          path: build-win-x86.exe
 
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Generate solution
-      run: .\build-win-x64.exe
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
-
-    - name: Restore NuGet packages
-      run: nuget restore .
-
-    - name: Build
-      run: msbuild /m /p:Configuration=Release /p:Platform=${{matrix.platform}} .
-
-    - name: Copy binaries
-      run: cp .\bin\Release-${{matrix.platform}}\build\build.exe .\bin\Release-${{matrix.platform}}\build\build-win-${{matrix.platform}}.exe
-
-    - name: Upload
-      uses: actions/upload-artifact@v3
-      with:
-        name: build-win-${{matrix.platform}}
-        path: .\bin\Release-${{matrix.platform}}\build\build-win-${{matrix.platform}}.exe
+      - name: Notify
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'martis99',
+              repo: 'build',
+              event_type: 'build_update',
+              client_payload: {
+                run_id: "${{github.run_id}}"
+              }
+            });
+          github-token: ${{secrets.PAT}}

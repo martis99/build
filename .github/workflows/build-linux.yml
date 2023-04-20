@@ -1,0 +1,65 @@
+name: build
+run-name: build-linux
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '.github/**'
+
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - '.github/**'
+
+  workflow_dispatch:
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Generate
+        run: ./build-linux
+
+      - name: Build
+        run: make CONFIG=${{matrix.configuration}}
+
+      - name: Copy
+        run: cp ./bin/${{matrix.configuration}}-x64/build/build ./bin/${{matrix.configuration}}-x64/build/build-linux-${{matrix.configuration}}
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-linux-${{matrix.configuration}}
+          path: ./bin/${{matrix.configuration}}-x64/build/build-linux-${{matrix.configuration}}
+
+  Notify:
+    needs: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        system: [make]
+
+    steps:
+      - name: Notify
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-linux-${{matrix.system}}.yml',
+              ref: 'main',
+              inputs: {
+                run_id: "${{github.run_id}}"
+              }
+            });
+          github-token: ${{secrets.PAT}}

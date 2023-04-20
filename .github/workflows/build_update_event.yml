@@ -1,0 +1,14 @@
+name: build update event
+
+on:
+  repository_dispatch:
+    types: [build_update]
+
+permissions:
+  contents: write
+
+jobs:
+  Update:
+    uses: martis99/build/.github/workflows/build_update.yml@main
+    with:
+      run_id: ${{github.event.client_payload.run_id}}

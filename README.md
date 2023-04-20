@@ -4,19 +4,15 @@ build - cross-platform build system generator
 
 ***
 
-### Platforms
-- [x] Windows
-- [x] Linux
-
-### Build systems
-- [x] Visual Studio 17
-- [x] CMake
-- [x] Make
-- [x] VS Code
-- [ ] QMake
-- [ ] Ninja
-- [ ] Premake
-- [ ] Meson
+| Support | Linux <br> [![build](https://github.com/martis99/build/actions/workflows/build-linux.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/build-linux.yml) | Windows <br> [![build](https://github.com/martis99/build/actions/workflows/build-windows.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/build-windows.yml) |
+| ----- | :-: | :-: |
+MSBuild |     | [![test](https://github.com/martis99/build/actions/workflows/test-windows-msbuild.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/test-windows-msbuild.yml) |
+CMake   |     | [![test](https://github.com/martis99/build/actions/workflows/test-windows-cmake.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/test-windows-cmake.yml) |
+Make    | [![test](https://github.com/martis99/build/actions/workflows/test-linux-make.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/test-linux-make.yml) |     |
+QMake   |     |     |
+Ninja   |     |     |
+Premake |     |     |
+Meson   |     |     |
 
 ## Usage
 

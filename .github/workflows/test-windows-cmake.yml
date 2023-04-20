@@ -1,0 +1,42 @@
+name: test
+run-name: test-windows-cmake
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        required: false
+
+jobs:
+  Test-VS17:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Download
+        uses: martis99/build-download-action@main
+        with:
+          run_id: ${{github.event.inputs.run_id}}
+          workflow: build-windows
+
+      - name: Generate
+        run: .\build-win-${{matrix.platform}}-${{matrix.configuration}}.exe -S test_sln -G C
+
+      - name: Run CMake
+        run: cmake -S test_sln -B test_sln/build -G "Visual Studio 17 2022"
+
+      - name: Setup
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Build
+        run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} .\test_sln\build\test.sln
+
+      - name: Run
+        run: .\test_sln\bin\${{matrix.configuration}}-${{matrix.platform}}\app\app.exe
