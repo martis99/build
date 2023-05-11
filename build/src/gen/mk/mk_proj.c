@@ -298,32 +298,35 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "\n");
 	}
 
-	p_fprintf(fp, "\nRM += -r\n\n");
+	p_fprintf(fp, "\nRM += -r\n");
+
+	p_fprintf(fp, "\nCONFIG_FLAGS =\n\n");
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "SHOW = true\n\n");
 	}
 
 	p_fprintf(fp,
-		  ".PHONY: all check check_coverage %.*s coverage clean\n\n"
+		  ".PHONY: all check check_coverage %.*s compile coverage clean\n\n"
 		  "all: %.*s\n\ncheck:\n",
 		  name->len, name->data, name->len, name->data);
 
 	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
 		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
-			      "CONFIG_FLAGS = -ggdb3 -O0\n"
+			      "\t$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
 			      "endif\n");
 	}
 
 	p_fprintf(fp,
 		  "\ncheck_coverage: check\n"
-		  "CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
+		  "\t$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
 		  "ifeq (, $(shell which lcov))\n"
-		  "$(error \"lcov not found\")\n"
+		  "\t$(error \"lcov not found\")\n"
 		  "endif\n"
-		  "\n%.*s: clean check $(TARGET)\n"
+		  "\n%.*s: clean compile\n"
+		  "\ncompile: check $(TARGET)\n"
 		  "\ncoverage: clean check_coverage $(TARGET)\n",
-		  name->len, name->data);
+		  name->len, name->data, name->len, name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "\t@$(TARGET)\n"
