@@ -22,6 +22,46 @@ static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 	p_fprintf(priv, " %.*s", proj->name->len, proj->name->data);
 }
 
+static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, const char *action)
+{
+	char buf[P_MAX_PATH] = { 0 };
+	size_t buf_len;
+
+	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
+
+	if (action == NULL) {
+		p_fprintf(file, ".PHONY: %.*s\n%.*s: check", proj->name->len, proj->name->data, proj->name->len, proj->name->data);
+	} else {
+		p_fprintf(file, ".PHONY: %.*s/%s\n%.*s/%s: check", proj->name->len, proj->name->data, action, proj->name->len, proj->name->data, action);
+	}
+
+	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+		for (int i = 0; i < proj->all_depends.count; i++) {
+			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+
+			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+				if (action == NULL) {
+					p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
+				} else {
+					p_fprintf(file, " %.*s/%s", dproj->name->len, dproj->name->data, action);
+				}
+			}
+		}
+	}
+
+	if (action == NULL) {
+		p_fprintf(file, "\n\t@$(MAKE) -C %.*s SLNDIR=$(SLNDIR)", buf_len, buf);
+	} else {
+		p_fprintf(file, "\n\t@$(MAKE) -C %.*s %s SLNDIR=$(SLNDIR)", buf_len, buf, action);
+	}
+
+	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+		p_fprintf(file, " CONFIG=$(CONFIG)");
+	}
+
+	p_fprintf(file, "\n\n");
+}
+
 typedef struct add_target_make_data_s {
 	const hashmap_t *projects;
 	FILE *file;
@@ -34,32 +74,10 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 
 	proj_t *proj = value;
 
-	char buf[P_MAX_PATH] = { 0 };
-	size_t buf_len;
-
-	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(data->file, "%.*s: check", proj->name->len, proj->name->data);
-
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		for (int i = 0; i < proj->all_depends.count; i++) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
-
-			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				p_fprintf(data->file, " %.*s", dproj->name->len, dproj->name->data);
-			}
-		}
-	}
-
-	p_fprintf(data->file,
-		  "\n"
-		  "\t@$(MAKE) -C %.*s %.*s SLNDIR=$(SLNDIR)",
-		  buf_len, buf, proj->name->len, proj->name->data);
-
-	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
-		p_fprintf(data->file, " CONFIG=$(CONFIG)");
-	}
-
-	p_fprintf(data->file, "\n\n");
+	print_action(data->file, proj, data->configs, NULL);
+	print_action(data->file, proj, data->configs, "clean");
+	print_action(data->file, proj, data->configs, "compile");
+	print_action(data->file, proj, data->configs, "coverage");
 }
 
 typedef struct add_clean_make_data_s {
@@ -94,7 +112,6 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	}
 
 	const char *targets_folder = "CMake";
-	const prop_t *startup	   = &sln->props[SLN_PROP_STARTUP];
 	const prop_t *configs	   = &sln->props[SLN_PROP_CONFIGS];
 
 	path_t cmake_path = *path;
@@ -131,13 +148,9 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		p_fprintf(file, "\nCONFIG = %.*s\n\n", config->len, config->data);
 	}
 
-	p_fprintf(file, ".PHONY: all check");
+	p_fprintf(file, "SHOW = true\n\n");
 
-	hashmap_iterate_hc(&sln->projects, add_phony_make, file);
-
-	p_fprintf(file, " clean\n"
-			"\n"
-			"all:");
+	p_fprintf(file, ".PHONY: all check clean\n\nall:");
 
 	hashmap_iterate_hc(&sln->projects, add_phony_make, file);
 

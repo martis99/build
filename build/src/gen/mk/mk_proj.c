@@ -97,6 +97,8 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "INTDIR = %.*s\n", buf_len, buf);
 	}
 
+	p_fprintf(fp, "REPDIR = $(OUTDIR)coverage-report/\n");
+
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", inc->len, inc->data);
@@ -136,6 +138,23 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	if (lang & (1 << LANG_CPP)) {
 		p_fprintf(fp, "OBJ_CPP = $(patsubst %%.cpp, $(INTDIR)%%.o, $(SRC_CPP))\n");
 	}
+
+	p_fprintf(fp, "LCOV = $(OUTDIR)lcov.info\n");
+
+	bool cov = 0;
+	if (lang & (1 << LANG_C)) {
+		p_fprintf(fp, "COV %.*s= $(patsubst %%.c, $(INTDIR)%%.gcno, $(SRC_C))\n", cov, "+");
+		p_fprintf(fp, "COV += $(patsubst %%.c, $(INTDIR)%%.gcda, $(SRC_C))\n", cov, "+");
+		cov = 1;
+	}
+
+	if (lang & (1 << LANG_CPP)) {
+		p_fprintf(fp, "COV %.*s= $(patsubst %%.cpp, $(INTDIR)%%.gcno, $(SRC_CPP))\n", cov, "+");
+		p_fprintf(fp, "COV += $(patsubst %%.cpp, $(INTDIR)%%.gcda, $(SRC_CPP))\n", cov, "+");
+		cov = 1;
+	}
+
+	p_fprintf(fp, "COV %.*s= $(LCOV) $(REPDIR)\n", cov, "+");
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
@@ -279,15 +298,16 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		p_fprintf(fp, "\n");
 	}
 
-	p_fprintf(fp, "\n");
+	p_fprintf(fp, "\nRM += -r\n\n");
 
-	p_fprintf(fp, ".PHONY: all check %.*s clean\n\n", name->len, name->data);
+	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+		p_fprintf(fp, "SHOW = true\n\n");
+	}
 
-	p_fprintf(fp, "all: %.*s", name->len, name->data);
-
-	p_fprintf(fp, "\n\n");
-
-	p_fprintf(fp, "check:\n");
+	p_fprintf(fp,
+		  ".PHONY: all check check_coverage %.*s coverage clean\n\n"
+		  "all: %.*s\n\ncheck:\n",
+		  name->len, name->data, name->len, name->data);
 
 	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
 		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
@@ -295,13 +315,26 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			      "endif\n");
 	}
 
-	p_fprintf(fp, "\n");
+	p_fprintf(fp,
+		  "\ncheck_coverage: check\n"
+		  "CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
+		  "ifeq (, $(shell which lcov))\n"
+		  "$(error \"lcov not found\")\n"
+		  "endif\n"
+		  "\n%.*s: clean check $(TARGET)\n"
+		  "\ncoverage: clean check_coverage $(TARGET)\n",
+		  name->len, name->data);
 
-	p_fprintf(fp, "%.*s: check $(TARGET)", name->len, name->data);
+	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+		p_fprintf(fp, "\t@$(TARGET)\n"
+			      "\t@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
+			      "ifeq ($(SHOW), true)\n"
+			      "\t@genhtml -q $(LCOV) -o $(REPDIR)\n"
+			      "\t@open $(REPDIR)index.html\n"
+			      "endif\n");
+	}
 
-	p_fprintf(fp, "\n\n");
-
-	p_fprintf(fp, "$(TARGET):");
+	p_fprintf(fp, "\n$(TARGET):");
 
 	if (lang & (1 << LANG_C)) {
 		p_fprintf(fp, " $(OBJ_C)");
@@ -345,6 +378,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	if (lang & (1 << LANG_CPP)) {
 		p_fprintf(fp, " $(OBJ_CPP)");
+	}
+
+	if (lang & (((1 << LANG_C) | (1 << LANG_CPP)))) {
+		p_fprintf(fp, " $(COV)");
 	}
 
 	p_fprintf(fp, "\n");
