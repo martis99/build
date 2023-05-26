@@ -329,7 +329,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		  name->len, name->data, name->len, name->data);
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		p_fprintf(fp, "\t@$(TARGET)\n"
+		p_fprintf(fp, "\t@$(TARGET) $(ARGS)\n"
 			      "\t@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
 			      "ifeq ($(SHOW), true)\n"
 			      "\t@genhtml -q $(LCOV) -o $(REPDIR)\n"
