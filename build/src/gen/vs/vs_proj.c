@@ -115,12 +115,15 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 	char tmp[P_MAX_PATH] = { 0 };
 	size_t tmp_len;
 
-	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
 	const prop_str_t *enc = &proj->props[PROJ_PROP_ENCLUDE].value;
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)inc->len, inc->data);
-		first = 1;
+		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		for (int i = 0; i < includes->count; i++) {
+			prop_str_t *include = array_get(includes, i);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)include->len, include->data);
+			first = 1;
+		}
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
@@ -133,10 +136,14 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", (int)iproj->rel_path.len,
-					iproj->rel_path.path, (int)iproj->props[PROJ_PROP_INCLUDE].value.len, iproj->props[PROJ_PROP_INCLUDE].value.data);
+			const array_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
+			for (int i = 0; i < includes->count; i++) {
+				prop_str_t *include = array_get(includes, i);
+				len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", (int)iproj->rel_path.len,
+						iproj->rel_path.path, (int)include->len, include->data);
 
-			first = 1;
+				first = 1;
+			}
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
@@ -502,18 +509,23 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		.langs = langs->mask,
 	};
 
-	path_init(&afd.path, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
-
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		xml_tag_t xml_srcs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 
 		afd.xml_items = xml_srcs;
 
-		path_t src = { 0 };
-		path_init(&src, proj->path.path, proj->path.len);
-		path_child(&src, proj->props[PROJ_PROP_SOURCE].value.data, proj->props[PROJ_PROP_SOURCE].value.len);
+		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		for (int i = 0; i < sources->count; i++) {
+			prop_str_t *source = array_get(sources, i);
 
-		files_foreach(&src, add_src_folder, add_src_file, &afd);
+			path_init(&afd.path, source->data, source->len);
+
+			path_t src = { 0 };
+			path_init(&src, proj->path.path, proj->path.len);
+			path_child(&src, source->data, source->len);
+
+			files_foreach(&src, add_src_folder, add_src_file, &afd);
+		}
 	}
 
 	if (proj->props[PROJ_PROP_DEPENDS].flags & PROP_SET) {
@@ -542,26 +554,37 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 		xml_tag_t xml_incs = xml_add_child(&xml, xml_proj, CSTR("ItemGroup"));
 		afd.xml_items	   = xml_incs;
 
-		const prop_str_t *srcv = &proj->props[PROJ_PROP_SOURCE].value;
-		const prop_str_t *incv = &proj->props[PROJ_PROP_INCLUDE].value;
-
+		//TODO: Remove duplicating folders
 		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-			path_t src = { 0 };
-			path_init(&src, proj->path.path, proj->path.len);
-			path_child(&src, srcv->data, srcv->len);
+			const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-			files_foreach(&src, add_inc_folder, add_inc_file, &afd);
+			for (int i = 0; i < sources->count; i++) {
+				prop_str_t *source = array_get(sources, i);
+
+				path_init(&afd.path, source->data, source->len);
+
+				path_t src = { 0 };
+				path_init(&src, proj->path.path, proj->path.len);
+				path_child(&src, source->data, source->len);
+
+				files_foreach(&src, add_inc_folder, add_inc_file, &afd);
+			}
 		}
 
-		if ((proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) &&
-		    (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !cstr_cmp(srcv->data, srcv->len, incv->data, incv->len))) {
-			path_init(&afd.path, incv->data, incv->len);
+		if ((proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET)) {
+			const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-			path_t inc = { 0 };
-			path_init(&inc, proj->path.path, proj->path.len);
-			path_child(&inc, incv->data, incv->len);
+			for (int i = 0; i < includes->count; i++) {
+				prop_str_t *include = array_get(includes, i);
 
-			files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
+				path_init(&afd.path, include->data, include->len);
+
+				path_t inc = { 0 };
+				path_init(&inc, proj->path.path, proj->path.len);
+				path_child(&inc, include->data, include->len);
+
+				files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
+			}
 		}
 	}
 

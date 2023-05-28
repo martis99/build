@@ -81,9 +81,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	MSG("generating project: %s", cmake_path.path);
 
-	const prop_str_t *inc = &proj->props[PROJ_PROP_INCLUDE].value;
-	const prop_str_t *src = &proj->props[PROJ_PROP_SOURCE].value;
-	uint lang	      = langs->mask;
+	uint lang = langs->mask;
 
 	int deps_first = 0;
 
@@ -100,34 +98,46 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	p_fprintf(fp, "REPDIR = $(OUTDIR)coverage-report/\n");
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", inc->len, inc->data);
-			deps_first = 1;
-		}
+		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-		if (lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.hpp')\n", deps_first, "+", inc->len, inc->data);
-			deps_first = 1;
+		for (int i = 0; i < includes->count; i++) {
+			prop_str_t *include = array_get(includes, i);
+
+			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
+				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", include->len, include->data);
+				deps_first = 1;
+			}
+
+			if (lang & (1 << LANG_CPP)) {
+				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.hpp')\n", deps_first, "+", include->len, include->data);
+				deps_first = 1;
+			}
 		}
 	}
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", src->len, src->data);
-			deps_first = 1;
-		}
+		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-		if (lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.hpp')\n", deps_first, "+", src->len, src->data);
-			deps_first = 1;
-		}
+		for (int i = 0; i < sources->count; i++) {
+			prop_str_t *source = array_get(sources, i);
 
-		if (lang & (1 << LANG_C)) {
-			p_fprintf(fp, "SRC_C = $(shell find %.*s -name '*.c')\n", src->len, src->data);
-		}
+			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
+				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", source->len, source->data);
+				deps_first = 1;
+			}
 
-		if (lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, "SRC_CPP = $(shell find %.*s -name '*.cpp')\n", src->len, src->data);
+			if (lang & (1 << LANG_CPP)) {
+				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.hpp')\n", deps_first, "+", source->len, source->data);
+				deps_first = 1;
+			}
+
+			if (lang & (1 << LANG_C)) {
+				p_fprintf(fp, "SRC_C = $(shell find %.*s -name '*.c')\n", source->len, source->data);
+			}
+
+			if (lang & (1 << LANG_CPP)) {
+				p_fprintf(fp, "SRC_CPP = $(shell find %.*s -name '*.cpp')\n", source->len, source->data);
+			}
 		}
 	}
 
@@ -167,29 +177,45 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	p_fprintf(fp, "FLAGS =");
 
-	int include_diff = (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) &&
-			   (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !prop_cmp(&proj->props[PROJ_PROP_INCLUDE].value, &proj->props[PROJ_PROP_SOURCE].value));
-
+	//TODO: Remove
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		buf_len = resolve(&proj->props[PROJ_PROP_SOURCE].value, CSTR(buf), proj);
-		p_fprintf(fp, " -I%.*s", buf_len, buf);
+		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+
+		for (int i = 0; i < sources->count; i++) {
+			prop_str_t *source = array_get(sources, i);
+
+			buf_len = resolve(source, CSTR(buf), proj);
+			p_fprintf(fp, " -I%.*s", buf_len, buf);
+		}
 	}
 
-	if (include_diff) {
-		buf_len = resolve(&proj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), proj);
-		p_fprintf(fp, " -I%.*s", buf_len, buf);
+	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
+		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+
+		for (int i = 0; i < includes->count; i++) {
+			prop_str_t *include = array_get(includes, i);
+
+			buf_len = resolve(include, CSTR(buf), proj);
+			p_fprintf(fp, " -I%.*s", buf_len, buf);
+		}
 	}
 
 	for (int i = 0; i < proj->includes.count; i++) {
 		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			char rel_path[P_MAX_PATH] = { 0 };
-			size_t rel_path_len;
+			const array_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
 
-			buf_len	     = resolve(&iproj->props[PROJ_PROP_INCLUDE].value, CSTR(buf), iproj);
-			rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
-			p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
+			for (int i = 0; i < includes->count; i++) {
+				prop_str_t *include = array_get(includes, i);
+
+				char rel_path[P_MAX_PATH] = { 0 };
+				size_t rel_path_len;
+
+				buf_len	     = resolve(include, CSTR(buf), iproj);
+				rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
+				p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
+			}
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {

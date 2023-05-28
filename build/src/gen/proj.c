@@ -11,8 +11,8 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_NAME]     = { .name = STR("NAME"), },
 	[PROJ_PROP_TYPE]     = { .name = STR("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
 	[PROJ_PROP_LANGS]    = { .name = STR("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
-	[PROJ_PROP_SOURCE]   = { .name = STR("SOURCE"), },
-	[PROJ_PROP_INCLUDE]  = { .name = STR("INCLUDE"), },
+	[PROJ_PROP_SOURCE]   = { .name = STR("SOURCE"), .arr = 1 },
+	[PROJ_PROP_INCLUDE]  = { .name = STR("INCLUDE"), .arr = 1 },
 	[PROJ_PROP_ENCLUDE]  = { .name = STR("ENCLUDE"), },
 	[PROJ_PROP_DEPENDS]  = { .name = STR("DEPENDS"), .arr = 1 },
 	[PROJ_PROP_DEPEND]   = { .name = STR("DEPEND"),  .arr = 1 },
@@ -81,29 +81,39 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		prop_str_t *source = &proj->props[PROJ_PROP_SOURCE].value;
-		path_t path	   = { 0 };
-		path_init(&path, proj->path.path, proj->path.len);
-		if (path_child(&path, source->data, source->len)) {
-			ret++;
-		} else {
-			if (!folder_exists(path.path)) {
-				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, (int)source->len, source->data);
+		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+
+		for (int i = 0; i < sources->count; i++) {
+			prop_str_t *source = array_get(sources, i);
+
+			path_t path = { 0 };
+			path_init(&path, proj->path.path, proj->path.len);
+			if (path_child(&path, source->data, source->len)) {
 				ret++;
+			} else {
+				if (!folder_exists(path.path)) {
+					ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, (int)source->len, source->data);
+					ret++;
+				}
 			}
 		}
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		prop_str_t *include = &proj->props[PROJ_PROP_INCLUDE].value;
-		path_t path	    = { 0 };
-		path_init(&path, proj->path.path, proj->path.len);
-		if (path_child(&path, include->data, include->len)) {
-			ret++;
-		} else {
-			if (!folder_exists(path.path)) {
-				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, (int)include->len, include->data);
+		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+
+		for (int i = 0; i < includes->count; i++) {
+			prop_str_t *include = array_get(includes, i);
+
+			path_t path = { 0 };
+			path_init(&path, proj->path.path, proj->path.len);
+			if (path_child(&path, include->data, include->len)) {
 				ret++;
+			} else {
+				if (!folder_exists(path.path)) {
+					ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, (int)include->len, include->data);
+					ret++;
+				}
 			}
 		}
 	}
