@@ -1,4 +1,4 @@
-#include "mk_sln.h"
+#include "gen/mk/mk_sln.h"
 
 #include "mk_proj.h"
 

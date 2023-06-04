@@ -1,6 +1,6 @@
 NAME: build
 TYPE: EXE
 SOURCE: src
-DEPENDS: cutils
-INCLUDES: cutils
+DEPENDS: libbuild
+INCLUDES: libbuild
 ARGS: -S $(SolutionDir)test_sln -D 1 -I 1 -C 1

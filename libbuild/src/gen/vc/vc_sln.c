@@ -1,4 +1,4 @@
-#include "vc_sln.h"
+#include "gen/vc/vc_sln.h"
 
 #include "gen/mk/mk_sln.h"
 #include "gen/proj.h"

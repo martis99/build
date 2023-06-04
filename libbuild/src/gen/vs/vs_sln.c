@@ -1,4 +1,4 @@
-#include "vs_sln.h"
+#include "gen/vs/vs_sln.h"
 
 #include "vs_proj.h"
 

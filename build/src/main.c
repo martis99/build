@@ -3,8 +3,6 @@
 #include "gen/vc/vc_sln.h"
 #include "gen/vs/vs_sln.h"
 
-#include "defines.h"
-
 #include "args.h"
 #include "cstr.h"
 #include "mem.h"

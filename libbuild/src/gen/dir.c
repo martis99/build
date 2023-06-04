@@ -1,6 +1,6 @@
 #include "dir.h"
 
-#include "proj.h"
+#include "gen/proj.h"
 
 #include "common.h"
 

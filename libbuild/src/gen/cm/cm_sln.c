@@ -1,4 +1,4 @@
-#include "cm_sln.h"
+#include "gen/cm/cm_sln.h"
 
 #include "cm_dir.h"
 #include "cm_proj.h"

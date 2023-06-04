@@ -1,7 +1,7 @@
-#include "proj.h"
+#include "gen/proj.h"
 
 #include "dir.h"
-#include "sln.h"
+#include "gen/sln.h"
 
 #include "common.h"
 
