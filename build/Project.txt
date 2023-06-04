@@ -1,6 +1,5 @@
 NAME: build
 TYPE: EXE
-INCLUDE: src
 SOURCE: src
 DEPENDS: cutils
 INCLUDES: cutils
