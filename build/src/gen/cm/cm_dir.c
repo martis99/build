@@ -4,7 +4,7 @@
 
 int cm_dir_gen(const dir_t *dir, const path_t *path)
 {
-	const array_t *dirs = &dir->props[DIR_PROP_DIRS].arr;
+	const arr_t *dirs = &dir->props[DIR_PROP_DIRS].arr;
 
 	path_t cmake_path = *path;
 	if (path_child(&cmake_path, dir->dir.path, dir->dir.len)) {
@@ -28,8 +28,8 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 
 	int ret = 0;
 
-	for (int i = 0; i < dirs->count; i++) {
-		prop_str_t *dir = array_get(dirs, i);
+	for (uint i = 0; i < dirs->cnt; i++) {
+		prop_str_t *dir = arr_get(dirs, i);
 		if (dir->data == NULL) {
 			continue;
 		}

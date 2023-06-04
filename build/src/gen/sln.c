@@ -74,11 +74,11 @@ static int proj_cmp_name(const void *proj, const void *name)
 	return prop_cmp((*(const proj_t **)proj)->name, *(const prop_str_t **)name);
 }
 
-static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
+static void get_all_depends(arr_t *arr, proj_t *proj, hashmap_t *projects)
 {
-	array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-	for (int i = 0; i < depends->count; i++) {
-		prop_str_t *dname = array_get(depends, i);
+	arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+	for (uint i = 0; i < depends->cnt; i++) {
+		prop_str_t *dname = arr_get(depends, i);
 
 		proj_t *dproj = NULL;
 		if (hashmap_get(projects, dname->data, dname->len, (void **)&dproj)) {
@@ -88,8 +88,8 @@ static void get_all_depends(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 		get_all_depends(arr, dproj, projects);
 
-		if (array_index_cb(arr, &dname, proj_cmp_name) == -1) {
-			array_add(arr, &dproj);
+		if (arr_index_cmp(arr, &dname, proj_cmp_name) == -1) {
+			arr_app(arr, &dproj);
 		}
 	}
 }
@@ -100,21 +100,21 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 	proj_t *proj = value;
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		array_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-		array_init(&proj->all_depends, depends->capacity * 2, sizeof(proj_t *));
+		arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+		arr_init(&proj->all_depends, depends->cap * 2, sizeof(proj_t *));
 		get_all_depends(&proj->all_depends, proj, &sln->projects);
 
-		for (int i = 0; i < proj->all_depends.count; i++) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 			if (!(dproj->props[PROJ_PROP_DEPEND].flags & PROP_SET)) {
 				continue;
 			}
 
-			const array_t *depend = &dproj->props[PROJ_PROP_DEPEND].arr;
+			const arr_t *depend = &dproj->props[PROJ_PROP_DEPEND].arr;
 
-			for (int i = 0; i < depend->count; i++) {
-				prop_str_t *dpname = array_get(depend, i);
+			for (uint i = 0; i < depend->cnt; i++) {
+				prop_str_t *dpname = arr_get(depend, i);
 
 				proj_t *dpproj = NULL;
 				if (hashmap_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
@@ -122,19 +122,19 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 					continue;
 				}
 
-				if (array_index_cb(&proj->all_depends, &dpname, proj_cmp_name) == -1) {
-					array_add(&proj->all_depends, &dpproj);
+				if (arr_index_cmp(&proj->all_depends, &dpname, proj_cmp_name) == -1) {
+					arr_app(&proj->all_depends, &dpproj);
 				}
 			}
 		}
 	}
 }
 
-static void get_all_includes(array_t *arr, proj_t *proj, hashmap_t *projects)
+static void get_all_includes(arr_t *arr, proj_t *proj, hashmap_t *projects)
 {
-	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
-	for (int i = 0; i < includes->count; i++) {
-		prop_str_t *iname = array_get(includes, i);
+	arr_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	for (uint i = 0; i < includes->cnt; i++) {
+		prop_str_t *iname = arr_get(includes, i);
 
 		proj_t *iproj = NULL;
 		if (hashmap_get(projects, iname->data, iname->len, (void **)&iproj)) {
@@ -144,8 +144,8 @@ static void get_all_includes(array_t *arr, proj_t *proj, hashmap_t *projects)
 
 		get_all_includes(arr, iproj, projects);
 
-		if (array_index_cb(arr, &iname, proj_cmp_name) == -1) {
-			array_add(arr, &iproj);
+		if (arr_index_cmp(arr, &iname, proj_cmp_name) == -1) {
+			arr_app(arr, &iproj);
 		}
 	}
 }
@@ -155,8 +155,8 @@ static void calculate_includes(void *key, size_t ksize, void *value, void *priv)
 	sln_t *sln   = priv;
 	proj_t *proj = value;
 
-	array_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
-	array_init(&proj->includes, includes->capacity * 2, sizeof(proj_t *));
+	arr_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
+	arr_init(&proj->includes, includes->cap * 2, sizeof(proj_t *));
 	get_all_includes(&proj->includes, proj, &sln->projects);
 }
 
@@ -190,7 +190,7 @@ int sln_read(sln_t *sln, const path_t *path)
 	byte buf[256] = { 0 };
 	c_md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
 
-	array_t *dirs	      = &sln->props[SLN_PROP_DIRS].arr;
+	arr_t *dirs	      = &sln->props[SLN_PROP_DIRS].arr;
 	path_t child_path     = sln->path;
 	size_t child_path_len = child_path.len;
 
@@ -204,8 +204,8 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	prop_def(sln->props, s_sln_props, sizeof(s_sln_props));
 
-	for (int i = 0; i < dirs->count; i++) {
-		prop_str_t *dir = array_get(dirs, i);
+	for (uint i = 0; i < dirs->cnt; i++) {
+		prop_str_t *dir = arr_get(dirs, i);
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
 			const int r = read_dir(&child_path, dir->data, &read_dir_data);

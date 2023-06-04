@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "array.h"
+#include "arr.h"
 #include "cstr.h"
 #include "file.h"
 #include "mem.h"

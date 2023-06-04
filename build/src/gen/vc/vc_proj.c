@@ -64,8 +64,8 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 			  "                }",
 			  name->len, name->data, name->len, name->data);
 	} else {
-		for (int i = 0; i < configs->arr.count; i++) {
-			const prop_str_t *config = array_get(&configs->arr, i);
+		for (uint i = 0; i < configs->arr.cnt; i++) {
+			const prop_str_t *config = arr_get(&configs->arr, i);
 
 			p_fprintf(f,
 				  "                {\n"
@@ -84,7 +84,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 				  "                }",
 				  name->len, name->data, config->len, config->data, name->len, name->data, config->len, config->data);
 
-			if (i < configs->arr.count - 1) {
+			if (i < configs->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
 			}
 		}
@@ -191,8 +191,8 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			  "                }",
 			  name->len, name->data, cwd->len, cwd->data);
 	} else {
-		for (int i = 0; i < configs->arr.count; i++) {
-			const prop_str_t *config = array_get(&configs->arr, i);
+		for (uint i = 0; i < configs->arr.cnt; i++) {
+			const prop_str_t *config = arr_get(&configs->arr, i);
 
 			buf_len = cstr_replace(outdir_buf, outdir_buf_len, CSTR(buf), CSTR("$(CONFIG)"), config->data, config->len);
 
@@ -259,7 +259,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 				  "                }",
 				  name->len, name->data, config->len, config->data, cwd->len, cwd->data);
 
-			if (i < configs->arr.count - 1) {
+			if (i < configs->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
 			}
 		}

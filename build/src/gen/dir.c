@@ -21,7 +21,7 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 	};
 
 	m_memcpy(dir.data, dir.len, folder, folder_len);
-	array_add(priv, &dir);
+	arr_app(priv, &dir);
 	return 0;
 }
 
@@ -56,7 +56,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		ret += props_parse_file(dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
 
 	} else {
-		array_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
+		arr_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
 		dir->props[DIR_PROP_DIRS].flags |= PROP_ARR;
 		ret += files_foreach(path, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
 	}
@@ -64,7 +64,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	byte buf[256] = { 0 };
 	c_md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
 
-	array_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
+	arr_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
 	path_t child_path     = *path;
 	size_t child_path_len = child_path.len;
@@ -75,8 +75,8 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		.parent = dir,
 	};
 
-	for (int i = 0; i < subdirs->count; i++) {
-		prop_str_t *dir = array_get(subdirs, i);
+	for (uint i = 0; i < subdirs->cnt; i++) {
+		prop_str_t *dir = arr_get(subdirs, i);
 		path_child(&child_path, dir->data, dir->len);
 		if (folder_exists(child_path.path)) {
 			int r = on_dir(&child_path, dir->data, &read_dir_data);
@@ -117,20 +117,21 @@ void dir_print(dir_t *dir)
 	props_print(dir->props, s_dir_props, sizeof(s_dir_props));
 }
 
-static void free_dir(int index, void *value, void *priv)
+static int free_dir(const arr_t *arr, uint index, void *value, int ret, void *priv)
 {
 	prop_str_t *dir = value;
 	if (dir->data == NULL) {
-		return;
+		return ret + 1;
 	}
 
 	m_free(dir->data, dir->len + 1);
+	return ret;
 }
 
 void dir_free(dir_t *dir)
 {
 	if (!(dir->props[DIR_PROP_DIRS].flags & PROP_SET)) {
-		array_iterate(&dir->props[DIR_PROP_DIRS].arr, free_dir, NULL);
+		arr_iterate(&dir->props[DIR_PROP_DIRS].arr, free_dir, 0, NULL);
 	}
 	props_free(dir->props, s_dir_props, sizeof(s_dir_props));
 }

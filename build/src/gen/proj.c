@@ -81,10 +81,10 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-		for (int i = 0; i < sources->count; i++) {
-			prop_str_t *source = array_get(sources, i);
+		for (uint i = 0; i < sources->cnt; i++) {
+			prop_str_t *source = arr_get(sources, i);
 
 			path_t path = { 0 };
 			path_init(&path, proj->path.path, proj->path.len);
@@ -100,10 +100,10 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-		for (int i = 0; i < includes->count; i++) {
-			prop_str_t *include = array_get(includes, i);
+		for (uint i = 0; i < includes->cnt; i++) {
+			prop_str_t *include = arr_get(includes, i);
 
 			path_t path = { 0 };
 			path_init(&path, proj->path.path, proj->path.len);
@@ -149,14 +149,14 @@ void proj_print(proj_t *proj)
 	props_print(proj->props, s_proj_props, sizeof(s_proj_props));
 
 	INFP("%s", "    Depends:");
-	for (int i = 0; i < proj->all_depends.count; i++) {
-		const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+	for (uint i = 0; i < proj->all_depends.cnt; i++) {
+		const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 		INFP("        '%.*s'", (int)dproj->name->len, dproj->name->data);
 	}
 
 	INFP("%s", "    Includes:");
-	for (int i = 0; i < proj->includes.count; i++) {
-		const proj_t *dproj = *(proj_t **)array_get(&proj->includes, i);
+	for (uint i = 0; i < proj->includes.cnt; i++) {
+		const proj_t *dproj = *(proj_t **)arr_get(&proj->includes, i);
 		INFP("        '%.*s'", (int)dproj->name->len, dproj->name->data);
 	}
 
@@ -166,6 +166,6 @@ void proj_print(proj_t *proj)
 void proj_free(proj_t *proj)
 {
 	props_free(proj->props, s_proj_props, sizeof(s_proj_props));
-	array_free(&proj->all_depends);
-	array_free(&proj->includes);
+	arr_free(&proj->all_depends);
+	arr_free(&proj->includes);
 }

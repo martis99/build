@@ -98,10 +98,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	p_fprintf(fp, "REPDIR = $(OUTDIR)coverage-report/\n");
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-		for (int i = 0; i < includes->count; i++) {
-			prop_str_t *include = array_get(includes, i);
+		for (uint i = 0; i < includes->cnt; i++) {
+			prop_str_t *include = arr_get(includes, i);
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", include->len, include->data);
@@ -116,10 +116,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	}
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-		for (int i = 0; i < sources->count; i++) {
-			prop_str_t *source = array_get(sources, i);
+		for (uint i = 0; i < sources->cnt; i++) {
+			prop_str_t *source = arr_get(sources, i);
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 				p_fprintf(fp, "DEPS %.*s= $(shell find %.*s -name '*.h')\n", deps_first, "+", source->len, source->data);
@@ -179,10 +179,10 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	//TODO: Remove
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-		for (int i = 0; i < sources->count; i++) {
-			prop_str_t *source = array_get(sources, i);
+		for (uint i = 0; i < sources->cnt; i++) {
+			prop_str_t *source = arr_get(sources, i);
 
 			buf_len = resolve(source, CSTR(buf), proj);
 			p_fprintf(fp, " -I%.*s", buf_len, buf);
@@ -190,24 +190,24 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-		for (int i = 0; i < includes->count; i++) {
-			prop_str_t *include = array_get(includes, i);
+		for (uint i = 0; i < includes->cnt; i++) {
+			prop_str_t *include = arr_get(includes, i);
 
 			buf_len = resolve(include, CSTR(buf), proj);
 			p_fprintf(fp, " -I%.*s", buf_len, buf);
 		}
 	}
 
-	for (int i = 0; i < proj->includes.count; i++) {
-		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
+	for (uint i = 0; i < proj->includes.cnt; i++) {
+		const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const array_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
+			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
 
-			for (int i = 0; i < includes->count; i++) {
-				prop_str_t *include = array_get(includes, i);
+			for (uint i = 0; i < includes->cnt; i++) {
+				prop_str_t *include = arr_get(includes, i);
 
 				char rel_path[P_MAX_PATH] = { 0 };
 				size_t rel_path_len;
@@ -254,8 +254,8 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			}
 		}
 
-		for (int i = proj->all_depends.count - 1; i >= 0; i--) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		for (int i = proj->all_depends.cnt - 1; i >= 0; i--) {
+			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 				const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
@@ -273,9 +273,9 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			}
 
 			if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
-				const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
-				for (int j = 0; j < libdirs->count; j++) {
-					prop_str_t *libdir = array_get(libdirs, j);
+				const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+				for (uint j = 0; j < libdirs->cnt; j++) {
+					prop_str_t *libdir = arr_get(libdirs, j);
 					if (libdir->len > 0) {
 						buf_len = resolve(libdir, CSTR(buf), dproj);
 						p_fprintf(fp, " -L");
@@ -285,9 +285,9 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			}
 
 			if (dproj->props[PROJ_PROP_LINK].flags & PROP_SET) {
-				const array_t *links = &dproj->props[PROJ_PROP_LINK].arr;
-				for (int j = 0; j < links->count; j++) {
-					prop_str_t *link = array_get(links, j);
+				const arr_t *links = &dproj->props[PROJ_PROP_LINK].arr;
+				for (uint j = 0; j < links->cnt; j++) {
+					prop_str_t *link = arr_get(links, j);
 					if (link->len > 0) {
 						p_fprintf(fp, " -l:%.*s.a", link->len, link->data);
 					}
@@ -337,7 +337,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		  "all: %.*s\n\ncheck:\n",
 		  name->len, name->data, name->len, name->data);
 
-	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
 			      "\t$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
 			      "endif\n");

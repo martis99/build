@@ -1,7 +1,7 @@
 #ifndef PROP_H
 #define PROP_H
 
-#include "array.h"
+#include "arr.h"
 #include "str.h"
 #include "type.h"
 
@@ -24,7 +24,7 @@ typedef enum prop_flag_s {
 typedef struct prop_s {
 	uint flags;
 	union {
-		array_t arr;
+		arr_t arr;
 		prop_str_t value;
 	};
 	uint mask;

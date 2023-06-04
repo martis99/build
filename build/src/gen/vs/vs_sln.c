@@ -27,7 +27,7 @@ static void add_proj_sln_vs(void *key, size_t ksize, void *value, void *priv)
 
 typedef struct proj_config_plat_vs_s {
 	const prop_t *configs;
-	const array_t *platforms;
+	const arr_t *platforms;
 	FILE *file;
 } proj_config_plat_vs_t;
 
@@ -36,10 +36,10 @@ static void proj_config_plat_vs(void *key, size_t ksize, void *value, void *priv
 	proj_config_plat_vs_t *data = priv;
 	proj_t *proj		    = value;
 
-	for (int i = 0; i < data->configs->arr.count; i++) {
-		prop_str_t *config = array_get(&data->configs->arr, i);
-		for (int j = 0; j < data->platforms->count; j++) {
-			prop_str_t *platform = array_get(data->platforms, j);
+	for (uint i = 0; i < data->configs->arr.cnt; i++) {
+		prop_str_t *config = arr_get(&data->configs->arr, i);
+		for (uint j = 0; j < data->platforms->cnt; j++) {
+			prop_str_t *platform = arr_get(data->platforms, j);
 			const char *platf    = platform->data;
 			size_t platf_len     = platform->len;
 			if (cstr_cmp(platform->data, platform->len, "x86", 3)) {
@@ -124,19 +124,19 @@ int vs_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(file, "Global\n"
 			"\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
-	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_PLATFORMS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.count < 1 ||
-	    sln->props[SLN_PROP_PLATFORMS].arr.count < 1) {
+	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_PLATFORMS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.cnt < 1 ||
+	    sln->props[SLN_PROP_PLATFORMS].arr.cnt < 1) {
 		ERR("%s", "at least one config and platform must be set");
 		return ret + 1;
 	}
 
-	const prop_t *configs	 = &sln->props[SLN_PROP_CONFIGS];
-	const array_t *platforms = &sln->props[SLN_PROP_PLATFORMS].arr;
+	const prop_t *configs  = &sln->props[SLN_PROP_CONFIGS];
+	const arr_t *platforms = &sln->props[SLN_PROP_PLATFORMS].arr;
 
-	for (int i = 0; i < configs->arr.count; i++) {
-		prop_str_t *config = array_get(&configs->arr, i);
-		for (int j = 0; j < platforms->count; j++) {
-			prop_str_t *platform = array_get(platforms, j);
+	for (uint i = 0; i < configs->arr.cnt; i++) {
+		prop_str_t *config = arr_get(&configs->arr, i);
+		for (uint j = 0; j < platforms->cnt; j++) {
+			prop_str_t *platform = arr_get(platforms, j);
 			p_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
 				  platform->data);
 		}

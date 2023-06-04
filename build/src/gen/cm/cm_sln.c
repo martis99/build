@@ -40,7 +40,7 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	uint languages		   = sln->props[SLN_PROP_LANGS].mask;
 	uint properties		   = SLN_CMAKE_USER_FOLDERS;
 	const char *targets_folder = "CMake";
-	const array_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
+	const arr_t *dirs	   = &sln->props[SLN_PROP_DIRS].arr;
 	const prop_str_t *startup  = &sln->props[SLN_PROP_STARTUP].value;
 
 	path_t cmake_path = *path;
@@ -76,10 +76,10 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 	if (sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) {
 		p_fprintf(file, "\nset(CMAKE_CONFIGURATION_TYPES \"");
 
-		const array_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
-		int first	       = 0;
-		for (int i = 0; i < configs->count; i++) {
-			prop_str_t *config = array_get(configs, i);
+		const arr_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
+		int first	     = 0;
+		for (uint i = 0; i < configs->cnt; i++) {
+			prop_str_t *config = arr_get(configs, i);
 			p_fprintf(file, "%.*s%.*s", first, ";", config->len, config->data);
 			first = 1;
 		}
@@ -98,8 +98,8 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	for (int i = 0; i < dirs->count; i++) {
-		prop_str_t *dir = array_get(dirs, i);
+	for (uint i = 0; i < dirs->cnt; i++) {
+		prop_str_t *dir = arr_get(dirs, i);
 		if (dir->data == NULL) {
 			continue;
 		}

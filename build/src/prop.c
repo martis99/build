@@ -49,7 +49,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 
 static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_t *table, size_t table_len, const str_t *line)
 {
-	array_init(&prop->arr, 8, sizeof(prop_str_t));
+	arr_init(&prop->arr, 8, sizeof(prop_str_t));
 	prop->flags |= PROP_ARR;
 	prop->mask = 0;
 
@@ -64,7 +64,7 @@ static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_
 		}
 
 		if (!parse_value(&data, prop, &value, table, table_len, line, 1)) {
-			array_add(&prop->arr, &data);
+			arr_app(&prop->arr, &data);
 		}
 
 		value = next;
@@ -188,8 +188,8 @@ int prop_cmp(const prop_str_t *l, const prop_str_t *r)
 
 void prop_print_arr(const prop_t *prop)
 {
-	for (int j = 0; j < prop->arr.count; j++) {
-		prop_str_t *val = array_get(&prop->arr, j);
+	for (uint j = 0; j < prop->arr.cnt; j++) {
+		prop_str_t *val = arr_get(&prop->arr, j);
 		if (val->data == NULL) {
 			INFP("%s", "        <null>");
 			continue;
@@ -225,7 +225,7 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 void prop_free(prop_t *prop)
 {
 	if (prop->flags & PROP_ARR) {
-		array_free(&prop->arr);
+		arr_free(&prop->arr);
 		prop->flags &= ~PROP_ARR;
 	}
 }

@@ -36,8 +36,8 @@ static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, 
 	}
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		for (int i = 0; i < proj->all_depends.count; i++) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 				if (action == NULL) {
@@ -55,7 +55,7 @@ static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, 
 		p_fprintf(file, "\n\t@$(MAKE) -C %.*s %s SLNDIR=$(SLNDIR)", buf_len, buf, action);
 	}
 
-	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(file, " CONFIG=$(CONFIG)");
 	}
 
@@ -97,7 +97,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
 	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", buf_len, buf);
 
-	if ((data->configs->flags & PROP_SET) && data->configs->arr.count > 0) {
+	if ((data->configs->flags & PROP_SET) && data->configs->arr.cnt > 0) {
 		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
 	}
 
@@ -136,15 +136,15 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	p_fprintf(file, "SLNDIR=$(CURDIR)\n\n");
 
-	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(file, "CONFIGS =");
 
-		for (int i = 0; i < configs->arr.count; i++) {
-			const prop_str_t *config = array_get(&configs->arr, i);
+		for (uint i = 0; i < configs->arr.cnt; i++) {
+			const prop_str_t *config = arr_get(&configs->arr, i);
 			p_fprintf(file, " %.*s", config->len, config->data);
 		}
 
-		prop_str_t *config = array_get(&configs->arr, 0);
+		prop_str_t *config = arr_get(&configs->arr, 0);
 		p_fprintf(file, "\nCONFIG = %.*s\n\n", config->len, config->data);
 	}
 
@@ -156,7 +156,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	p_fprintf(file, "\n\ncheck:\n");
 
-	if ((configs->flags & PROP_SET) && configs->arr.count > 0) {
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(file, "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
 				"\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
 				"endif\n");

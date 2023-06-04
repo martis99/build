@@ -3,7 +3,7 @@
 
 #include "prop.h"
 
-#include "array.h"
+#include "arr.h"
 #include "cstr.h"
 #include "hash_map.h"
 #include "path.h"
@@ -126,8 +126,8 @@ typedef struct proj_s {
 	prop_t props[__PROJ_PROP_MAX];
 	char guid[37];
 	const prop_str_t *name;
-	array_t all_depends;
-	array_t includes;
+	arr_t all_depends;
+	arr_t includes;
 	const struct dir_s *parent;
 } proj_t;
 

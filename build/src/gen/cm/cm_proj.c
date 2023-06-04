@@ -98,10 +98,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET)) {
 		p_fprintf(file, "file(GLOB_RECURSE %.*s_SOURCE", name->len, name->data);
 		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-			const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+			const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-			for (int i = 0; i < sources->count; i++) {
-				prop_str_t *source = array_get(sources, i);
+			for (uint i = 0; i < sources->cnt; i++) {
+				prop_str_t *source = arr_get(sources, i);
 				buf_len		   = convert_slash(CSTR(buf), source->data, source->len);
 
 				if (lang & (1 << LANG_ASM)) {
@@ -120,10 +120,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		}
 
 		if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+			const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-			for (int i = 0; i < includes->count; i++) {
-				prop_str_t *include = array_get(includes, i);
+			for (uint i = 0; i < includes->cnt; i++) {
+				prop_str_t *include = arr_get(includes, i);
 				buf_len		    = convert_slash(CSTR(buf), include->data, include->len);
 
 				if (lang & (1 << LANG_ASM)) {
@@ -142,9 +142,9 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	}
 
 	if ((proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) || charset->mask == CHARSET_UNICODE) {
-		const array_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
+		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
 
-		if (defines->count > 0 || charset->mask == CHARSET_UNICODE) {
+		if (defines->cnt > 0 || charset->mask == CHARSET_UNICODE) {
 			p_fprintf(file, "add_definitions(");
 		}
 
@@ -155,8 +155,8 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 			first = 0;
 		}
 
-		for (int i = 0; i < defines->count; i++) {
-			const prop_str_t *define = array_get(defines, i);
+		for (uint i = 0; i < defines->cnt; i++) {
+			const prop_str_t *define = arr_get(defines, i);
 			p_fprintf(file, first ? "-D%.*s" : " -D%.*s", define->len, define->data);
 			first = 0;
 		}
@@ -172,10 +172,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		break;
 	case PROJ_TYPE_EXE: {
 		int first = 0;
-		for (int i = 0; i < proj->all_depends.count; i++) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
-			if ((dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) && dproj->props[PROJ_PROP_LIBDIRS].arr.count > 0) {
+			if ((dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) && dproj->props[PROJ_PROP_LIBDIRS].arr.cnt > 0) {
 				first = 1;
 				break;
 			}
@@ -184,13 +184,13 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		if (first) {
 			p_fprintf(file, "link_directories(");
 			first = 1;
-			for (int i = 0; i < proj->all_depends.count; i++) {
-				const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+			for (uint i = 0; i < proj->all_depends.cnt; i++) {
+				const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 				if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
-					const array_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
-					for (int j = 0; j < libdirs->count; j++) {
-						prop_str_t *libdir = array_get(libdirs, j);
+					const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+					for (uint j = 0; j < libdirs->cnt; j++) {
+						prop_str_t *libdir = arr_get(libdirs, j);
 						if (libdir->len > 0) {
 							if (!first) {
 								p_fprintf(file, " ");
@@ -214,8 +214,8 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		p_fprintf(file, "target_link_libraries(%.*s", name->len, name->data);
 
-		for (int i = 0; i < proj->all_depends.count; i++) {
-			const proj_t *dproj = *(proj_t **)array_get(&proj->all_depends, i);
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 			if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 				p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
@@ -239,10 +239,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	p_fprintf(file, "include_directories(");
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const array_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
-		for (int i = 0; i < sources->count; i++) {
-			prop_str_t *source = array_get(sources, i);
+		for (uint i = 0; i < sources->cnt; i++) {
+			prop_str_t *source = arr_get(sources, i);
 
 			buf_len = convert_slash(CSTR(buf), source->data, source->len);
 
@@ -252,10 +252,10 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const array_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
-		for (int i = 0; i < includes->count; i++) {
-			prop_str_t *include = array_get(includes, i);
+		for (uint i = 0; i < includes->cnt; i++) {
+			prop_str_t *include = arr_get(includes, i);
 
 			buf_len = convert_slash(CSTR(buf), include->data, include->len);
 
@@ -264,14 +264,14 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		}
 	}
 
-	for (int i = 0; i < proj->includes.count; i++) {
-		const proj_t *iproj = *(proj_t **)array_get(&proj->includes, i);
+	for (uint i = 0; i < proj->includes.cnt; i++) {
+		const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const array_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
+			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
 
-			for (int i = 0; i < includes->count; i++) {
-				prop_str_t *include = array_get(includes, i);
+			for (uint i = 0; i < includes->cnt; i++) {
+				prop_str_t *include = arr_get(includes, i);
 				if (!first) {
 					p_fprintf(file, " ");
 				}
