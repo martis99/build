@@ -30,7 +30,7 @@ jobs:
         run: ./build-linux
 
       - name: Build
-        run: make build/coverage ARGS="-S ../test_sln" SHOW=false
+        run: make test_libbuild/coverage SHOW=false
 
       - name: Upload
         uses: codecov/codecov-action@v3

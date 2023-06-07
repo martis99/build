@@ -107,11 +107,13 @@ int cm_sln_gen(const sln_t *sln, const path_t *path)
 		p_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
 	}
 
-	if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
-		ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, (int)startup->len, startup->data);
-		ret = 1;
-	} else {
-		p_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
+	if (sln->props[SLN_PROP_STARTUP].flags & PROP_SET) {
+		if (hashmap_get(&sln->projects, startup->data, startup->len, NULL)) {
+			ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, (int)startup->len, startup->data);
+			ret = 1;
+		} else {
+			p_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
+		}
 	}
 
 	file_close(file);

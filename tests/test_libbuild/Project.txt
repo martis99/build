@@ -1,0 +1,5 @@
+NAME: test_libbuild
+TYPE: EXE
+SOURCE: src
+DEPENDS: libbuild, test
+INCLUDES: libbuild, test

@@ -14,7 +14,7 @@
 
 static int val_to_mask(const prop_str_t *val, const str_t *table, size_t table_len)
 {
-	for (int i = 0; i < table_len; i++) {
+	for (size_t i = 0; i < table_len; i++) {
 		if (cstr_cmp(table[i].data, table[i].len, val->data, val->len)) {
 			return i;
 		}
@@ -98,7 +98,7 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 	}
 
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
-	for (int i = 0; i < props_pol_len; i++) {
+	for (size_t i = 0; i < props_pol_len; i++) {
 		const prop_pol_t *pol = &props_pol[i];
 		if (str_eq_str(&name, &pol->name)) {
 			if (props[i].flags & PROP_SET) {
@@ -201,7 +201,7 @@ void prop_print_arr(const prop_t *prop)
 
 void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len)
 {
-	for (int i = 0; i < str_table_len; i++) {
+	for (size_t i = 0; i < str_table_len; i++) {
 		if (prop->mask & (1 << i)) {
 			INFP("        '%.*s'", (int)str_table[i].len, str_table[i].data);
 		}
@@ -241,7 +241,7 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 {
 	m_memcpy(dst, dst_len, src, src_len);
-	for (int i = 0; i < src_len; i++) {
+	for (size_t i = 0; i < src_len; i++) {
 		if (dst[i] == '\\') {
 			dst[i] = '/';
 		}
