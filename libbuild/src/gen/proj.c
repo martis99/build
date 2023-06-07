@@ -78,6 +78,9 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	path_child(&rel_path_name, proj->name->data, proj->name->len);
 	path_child_s(&rel_path_name, CSTR("vcxproj"), '.');
 	byte buf[256] = { 0 };
+#if defined(C_LINUX)
+	convert_backslash(rel_path_name.path, rel_path_name.len, rel_path_name.path, rel_path_name.len);
+#endif
 	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {

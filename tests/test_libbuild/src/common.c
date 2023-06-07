@@ -74,8 +74,8 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		size_t len = file_read_t(out[i].path, CSTR(act));
 
 		if (!cstr_cmp(act, len, out[i].data, cstr_len(out[i].data))) {
-			printf("Actual:\n%s", act);
-			printf("Expected:\n%s", out[i].data);
+			printf("-----------------------------Expected-----------------------------\n%s", out[i].data);
+			printf("------------------------------Actual------------------------------\n%s", act);
 			ret = 1;
 		}
 

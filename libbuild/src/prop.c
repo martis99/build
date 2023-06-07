@@ -248,3 +248,14 @@ size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 	}
 	return src_len;
 }
+
+size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_len)
+{
+	m_memcpy(dst, dst_len, src, src_len);
+	for (size_t i = 0; i < src_len; i++) {
+		if (dst[i] == '/') {
+			dst[i] = '\\';
+		}
+	}
+	return src_len;
+}

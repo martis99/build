@@ -33,7 +33,9 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 
 	buf_len = cstr_replaces(prop->data, prop->len, CSTR(buf), vars.names, vars.tos, __VAR_MAX);
 	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
-
+#if defined(C_WIN)
+	convert_backslash(dst, dst_len, dst, dst_len);
+#endif
 	return dst_len;
 }
 
@@ -57,6 +59,10 @@ static int add_src_file(path_t *path, const char *folder, void *priv)
 	if (!add) {
 		return 0;
 	}
+
+#if defined(C_LINUX)
+	convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
+#endif
 
 	if (path_ends(&new_path, CSTR(".asm"))) {
 		xml_tag_t xml_inc = xml_add_tag(data->xml, data->xml_items, CSTR("MASM"));
@@ -90,6 +96,9 @@ static int add_inc_file(path_t *path, const char *folder, void *priv)
 		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
 
 	if (add) {
+#if defined(C_LINUX)
+		convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
+#endif
 		xml_add_attr_c(data->xml, xml_add_tag(data->xml, data->xml_items, CSTR("ClInclude")), CSTR("Include"), new_path.path, new_path.len);
 	}
 
@@ -121,7 +130,9 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 		for (uint i = 0; i < includes->cnt; i++) {
 			prop_str_t *include = arr_get(includes, i);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)include->len, include->data);
+
+			tmp_len = resolve(include, CSTR(tmp), proj);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len, tmp);
 			first = 1;
 		}
 	}
@@ -130,13 +141,15 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 		for (uint i = 0; i < sources->cnt; i++) {
 			prop_str_t *source = arr_get(sources, i);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)source->len, source->data);
+
+			tmp_len = resolve(source, CSTR(tmp), proj);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len, tmp);
 			first = 1;
 		}
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-		tmp_len = cstr_replaces(enc->data, enc->len, CSTR(tmp), vars.names, vars.tos, __VAR_MAX);
+		tmp_len = resolve(enc, CSTR(tmp), proj);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
 		first = 1;
 	}
@@ -148,16 +161,17 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
 			for (uint i = 0; i < includes->cnt; i++) {
 				prop_str_t *include = arr_get(includes, i);
+
+				tmp_len = resolve(include, CSTR(tmp), iproj);
 				len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", (int)iproj->rel_path.len,
-						iproj->rel_path.path, (int)include->len, include->data);
+						iproj->rel_path.path, (int)tmp_len, tmp);
 
 				first = 1;
 			}
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			tmp_len = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, CSTR(tmp), vars.names, vars.tos,
-						__VAR_MAX);
+			tmp_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(tmp), iproj);
 			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
 
 			first = 1;
@@ -202,7 +216,7 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 			for (uint j = 0; j < libdirs->cnt; j++) {
 				prop_str_t *libdir = arr_get(libdirs, j);
 				if (libdir->len > 0) {
-					tmp_len = cstr_replaces(libdir->data, (int)libdir->len, CSTR(tmp), vars.names, vars.tos, __VAR_MAX);
+					tmp_len = resolve(libdir, CSTR(tmp), dproj);
 
 					if (cstrn_cmp(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)tmp_len, tmp);
@@ -211,7 +225,9 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 						path_init(&dir, CSTR("$(SolutionDir)"));
 						path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
 						path_child(&dir, tmp, tmp_len);
-
+#if defined(C_LINUX)
+						convert_backslash(dir.path, dir.len, dir.path, dir.len);
+#endif
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)dir.len, dir.path);
 					}
 
