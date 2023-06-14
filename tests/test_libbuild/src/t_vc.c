@@ -1,6 +1,6 @@
-#include "t_mk.h"
+#include "t_vc.h"
 
-#include "gen/mk/mk_sln.h"
+#include "gen/vc/vc_sln.h"
 
 #include "common.h"
 #include "test.h"
@@ -110,9 +110,64 @@ TEST(c_small)
 				"	@$(RM) $(TARGET) $(OBJ_C) $(COV)\n",
 
 		},
+		{
+			.path = "tmp/.vscode/tasks.json",
+			.data = "{\n"
+				"        \"version\": \"2.0.0\",\n"
+				"        \"tasks\": [\n"
+				"                {\n"
+				"                        \"label\": \"Build-test-Debug\",\n"
+				"                        \"type\": \"shell\",\n"
+				"                        \"command\": \"make\",\n"
+				"                        \"args\": [\n"
+				"                                \"clean\",\n"
+				"                                \"test/compile\",\n"
+				"                                \"CONFIG=Debug\"\n"
+				"                        ],\n"
+				"                        \"group\": {\n"
+				"                                \"kind\": \"build\",\n"
+				"                                \"isDefault\": true\n"
+				"                        }\n"
+				"                }\n"
+				"        ]\n"
+				"}",
+		},
+		{
+			.path = "tmp/.vscode/launch.json",
+			.data = "{\n"
+				"        \"version\": \"0.2.0\",\n"
+				"        \"configurations\": [\n"
+				"                {\n"
+				"                        \"name\": \"test-Debug\",\n"
+				"                        \"type\": \"cppdbg\",\n"
+				"                        \"request\": \"launch\",\n"
+				"                        \"program\": \"${workspaceFolder}/bin/Debug-x64/test/test\",\n"
+				"                        \"args\": [],\n"
+				"                        \"preLaunchTask\": \"Build-test-Debug\",\n"
+				"                        \"stopAtEntry\": false,\n"
+				"                        \"cwd\": \"${workspaceFolder}/test\",\n"
+				"                        \"environment\": [],\n"
+				"                        \"externalConsole\": false,\n"
+				"                        \"MIMode\": \"gdb\",\n"
+				"                        \"setupCommands\": [\n"
+				"                                {\n"
+				"                                        \"description\": \"Enable pretty-printing for gdb\",\n"
+				"                                        \"text\": \"-enable-pretty-printing\",\n"
+				"                                        \"ignoreFailures\": true\n"
+				"                                },\n"
+				"                                {\n"
+				"                                        \"description\": \"Set Disassembly Flavor to Intel\",\n"
+				"                                        \"text\": \"-gdb-set disassembly-flavor intel\",\n"
+				"                                        \"ignoreFailures\": true\n"
+				"                                }\n"
+				"                        ]\n"
+				"                }\n"
+				"        ]\n"
+				"}",
+		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out)), 0);
+	EXPECT_EQ(test_gen(vc_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out)), 0);
 
 	END;
 }
@@ -223,14 +278,69 @@ TEST(cpp_small)
 				"	@$(RM) $(TARGET) $(OBJ_CPP) $(COV)\n",
 
 		},
+		{
+			.path = "tmp/.vscode/tasks.json",
+			.data = "{\n"
+				"        \"version\": \"2.0.0\",\n"
+				"        \"tasks\": [\n"
+				"                {\n"
+				"                        \"label\": \"Build-test-Debug\",\n"
+				"                        \"type\": \"shell\",\n"
+				"                        \"command\": \"make\",\n"
+				"                        \"args\": [\n"
+				"                                \"clean\",\n"
+				"                                \"test/compile\",\n"
+				"                                \"CONFIG=Debug\"\n"
+				"                        ],\n"
+				"                        \"group\": {\n"
+				"                                \"kind\": \"build\",\n"
+				"                                \"isDefault\": true\n"
+				"                        }\n"
+				"                }\n"
+				"        ]\n"
+				"}",
+		},
+		{
+			.path = "tmp/.vscode/launch.json",
+			.data = "{\n"
+				"        \"version\": \"0.2.0\",\n"
+				"        \"configurations\": [\n"
+				"                {\n"
+				"                        \"name\": \"test-Debug\",\n"
+				"                        \"type\": \"cppdbg\",\n"
+				"                        \"request\": \"launch\",\n"
+				"                        \"program\": \"${workspaceFolder}/bin/Debug-x64/test/test\",\n"
+				"                        \"args\": [],\n"
+				"                        \"preLaunchTask\": \"Build-test-Debug\",\n"
+				"                        \"stopAtEntry\": false,\n"
+				"                        \"cwd\": \"${workspaceFolder}/test\",\n"
+				"                        \"environment\": [],\n"
+				"                        \"externalConsole\": false,\n"
+				"                        \"MIMode\": \"gdb\",\n"
+				"                        \"setupCommands\": [\n"
+				"                                {\n"
+				"                                        \"description\": \"Enable pretty-printing for gdb\",\n"
+				"                                        \"text\": \"-enable-pretty-printing\",\n"
+				"                                        \"ignoreFailures\": true\n"
+				"                                },\n"
+				"                                {\n"
+				"                                        \"description\": \"Set Disassembly Flavor to Intel\",\n"
+				"                                        \"text\": \"-gdb-set disassembly-flavor intel\",\n"
+				"                                        \"ignoreFailures\": true\n"
+				"                                }\n"
+				"                        ]\n"
+				"                }\n"
+				"        ]\n"
+				"}",
+		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out)), 0);
+	EXPECT_EQ(test_gen(vc_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out)), 0);
 
 	END;
 }
 
-STEST(mk)
+STEST(vc)
 {
 	SSTART;
 	RUN(c_small);

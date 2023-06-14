@@ -12,11 +12,11 @@
 	#define PLATFORM "linux"
 #endif
 
-static int val_to_mask(const prop_str_t *val, const str_t *table, size_t table_len)
+static uint val_to_mask(const prop_str_t *val, const str_t *table, size_t table_len)
 {
 	for (size_t i = 0; i < table_len; i++) {
 		if (cstr_cmp(table[i].data, table[i].len, val->data, val->len)) {
-			return i;
+			return (uint)i;
 		}
 	}
 

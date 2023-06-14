@@ -53,7 +53,9 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	folder_create(tasks_path.path);
+	if (!folder_exists(tasks_path.path)) {
+		folder_create(tasks_path.path);
+	}
 
 	path_t launch_path = tasks_path;
 
@@ -65,19 +67,12 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	FILE *file = file_open(tasks_path.path, "w");
 	if (file == NULL) {
-		printf("Failed to create file: %s, errno: %d\n", tasks_path.path, errno);
+		ERR("failed to create file: %s, errno: %d\n", tasks_path.path, errno);
 		return 1;
 	}
 
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 	const prop_t *outdir  = &sln->props[SLN_PROP_OUTDIR];
-	const prop_t *startup = &sln->props[SLN_PROP_STARTUP];
-
-	const proj_t *startup_proj = NULL;
-	if (hashmap_get(&sln->projects, startup->value.data, startup->value.len, (void **)&startup_proj)) {
-		ERR("project doesn't exists: '%.*s'", (int)startup->value.len, startup->value.data);
-		return 1;
-	}
 
 	p_fprintf(file, "{\n"
 			"        \"version\": \"2.0.0\",\n"
@@ -101,7 +96,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		ERR("generating tasks: %s failed", tasks_path.path);
 	}
 
-	if (!(startup->flags & PROP_SET) || !(outdir->flags & PROP_SET)) {
+	if (!(outdir->flags & PROP_SET)) {
 		return 0;
 	}
 

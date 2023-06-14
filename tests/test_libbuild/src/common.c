@@ -19,6 +19,32 @@ static void delete_folder(const char *path)
 	*end = '/';
 }
 
+static int get_diff(const char *str1, size_t str1_len, const char *str2, size_t str2_len, uint *line, uint *col, uint *at)
+{
+	int l = 1;
+	int c = 1;
+	int i = 0;
+
+	while (i < str1_len && i < str2_len) {
+		if (str1[i] != str2[i]) {
+			*line = l;
+			*col  = c;
+			*at   = i;
+			return 1;
+		}
+
+		if (str1[i] == '\n') {
+			l++;
+			c = 1;
+		}
+
+		i++;
+		c++;
+	}
+
+	return 0;
+}
+
 int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size)
 {
 	int ret = 0;
@@ -38,7 +64,7 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 			end++;
 		}
 
-		FILE *f = file_open(in[i].path, "wb");
+		FILE *f = file_open(in[i].path, "w");
 		p_fprintf(f, "%s", in[i].data);
 		file_close(f);
 	}
@@ -72,11 +98,34 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 
 	for (size_t i = 0; i < out_cnt; i++) {
 		size_t len = file_read_t(out[i].path, CSTR(act));
+		if (len == -1) {
+			printf("Failed to read '%s' file\n", out[i].path);
+		}
+		uint line = -1;
+		uint col  = -1;
+		uint at	  = -1;
+		if (get_diff(act, len, out[i].data, cstr_len(out[i].data), &line, &col, &at)) {
+			const uint plen = (unsigned long long)at + 10 > len ? 0 : 10;
+			printf("%s:%d:%d '%.*s' != '", out[i].path, line, col, plen, out[i].data + at);
 
-		if (!cstr_cmp(act, len, out[i].data, cstr_len(out[i].data))) {
-			printf("-----------------------------Expected-----------------------------\n%s", out[i].data);
-			printf("------------------------------Actual------------------------------\n%s", act);
-			ret = 1;
+			for (uint i = 0; i < plen; i++) {
+				char c = act[at + i];
+				switch (c) {
+				case '\r':
+					printf("\\r");
+					break;
+				case '\n':
+					printf("\\n");
+					break;
+				default:
+					printf("%c", c);
+					break;
+				}
+			}
+
+			printf("'\n");
+
+			return 1;
 		}
 
 		file_delete(out[i].path);

@@ -12,7 +12,7 @@ typedef struct test_gen_file_s {
 
 int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size);
 
-static test_gen_file_t simple_in[] = {
+static test_gen_file_t c_small_in[] = {
 	{
 		.path = "tmp/Solution.txt",
 		.data = "NAME: test\n"
@@ -29,7 +29,35 @@ static test_gen_file_t simple_in[] = {
 	},
 	{
 		.path = "tmp/test/src/main.c",
-		.data = "int main() {\n"
+		.data = "#include <stdio.h>\n"
+			"int main() {\n"
+			"\tprintf(\"Test\n\");\n"
+			"\treturn 0;\n"
+			"}\n",
+	},
+};
+
+static test_gen_file_t cpp_small_in[] = {
+	{
+		.path = "tmp/Solution.txt",
+		.data = "NAME: test\n"
+			"LANGS: CPP\n"
+			"DIRS: test\n"
+			"CONFIGS: Debug\n"
+			"PLATFORMS: x64\n",
+	},
+	{
+		.path = "tmp/test/Project.txt",
+		.data = "NAME: test\n"
+			"TYPE: EXE\n"
+			"SOURCE: src\n",
+	},
+	{
+		.path = "tmp/test/src/main.cpp",
+		.data = "#include <iostream>\n"
+			"using namespace std;\n"
+			"int main() {\n"
+			"\tstd::cout << \"Test\" << std::endl;\n"
 			"\treturn 0;\n"
 			"}\n",
 	},

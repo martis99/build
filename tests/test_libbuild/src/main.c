@@ -1,5 +1,6 @@
 #include "t_cm.h"
 #include "t_mk.h"
+#include "t_vc.h"
 #include "t_vs.h"
 
 #include "test.h"
@@ -18,6 +19,7 @@ TEST(tests)
 	SSTART;
 	RUN(cm);
 	RUN(mk);
+	RUN(vc);
 	RUN(vs);
 	SEND;
 }
