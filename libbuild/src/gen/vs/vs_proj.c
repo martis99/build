@@ -567,8 +567,14 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 					path_t rel_path = { 0 };
 					path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
 
+					path_child_s(&rel_path, CSTR(""), '\\');
+
+#if defined(C_LINUX)
+					convert_backslash(rel_path.path, rel_path.len, rel_path.path, rel_path.len);
+#endif
+
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, CSTR("ProjectReference"));
-					xml_add_attr_f(&xml, xml_ref, CSTR("Include"), "%.*s\\%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len,
+					xml_add_attr_f(&xml, xml_ref, CSTR("Include"), "%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len,
 						       dproj->name->data);
 					xml_add_tag_val_f(&xml, xml_ref, CSTR("Project"), "{%s}", dproj->guid);
 				}
