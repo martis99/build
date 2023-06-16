@@ -212,17 +212,18 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 		p_fprintf(file, "add_executable(%.*s ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
 
-		p_fprintf(file, "target_link_libraries(%.*s", name->len, name->data);
+		if (proj->all_depends.cnt > 0) {
+			p_fprintf(file, "target_link_libraries(%.*s", name->len, name->data);
 
-		for (uint i = 0; i < proj->all_depends.cnt; i++) {
-			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
+			for (uint i = 0; i < proj->all_depends.cnt; i++) {
+				const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
-			if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
-				p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
+				if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
+					p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
+				}
 			}
+			p_fprintf(file, ")\n");
 		}
-
-		p_fprintf(file, ")\n");
 
 		break;
 	}

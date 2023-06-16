@@ -45,10 +45,26 @@ static int get_diff(const char *str1, size_t str1_len, const char *str2, size_t 
 	return 0;
 }
 
+static void print(const char *str, uint len)
+{
+	for (uint i = 0; i < len; i++) {
+		char c = str[i];
+		switch (c) {
+		case '\r':
+			printf("\\r");
+			break;
+		case '\n':
+			printf("\\n");
+			break;
+		default:
+			printf("%c", c);
+			break;
+		}
+	}
+}
+
 int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size)
 {
-	int ret = 0;
-
 	const size_t in_cnt  = in_size / sizeof(test_gen_file_t);
 	const size_t out_cnt = out_size / sizeof(test_gen_file_t);
 
@@ -71,13 +87,13 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 
 	path_t sln_dir = { 0 };
 	if (path_init(&sln_dir, CSTR("tmp"))) {
-		ret = 1;
+		return 1;
 	}
 
 	sln_t sln = { 0 };
 
 	if (sln_read(&sln, &sln_dir)) {
-		ret = 1;
+		return 1;
 	}
 
 	sln_print(&sln);
@@ -85,11 +101,11 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 	path_t build_dir = { 0 };
 
 	if (path_init(&build_dir, CSTR("tmp"))) {
-		ret = 1;
+		return 1;
 	}
 
 	if (fn(&sln, &build_dir)) {
-		ret = 1;
+		return 1;
 	}
 
 	sln_free(&sln);
@@ -106,28 +122,18 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		uint at	  = -1;
 		if (get_diff(act, len, out[i].data, cstr_len(out[i].data), &line, &col, &at)) {
 			const uint plen = (unsigned long long)at + 10 > len ? 0 : 10;
-			printf("%s:%d:%d '%.*s' != '", out[i].path, line, col, plen, out[i].data + at);
-
-			for (uint i = 0; i < plen; i++) {
-				char c = act[at + i];
-				switch (c) {
-				case '\r':
-					printf("\\r");
-					break;
-				case '\n':
-					printf("\\n");
-					break;
-				default:
-					printf("%c", c);
-					break;
-				}
-			}
-
+			printf("%s:%d:%d '", out[i].path, line, col);
+			print(&out[i].data[at], plen);
+			printf("' != '");
+			print(&act[at], plen);
 			printf("'\n");
 
 			return 1;
+			break;
 		}
+	}
 
+	for (size_t i = 0; i < out_cnt; i++) {
 		file_delete(out[i].path);
 	}
 
@@ -143,5 +149,5 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		delete_folder(in[i].path);
 	}
 
-	return ret;
+	return 0;
 }

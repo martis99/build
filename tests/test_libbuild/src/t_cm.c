@@ -28,7 +28,6 @@ TEST(c_small)
 			.data = "file(GLOB_RECURSE test_SOURCE src/*.c src/*.h)\n"
 				"\n"
 				"add_executable(test ${test_SOURCE})\n"
-				"target_link_libraries(test)\n"
 				"include_directories(src)\n"
 				"set_target_properties(test\n"
 				"    PROPERTIES\n"
@@ -72,7 +71,6 @@ TEST(cpp_small)
 			.data = "file(GLOB_RECURSE test_SOURCE src/*.h src/*.cpp src/*.hpp)\n"
 				"\n"
 				"add_executable(test ${test_SOURCE})\n"
-				"target_link_libraries(test)\n"
 				"include_directories(src)\n"
 				"set_target_properties(test\n"
 				"    PROPERTIES\n"
@@ -93,10 +91,73 @@ TEST(cpp_small)
 	END;
 }
 
+TEST(c_depends)
+{
+	START;
+
+	test_gen_file_t out[] = {
+		{
+			.path = "tmp/CMakeLists.txt",
+			.data = "cmake_minimum_required(VERSION 3.16)\n"
+				"\n"
+				"project(\"test\" LANGUAGES C)\n"
+				"\n"
+				"set(CMAKE_CONFIGURATION_TYPES \"Debug\" CACHE STRING \"\" FORCE)\n"
+				"\n"
+				"set_property(GLOBAL PROPERTY USE_FOLDERS ON)\n"
+				"set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER CMake)\n"
+				"\n"
+				"add_subdirectory(libtest)\n"
+				"add_subdirectory(test)\n",
+		},
+		{
+			.path = "tmp/libtest/CMakeLists.txt",
+			.data = "file(GLOB_RECURSE libtest_SOURCE src/*.c src/*.h)\n"
+				"\n"
+				"add_library(libtest STATIC ${libtest_SOURCE})\n"
+				"include_directories(src)\n"
+				"set_target_properties(libtest\n"
+				"    PROPERTIES\n"
+				"    ARCHIVE_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				"    ARCHIVE_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				"    LIBRARY_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				"    LIBRARY_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				"    RUNTIME_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				"    RUNTIME_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/libtest/\"\n"
+				")\n"
+				"set_property(TARGET libtest PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/libtest\")\n",
+		},
+		{
+			.path = "tmp/test/CMakeLists.txt",
+			.data = "file(GLOB_RECURSE test_SOURCE src/*.c src/*.h)\n"
+				"\n"
+				"add_executable(test ${test_SOURCE})\n"
+				"target_link_libraries(test libtest)\n"
+				"include_directories(src)\n"
+				"set_target_properties(test\n"
+				"    PROPERTIES\n"
+				"    ARCHIVE_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				"    ARCHIVE_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				"    LIBRARY_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				"    LIBRARY_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				"    RUNTIME_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				"    RUNTIME_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/test/\"\n"
+				")\n"
+				"set_property(TARGET test PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/test\")\n",
+
+		},
+	};
+
+	EXPECT_EQ(test_gen(cm_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out)), 0);
+
+	END;
+}
+
 STEST(cm)
 {
 	SSTART;
 	RUN(c_small);
 	RUN(cpp_small);
+	RUN(c_depends);
 	SEND;
 }
