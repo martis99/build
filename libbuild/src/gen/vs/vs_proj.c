@@ -618,6 +618,10 @@ int vs_proj_gen(proj_t *proj, const hashmap_t *projects, const path_t *path, con
 				files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
 			}
 		}
+
+		if (!xml_has_child(&xml, xml_incs)) {
+			xml_remove_tag(&xml, xml_incs);
+		}
 	}
 
 	xml_add_attr(&xml, xml_add_tag(&xml, xml_proj, CSTR("Import")), CSTR("Project"), CSTR("$(VCTargetsPath)\\Microsoft.Cpp.targets"));

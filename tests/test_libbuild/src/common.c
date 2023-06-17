@@ -19,34 +19,40 @@ static void delete_folder(const char *path)
 	*end = '/';
 }
 
-static int get_diff(const char *str1, size_t str1_len, const char *str2, size_t str2_len, uint *line, uint *col, uint *at)
+static int get_diff(const char *act, size_t act_len, test_gen_data_t exps[MAX_DATA_CNT], uint *p_line, const char **act_ptr, const char **exp_ptr)
 {
-	int l = 1;
-	int c = 1;
-	int i = 0;
+	int line    = 1;
+	int act_pos = 0;
+	const char *exp;
 
-	while (i < str1_len && i < str2_len) {
-		if (str1[i] != str2[i]) {
-			*line = l;
-			*col  = c;
-			*at   = i;
-			return 1;
+	for (int i = 0; i < MAX_DATA_CNT && (exp = exps[i].data); i++) {
+		size_t exp_len = cstr_len(exp);
+		int exp_pos    = 0;
+
+		while (act_pos < act_len && act_pos < exp_len) {
+			if (act[act_pos] != exp[exp_pos]) {
+				*p_line = line;
+				return 1;
+			}
+
+			if (act[act_pos] == '\n') {
+				line++;
+				*act_ptr = &act[act_pos + 1];
+				*exp_ptr = &exp[exp_pos + 1];
+			}
+
+			act_pos++;
+			exp_pos++;
 		}
-
-		if (str1[i] == '\n') {
-			l++;
-			c = 1;
-		}
-
-		i++;
-		c++;
 	}
 
 	return 0;
 }
 
-static void print(const char *str, uint len)
+static void print(const char *str)
 {
+	const uint len = cstr_chr(str, '\n') - str;
+
 	for (uint i = 0; i < len; i++) {
 		char c = str[i];
 		switch (c) {
@@ -81,7 +87,9 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		}
 
 		FILE *f = file_open(in[i].path, "w");
-		p_fprintf(f, "%s", in[i].data);
+		for (int j = 0; j < MAX_DATA_CNT && in[i].data[j].data; j++) {
+			p_fprintf(f, "%s", in[i].data[j].data);
+		}
 		file_close(f);
 	}
 
@@ -113,22 +121,24 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 	char act[1024 * 8] = { 0 };
 
 	for (size_t i = 0; i < out_cnt; i++) {
-		size_t len = file_read_t(out[i].path, CSTR(act));
-		if (len == -1) {
-			printf("Failed to read '%s' file\n", out[i].path);
-		}
-		uint line = -1;
-		uint col  = -1;
-		uint at	  = -1;
-		if (get_diff(act, len, out[i].data, cstr_len(out[i].data), &line, &col, &at)) {
-			const uint plen = (unsigned long long)at + 10 > len ? 0 : 10;
-			printf("%s:%d:%d '", out[i].path, line, col);
-			print(&out[i].data[at], plen);
-			printf("' != '");
-			print(&act[at], plen);
-			printf("'\n");
+		const test_gen_file_t *file = &out[i];
 
-			return 1;
+		size_t act_len = file_read_t(file->path, CSTR(act));
+		if (act_len == -1) {
+			printf("Failed to read '%s' file\n", file->path);
+		}
+
+		uint line = -1;
+
+		const char *act_ptr = NULL;
+		const char *exp_ptr = NULL;
+
+		if (get_diff(act, act_len, file->data, &line, &act_ptr, &exp_ptr)) {
+			printf("%s:%d '", file->path, line);
+			print(act_ptr);
+			printf("' != '");
+			print(exp_ptr);
+			printf("'\n");
 			break;
 		}
 	}
