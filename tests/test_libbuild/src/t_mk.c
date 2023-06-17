@@ -206,7 +206,48 @@ TEST(c_small)
 		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
+
+	END;
+}
+
+TEST(c_args)
+{
+	START;
+
+	test_gen_file_t out[] = {
+		{
+			.path = "tmp/Makefile",
+			.data = SLN_TEST,
+		},
+		{
+			.path = "tmp/test/Makefile",
+			.data = {
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"REPDIR = $(OUTDIR)coverage-report/\n"
+				"DEPS = $(shell find src -name '*.h')\n"
+				"SRC_C = $(shell find src -name '*.c')\n"
+				"OBJ_C = $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
+				"LCOV = $(OUTDIR)lcov.info\n"
+				"COV = $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
+				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
+				"COV += $(LCOV) $(REPDIR)\n"
+				"TARGET = $(OUTDIR)test\n"
+				"\n"
+				"FLAGS = -Isrc\n"
+				"CFLAGS += $(FLAGS)\n"
+				"LDFLAGS +=\n"
+				"\n",
+				PROJ_TEST_COMPILE,
+			},
+
+		},
+	};
+
+	const int ret = test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -245,7 +286,8 @@ TEST(c_include)
 		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out)), 0);
+	const int ret = test_gen(mk_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -304,7 +346,8 @@ TEST(c_depends)
 		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out)), 0);
+	const int ret = test_gen(mk_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -343,7 +386,8 @@ TEST(cpp_small)
 		},
 	};
 
-	EXPECT_EQ(test_gen(mk_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(mk_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -352,6 +396,7 @@ STEST(mk)
 {
 	SSTART;
 	RUN(c_small);
+	RUN(c_args);
 	RUN(c_include);
 	RUN(c_depends);
 	RUN(cpp_small);

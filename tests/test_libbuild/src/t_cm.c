@@ -72,7 +72,35 @@ TEST(c_small)
 		},
 	};
 
-	EXPECT_EQ(test_gen(cm_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(cm_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
+
+	END;
+}
+
+TEST(c_args)
+{
+	START;
+
+	test_gen_file_t out[] = {
+		{
+			.path = "tmp/CMakeLists.txt",
+			.data = SLN_TEST_C,
+		},
+		{
+			.path = "tmp/test/CMakeLists.txt",
+			.data = {
+				"file(GLOB_RECURSE test_SOURCE src/*.c src/*.h)\n"
+				"\n"
+				"add_executable(test ${test_SOURCE})\n"
+				"include_directories(src)\n",
+				PROJ_PROPS("test"),
+			},
+		},
+	};
+
+	const int ret = test_gen(cm_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -98,7 +126,8 @@ TEST(c_include)
 		},
 	};
 
-	EXPECT_EQ(test_gen(cm_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out)), 0);
+	const int ret = test_gen(cm_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -135,7 +164,8 @@ TEST(c_depends)
 		},
 	};
 
-	EXPECT_EQ(test_gen(cm_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out)), 0);
+	const int ret = test_gen(cm_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -161,7 +191,8 @@ TEST(cpp_small)
 		},
 	};
 
-	EXPECT_EQ(test_gen(cm_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(cm_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -170,6 +201,7 @@ STEST(cm)
 {
 	SSTART;
 	RUN(c_small);
+	RUN(c_args);
 	RUN(c_include);
 	RUN(c_depends);
 	RUN(cpp_small);

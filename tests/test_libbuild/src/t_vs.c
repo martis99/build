@@ -147,6 +147,16 @@ static const char *PROJ_USER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
 			       "  </PropertyGroup>\n"
 			       "</Project>\n";
 
+static const char *PROJ_USER_ARGS = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+				    "<Project ToolsVersion=\"Current\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
+				    "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Debug|x64'\">\n"
+				    "    <LocalDebuggerCommandArguments>-D</LocalDebuggerCommandArguments>\n"
+				    "  </PropertyGroup>\n"
+				    "  <PropertyGroup>\n"
+				    "    <ShowAllFiles>true</ShowAllFiles>\n"
+				    "  </PropertyGroup>\n"
+				    "</Project>\n";
+
 TEST(c_small)
 {
 	START;
@@ -182,7 +192,49 @@ TEST(c_small)
 		}
 	};
 
-	EXPECT_EQ(test_gen(vs_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(vs_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
+
+	END;
+}
+
+TEST(c_args)
+{
+	START;
+
+	test_gen_file_t out[] = {
+		{
+			.path = "tmp/test.sln",
+			.data = SLN_TEST,
+		},
+		{
+			.path = "tmp/test/test.vcxproj",
+			.data = {
+				PROJ_TEST_CONFIG,
+				"      <AdditionalIncludeDirectories>$(ProjectDir)src</AdditionalIncludeDirectories>\n"
+				"    </ClCompile>\n"
+				"    <Link>\n"
+				"      <SubSystem>Console</SubSystem>\n"
+				"      <GenerateDebugInformation>true</GenerateDebugInformation>\n"
+				"    </Link>\n"
+				"  </ItemDefinitionGroup>\n"
+				"  <ItemGroup>\n"
+				"    <ClCompile Include=\"src\\main.c\" />\n"
+				"  </ItemGroup>\n"
+				"  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\" />\n"
+				"  <ImportGroup Label=\"ExtensionTargets\">\n"
+				"  </ImportGroup>\n"
+				"</Project>\n",
+			},
+		},
+		{
+			.path = "tmp/test/test.vcxproj.user",
+			.data = PROJ_USER_ARGS,
+		}
+	};
+
+	const int ret = test_gen(vs_sln_gen, c_args_in, sizeof(c_args_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -227,7 +279,8 @@ TEST(c_include)
 		}
 	};
 
-	EXPECT_EQ(test_gen(vs_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out)), 0);
+	const int ret = test_gen(vs_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -296,7 +349,8 @@ TEST(c_depends)
 		},
 	};
 
-	EXPECT_EQ(test_gen(vs_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out)), 0);
+	const int ret = test_gen(vs_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -336,7 +390,8 @@ TEST(cpp_small)
 		}
 	};
 
-	EXPECT_EQ(test_gen(vs_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out)), 0);
+	const int ret = test_gen(vs_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
 
 	END;
 }
@@ -345,6 +400,7 @@ STEST(vs)
 {
 	SSTART;
 	RUN(c_small);
+	RUN(c_args);
 	RUN(c_include);
 	RUN(c_depends);
 	RUN(cpp_small);

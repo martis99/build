@@ -19,7 +19,7 @@ static void delete_folder(const char *path)
 	*end = '/';
 }
 
-static int get_diff(const char *act, size_t act_len, test_gen_data_t exps[MAX_DATA_CNT], uint *p_line, const char **act_ptr, const char **exp_ptr)
+static int get_diff(const char *act, size_t act_len, const test_gen_data_t exps[MAX_DATA_CNT], uint *p_line, const char **act_ptr, const char **exp_ptr)
 {
 	int line    = 1;
 	int act_pos = 0;
@@ -51,7 +51,7 @@ static int get_diff(const char *act, size_t act_len, test_gen_data_t exps[MAX_DA
 
 static void print(const char *str)
 {
-	const uint len = cstr_chr(str, '\n') - str;
+	const uint len = (uint)(cstr_chr(str, '\n') - str);
 
 	for (uint i = 0; i < len; i++) {
 		char c = str[i];
@@ -118,6 +118,8 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 
 	sln_free(&sln);
 
+	int ret = 0;
+
 	char act[1024 * 8] = { 0 };
 
 	for (size_t i = 0; i < out_cnt; i++) {
@@ -139,6 +141,7 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 			printf("' != '");
 			print(exp_ptr);
 			printf("'\n");
+			ret = 1;
 			break;
 		}
 	}
@@ -159,5 +162,5 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		delete_folder(in[i].path);
 	}
 
-	return 0;
+	return ret;
 }

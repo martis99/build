@@ -43,6 +43,32 @@ static test_gen_file_t c_small_in[] = {
 	},
 };
 
+static test_gen_file_t c_args_in[] = {
+	{
+		.path = "tmp/Solution.txt",
+		.data = "NAME: test\n"
+			"LANGS: C\n"
+			"DIRS: test\n"
+			"CONFIGS: Debug\n"
+			"PLATFORMS: x64\n",
+	},
+	{
+		.path = "tmp/test/Project.txt",
+		.data = "NAME: test\n"
+			"TYPE: EXE\n"
+			"SOURCE: src\n"
+			"ARGS: -D\n",
+	},
+	{
+		.path = "tmp/test/src/main.c",
+		.data = "#include <stdio.h>\n"
+			"int main() {\n"
+			"\tprintf(\"Test\n\");\n"
+			"\treturn 0;\n"
+			"}\n",
+	},
+};
+
 static test_gen_file_t cpp_small_in[] = {
 	{
 		.path = "tmp/Solution.txt",
