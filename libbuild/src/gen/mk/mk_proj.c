@@ -527,14 +527,14 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		if (lang == (1 << LANG_ASM)) {
 			p_fprintf(fp, "\t@cp $^ $@\n");
 		} else {
-			p_fprintf(fp, "\t@$(CLD) -o $@ -Ttext 0x1000 $^ --oformat binary\n");
+			p_fprintf(fp, "\t@$(TLD) -o $@ -Ttext 0x1000 $^ --oformat binary\n");
 		}
 		break;
 	case PROJ_TYPE_EXE:
 		if (dep_bin) {
 			p_fprintf(fp, "\t@cat $^ > $@\n");
 		} else {
-			p_fprintf(fp, "\t@$(CCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
+			p_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
 		}
 		break;
 	}
@@ -554,13 +554,13 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	if (lang & (1 << LANG_C)) {
 		p_fprintf(fp, "$(INTDIR)%%.o: %%.c\n"
 			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(CCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n\n");
+			      "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
 		p_fprintf(fp, "$(INTDIR)%%.o: %%.cpp\n"
 			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(CCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
+			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
 
 	p_fprintf(fp, "clean:\n"

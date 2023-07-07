@@ -183,9 +183,9 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		.sln_props = sln->props,
 	};
 
-	p_fprintf(file, "SLNDIR=$(CURDIR)\n"
-			"CCC=$(CC)\n"
-			"CLD=$(LD)\n"
+	p_fprintf(file, "SLNDIR = $(CURDIR)\n"
+			"TLD = $(LD)\n"
+			"TCC = $(CC)\n"
 			"\n");
 
 	hashmap_iterate_hc(&sln->projects, add_export, file);
