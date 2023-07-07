@@ -63,7 +63,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	byte buf[256] = { 0 };
 #if defined(C_LINUX)
-	convert_backslash(dir->dir.path, dir->dir.len, dir->dir.path, dir->dir.len);
+	convert_backslash((char *)dir->dir.path, dir->dir.len, dir->dir.path, dir->dir.len);
 #endif
 	c_md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
 

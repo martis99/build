@@ -29,7 +29,7 @@ static int get_diff(const char *act, size_t act_len, const test_gen_data_t exps[
 		size_t exp_len = cstr_len(exp);
 		int exp_pos    = 0;
 
-		while (act_pos < act_len && act_pos < exp_len) {
+		while (act_pos < act_len && exp_pos < exp_len) {
 			if (act[act_pos] != exp[exp_pos]) {
 				*p_line = line;
 				return 1;

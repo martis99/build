@@ -1,5 +1,6 @@
 #include "gen/mk/mk_sln.h"
 
+#include "gen/var.h"
 #include "mk_proj.h"
 
 #include "common.h"
@@ -10,10 +11,68 @@ typedef struct gen_proj_make_data_s {
 	const prop_t *sln_props;
 } gen_proj_make_data_t;
 
+static const var_pol_t vars = {
+	.old = {
+		[VAR_SLN_DIR] = "$(SLN_DIR)",
+		[VAR_CONFIG] = "$(CONFIG)",
+		[VAR_PLATFORM] = "$(PLATFORM)",
+	},
+	.new = {
+		[VAR_SLN_DIR] = "$(SLNDIR)",
+		[VAR_CONFIG] = "$(CONFIG)",
+		[VAR_PLATFORM] = "$(PLATFORM)",
+	},
+};
+
+static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_size, const proj_t *proj)
+{
+	size_t dst_len = prop->len;
+	m_memcpy(CSTR(dst), prop->data, prop->len);
+
+	dst_len = invert_slash(dst, dst_len);
+	dst_len = cstr_inplaces(dst, dst_size, dst_len, vars.old, vars.new, __VAR_MAX);
+	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
+	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
+
+	return dst_len;
+}
+
 static void gen_proj_make(void *key, size_t ksize, void *value, const void *priv)
 {
 	const gen_proj_make_data_t *data = priv;
 	mk_proj_gen(value, data->projects, data->path, data->sln_props);
+}
+
+static void add_export(void *key, size_t ksize, void *value, void *priv)
+{
+	proj_t *proj = value;
+
+	char buf[P_MAX_PATH] = { 0 };
+	char out[P_MAX_PATH] = { 0 };
+
+	size_t buf_len;
+	size_t out_len;
+
+	const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
+
+	out_len = resolve(outdir, CSTR(out), proj);
+
+	const prop_t *exports = &proj->props[PROJ_PROP_EXPORT];
+
+	if (!(exports->flags & PROP_SET)) {
+		return;
+	}
+
+	for (uint i = 0; i < exports->arr.cnt; i++) {
+		const prop_str_t *export = arr_get(&exports->arr, i);
+
+		buf_len = export->len;
+		m_memcpy(CSTR(buf), export->data, export->len);
+
+		buf_len = cstr_inplace(CSTR(buf), buf_len, CSTR("$(OUTDIR)"), out, out_len);
+
+		p_fprintf(priv, "%.*s\n", buf_len, buf);
+	}
 }
 
 static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
@@ -39,24 +98,18 @@ static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, 
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
-			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				if (action == NULL) {
-					p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
-				} else {
-					p_fprintf(file, " %.*s/%s", dproj->name->len, dproj->name->data, action);
-				}
+			if (action == NULL) {
+				p_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
+			} else {
+				p_fprintf(file, " %.*s/%s", dproj->name->len, dproj->name->data, action);
 			}
 		}
 	}
 
 	if (action == NULL) {
-		p_fprintf(file, "\n\t@$(MAKE) -C %.*s SLNDIR=$(SLNDIR)", buf_len, buf);
+		p_fprintf(file, "\n\t@$(MAKE) -C %.*s", buf_len, buf);
 	} else {
-		p_fprintf(file, "\n\t@$(MAKE) -C %.*s %s SLNDIR=$(SLNDIR)", buf_len, buf, action);
-	}
-
-	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		p_fprintf(file, " CONFIG=$(CONFIG)");
+		p_fprintf(file, "\n\t@$(MAKE) -C %.*s %s", buf_len, buf, action);
 	}
 
 	p_fprintf(file, "\n\n");
@@ -95,11 +148,7 @@ static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
 	size_t buf_len;
 
 	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
-	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean SLNDIR=$(SLNDIR)", buf_len, buf);
-
-	if ((data->configs->flags & PROP_SET) && data->configs->arr.cnt > 0) {
-		p_fprintf(data->fp, " CONFIG=$(CONFIG)");
-	}
+	p_fprintf(data->fp, "\t@$(MAKE) -C %.*s clean", buf_len, buf);
 
 	p_fprintf(data->fp, "\n");
 }
@@ -134,7 +183,14 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		.sln_props = sln->props,
 	};
 
-	p_fprintf(file, "SLNDIR=$(CURDIR)\n\n");
+	p_fprintf(file, "SLNDIR=$(CURDIR)\n"
+			"CCC=$(CC)\n"
+			"CLD=$(LD)\n"
+			"\n");
+
+	hashmap_iterate_hc(&sln->projects, add_export, file);
+
+	p_fprintf(file, "\nexport\n\n");
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(file, "CONFIGS =");

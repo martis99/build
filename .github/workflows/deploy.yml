@@ -20,7 +20,7 @@ jobs:
 
       - name: Rename
         run: |
-          cp build-linux-Release build-linux
+          cp build-linux-x64-Release build-linux
           cp build-win-x64-Release.exe build-win-x64.exe
           cp build-win-x86-Release.exe build-win-x86.exe
 

@@ -13,8 +13,8 @@ typedef enum var_e {
 } var_t;
 
 typedef struct var_pol_s {
-	const char *names[__VAR_MAX];
-	const char *tos[__VAR_MAX];
+	const char *old[__VAR_MAX];
+	const char *new[__VAR_MAX];
 } var_pol_t;
 
 #endif

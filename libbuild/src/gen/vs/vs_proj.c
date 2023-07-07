@@ -8,7 +8,7 @@
 #include "xml.h"
 
 static const var_pol_t vars = {
-	.names = {
+	.old = {
 		[VAR_SLN_DIR] = "$(SLN_DIR)\\",
 		[VAR_SLN_NAME] = "$(SLN_NAME)",
 		[VAR_PROJ_DIR] = "$(PROJ_DIR)\\",
@@ -16,7 +16,7 @@ static const var_pol_t vars = {
 		[VAR_CONFIG] = "$(CONFIG)",
 		[VAR_PLATFORM] = "$(PLATFORM)",
 	},
-	.tos = {
+	.new = {
 		[VAR_SLN_DIR] = "$(SolutionDir)",
 		[VAR_SLN_NAME] = "$(SolutionName)",
 		[VAR_PROJ_DIR] = "$(ProjectDir)",
@@ -31,7 +31,7 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len, dst_len;
 
-	buf_len = cstr_replaces(prop->data, prop->len, CSTR(buf), vars.names, vars.tos, __VAR_MAX);
+	buf_len = cstr_replaces(prop->data, prop->len, CSTR(buf), vars.old, vars.new, __VAR_MAX);
 	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 #if defined(C_WIN)
 	convert_backslash(dst, dst_len, dst, dst_len);

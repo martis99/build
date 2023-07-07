@@ -4,29 +4,37 @@
 #include "gen/sln.h"
 
 #include "common.h"
+#include "defines.h"
 
 #include "c_md5.h"
 
 static const prop_pol_t s_proj_props[] = {
-	[PROJ_PROP_NAME]     = { .name = STR("NAME"), },
+	[PROJ_PROP_NAME]     = { .name = STR("NAME") },
 	[PROJ_PROP_TYPE]     = { .name = STR("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
 	[PROJ_PROP_LANGS]    = { .name = STR("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
 	[PROJ_PROP_SOURCE]   = { .name = STR("SOURCE"), .arr = 1 },
+	[PROJ_PROP_URL]	     = { .name = STR("URL") },
+	[PROJ_PROP_FORMAT]   = { .name = STR("FORMAT") },
 	[PROJ_PROP_INCLUDE]  = { .name = STR("INCLUDE"), .arr = 1 },
-	[PROJ_PROP_ENCLUDE]  = { .name = STR("ENCLUDE"), },
+	[PROJ_PROP_ENCLUDE]  = { .name = STR("ENCLUDE") },
 	[PROJ_PROP_DEPENDS]  = { .name = STR("DEPENDS"), .arr = 1 },
-	[PROJ_PROP_DEPEND]   = { .name = STR("DEPEND"),  .arr = 1 },
+	[PROJ_PROP_DEPEND]   = { .name = STR("DEPEND"), .arr = 1 },
 	[PROJ_PROP_INCLUDES] = { .name = STR("INCLUDES"), .arr = 1 },
 	[PROJ_PROP_DEFINES]  = { .name = STR("DEFINES"), .arr = 1 },
 	[PROJ_PROP_LIBDIRS]  = { .name = STR("LIBDIRS"), .arr = 1 },
-	[PROJ_PROP_WDIR]     = { .name = STR("WDIR"),  },
+	[PROJ_PROP_WDIR]     = { .name = STR("WDIR") },
 	[PROJ_PROP_CHARSET]  = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[PROJ_PROP_OUTDIR]   = { .name = STR("OUTDIR"), },
-	[PROJ_PROP_INTDIR]   = { .name = STR("INTDIR"), },
+	[PROJ_PROP_OUTDIR]   = { .name = STR("OUTDIR") },
+	[PROJ_PROP_INTDIR]   = { .name = STR("INTDIR") },
 	[PROJ_PROP_CFLAGS]   = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
 	[PROJ_PROP_LDFLAGS]  = { .name = STR("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .arr = 1 },
-	[PROJ_PROP_LINK]     = { .name = STR("LINK"),.arr = 1},
-	[PROJ_PROP_ARGS]     = { .name = STR("ARGS"), },
+	[PROJ_PROP_LINK]     = { .name = STR("LINK"), .arr = 1 },
+	[PROJ_PROP_EXPORT]   = { .name = STR("EXPORT"), .arr = 1 },
+	[PROJ_PROP_REQUIRE]  = { .name = STR("REQUIRE"), .arr = 1 },
+	[PROJ_PROP_CONFIG]   = { .name = STR("CONFIG") },
+	[PROJ_PROP_TARGET]   = { .name = STR("TARGET") },
+	[PROJ_PROP_RUN]	     = { .name = STR("RUN") },
+	[PROJ_PROP_ARGS]     = { .name = STR("ARGS") },
 };
 
 static void replace_prop(prop_t *proj_prop, const prop_t *sln_prop)

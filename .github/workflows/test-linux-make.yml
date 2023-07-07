@@ -13,6 +13,7 @@ jobs:
     strategy:
       matrix:
         configuration: [Debug, Release]
+        platform: [x64, x86]
 
     steps:
       - uses: actions/checkout@v3
@@ -26,10 +27,10 @@ jobs:
           workflow: build-linux
 
       - name: Generate
-        run: ./build-linux-${{matrix.configuration}} -S test_sln -G M
+        run: ./build-linux-${{matrix.platform}}-${{matrix.configuration}} -S test_sln -G M
 
       - name: Build
-        run: make -C test_sln slib app CONFIG=${{matrix.configuration}}
+        run: make -C test_sln slib app CONFIG=${{matrix.configuration}} PLATFORM=${{matrix.platform}}
 
       - name: Run
-        run: ./test_sln/bin/${{matrix.configuration}}-x64/app/app
+        run: ./test_sln/bin/${{matrix.configuration}}-${{matrix.platform}}/app/app

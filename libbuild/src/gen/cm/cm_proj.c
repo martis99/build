@@ -5,14 +5,14 @@
 #include "common.h"
 
 static const var_pol_t vars = {
-	.names = {
+	.old = {
 		[VAR_SLN_DIR] = "$(SLN_DIR)",
 		[VAR_SLN_NAME] = "$(SLN_NAME)",
 		[VAR_PROJ_DIR] = "$(PROJ_DIR)",
 		[VAR_CONFIG] = "$(CONFIG)",
 		[VAR_PLATFORM] = "$(PLATFORM)",
 	},
-	.tos = {
+	.new = {
 		[VAR_SLN_DIR] = "${CMAKE_SOURCE_DIR}",
 		[VAR_SLN_NAME] = "${CMAKE_PROJECT_NAME}",
 		[VAR_PROJ_DIR] = "$(ProjectDir)",
@@ -27,7 +27,7 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_max_len, con
 	size_t buf_len, dst_len;
 
 	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
-	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars.names, vars.tos, __VAR_MAX);
+	dst_len = cstr_replaces(buf, buf_len, dst, dst_max_len, vars.old, vars.new, __VAR_MAX);
 	buf_len = cstr_replace(dst, dst_len, CSTR(buf), CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
 	dst_len = cstr_replace(buf, buf_len, dst, dst_max_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
 
@@ -196,7 +196,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 								p_fprintf(file, " ");
 							}
 
-							buf_len	 = cstr_replaces(libdir->data, libdir->len, CSTR(buf), vars.names, vars.tos, __VAR_MAX);
+							buf_len	 = cstr_replaces(libdir->data, libdir->len, CSTR(buf), vars.old, vars.new, __VAR_MAX);
 							buf2_len = cstr_replace(buf, buf_len, CSTR(buf2), CSTR("$(PROJ_NAME)"), dproj->name->data, dproj->name->len);
 
 							print_rel_path(file, dproj, buf2, buf2_len);
@@ -286,7 +286,7 @@ int cm_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 				p_fprintf(file, " ");
 			}
 
-			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, CSTR(buf), vars.names, vars.tos,
+			buf_len	 = cstr_replaces(iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len, CSTR(buf), vars.old, vars.new,
 						 __VAR_MAX);
 			buf2_len = cstr_replace(buf, buf_len, CSTR(buf2), CSTR("$(PROJ_NAME)"), iproj->name->data, iproj->name->len);
 

@@ -14,6 +14,8 @@ typedef enum proj_prop_e {
 	PROJ_PROP_TYPE,
 	PROJ_PROP_LANGS,
 	PROJ_PROP_SOURCE,
+	PROJ_PROP_URL,
+	PROJ_PROP_FORMAT,
 	PROJ_PROP_INCLUDE,
 	PROJ_PROP_ENCLUDE,
 	PROJ_PROP_DEPENDS,
@@ -28,6 +30,11 @@ typedef enum proj_prop_e {
 	PROJ_PROP_CFLAGS,
 	PROJ_PROP_LDFLAGS,
 	PROJ_PROP_LINK,
+	PROJ_PROP_EXPORT,
+	PROJ_PROP_REQUIRE,
+	PROJ_PROP_CONFIG,
+	PROJ_PROP_TARGET,
+	PROJ_PROP_RUN,
 	PROJ_PROP_ARGS,
 
 	__PROJ_PROP_MAX,
@@ -38,21 +45,25 @@ typedef enum proj_type_e {
 	PROJ_TYPE_LIB,
 	PROJ_TYPE_EXE,
 	PROJ_TYPE_EXT,
+	PROJ_TYPE_BIN,
 
 	__PROJ_TYPE_MAX,
 } proj_type_t;
 
+// clang-format off
 static const str_t s_proj_types[] = {
 	[PROJ_TYPE_UNKNOWN] = { CSTR("") },
 	[PROJ_TYPE_LIB]	    = { CSTR("LIB") },
 	[PROJ_TYPE_EXE]	    = { CSTR("EXE") },
 	[PROJ_TYPE_EXT]	    = { CSTR("EXT") },
+	[PROJ_TYPE_BIN]	    = { CSTR("BIN") },
 };
+// clang-format on
 
 typedef enum lang_e {
 	LANG_NONE,
-	LANG_C,
 	LANG_ASM,
+	LANG_C,
 	LANG_CPP,
 
 	__LANG_MAX,
@@ -61,8 +72,8 @@ typedef enum lang_e {
 // clang-format off
 static const str_t s_langs[] = {
 	[LANG_NONE]    = { CSTR("NONE") },
-	[LANG_C]       = { CSTR("C") },
 	[LANG_ASM]     = { CSTR("ASM") },
+	[LANG_C]       = { CSTR("C") },
 	[LANG_CPP]     = { CSTR("CPP") },
 };
 // clang-format on
@@ -84,13 +95,15 @@ static const str_t s_charsets[] = {
 typedef enum cflag_e {
 	CFLAG_NONE,
 	CFLAG_STD_C99,
+	CFLAG_FREESTANDING,
 
 	__CFLAG_MAX,
 } cflag_t;
 
 static const str_t s_cflags[] = {
-	[CFLAG_NONE]	= { CSTR("NONE") },
-	[CFLAG_STD_C99] = { CSTR("STD_C99") },
+	[CFLAG_NONE]	     = { CSTR("NONE") },
+	[CFLAG_STD_C99]	     = { CSTR("STD_C99") },
+	[CFLAG_FREESTANDING] = { CSTR("FREESTANDING") },
 };
 
 typedef enum ldflag_e {

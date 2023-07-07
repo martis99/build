@@ -28,7 +28,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 {
 	str_t platform = { 0 };
 	;
-	if (!str_chr(value, &platform, value, ':') && !str_eq_cstr(&platform, CSTR(PLATFORM))) {
+	if (!cstrn_cmp(value->data, value->len, CSTR("http"), 4) && !str_chr(value, &platform, value, ':') && !str_eq_cstr(&platform, CSTR(PLATFORM))) {
 		return 1;
 	}
 
@@ -258,4 +258,14 @@ size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_
 		}
 	}
 	return src_len;
+}
+
+size_t invert_slash(char *str, size_t str_len)
+{
+	for (size_t i = 0; i < str_len; i++) {
+		if (str[i] == '\\') {
+			str[i] = '/';
+		}
+	}
+	return str_len;
 }

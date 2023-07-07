@@ -6,6 +6,11 @@
 #include "test.h"
 
 static const char *SLN_TEST = "SLNDIR=$(CURDIR)\n"
+			      "CCC=$(CC)\n"
+			      "CLD=$(LD)\n"
+			      "\n"
+			      "\n"
+			      "export\n"
 			      "\n"
 			      "CONFIGS = Debug\n"
 			      "CONFIG = Debug\n"
@@ -23,24 +28,29 @@ static const char *SLN_TEST = "SLNDIR=$(CURDIR)\n"
 			      "\n"
 			      ".PHONY: test\n"
 			      "test: check\n"
-			      "	@$(MAKE) -C test SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+			      "	@$(MAKE) -C test\n"
 			      "\n"
 			      ".PHONY: test/clean\n"
 			      "test/clean: check\n"
-			      "	@$(MAKE) -C test clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+			      "	@$(MAKE) -C test clean\n"
 			      "\n"
 			      ".PHONY: test/compile\n"
 			      "test/compile: check\n"
-			      "	@$(MAKE) -C test compile SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+			      "	@$(MAKE) -C test compile\n"
 			      "\n"
 			      ".PHONY: test/coverage\n"
 			      "test/coverage: check\n"
-			      "	@$(MAKE) -C test coverage SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+			      "	@$(MAKE) -C test coverage\n"
 			      "\n"
 			      "clean: check\n"
-			      "	@$(MAKE) -C test clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n";
+			      "	@$(MAKE) -C test clean\n";
 
 static const char *SLN_LIBTEST = "SLNDIR=$(CURDIR)\n"
+				 "CCC=$(CC)\n"
+				 "CLD=$(LD)\n"
+				 "\n"
+				 "\n"
+				 "export\n"
 				 "\n"
 				 "CONFIGS = Debug\n"
 				 "CONFIG = Debug\n"
@@ -58,83 +68,86 @@ static const char *SLN_LIBTEST = "SLNDIR=$(CURDIR)\n"
 				 "\n"
 				 ".PHONY: libtest\n"
 				 "libtest: check\n"
-				 "	@$(MAKE) -C libtest SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C libtest\n"
 				 "\n"
 				 ".PHONY: libtest/clean\n"
 				 "libtest/clean: check\n"
-				 "	@$(MAKE) -C libtest clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C libtest clean\n"
 				 "\n"
 				 ".PHONY: libtest/compile\n"
 				 "libtest/compile: check\n"
-				 "	@$(MAKE) -C libtest compile SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C libtest compile\n"
 				 "\n"
 				 ".PHONY: libtest/coverage\n"
 				 "libtest/coverage: check\n"
-				 "	@$(MAKE) -C libtest coverage SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C libtest coverage\n"
 				 "\n"
 				 ".PHONY: test\n"
 				 "test: check libtest\n"
-				 "	@$(MAKE) -C test SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C test\n"
 				 "\n"
 				 ".PHONY: test/clean\n"
 				 "test/clean: check libtest/clean\n"
-				 "	@$(MAKE) -C test clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C test clean\n"
 				 "\n"
 				 ".PHONY: test/compile\n"
 				 "test/compile: check libtest/compile\n"
-				 "	@$(MAKE) -C test compile SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C test compile\n"
 				 "\n"
 				 ".PHONY: test/coverage\n"
 				 "test/coverage: check libtest/coverage\n"
-				 "	@$(MAKE) -C test coverage SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
+				 "	@$(MAKE) -C test coverage\n"
 				 "\n"
 				 "clean: check\n"
-				 "	@$(MAKE) -C libtest clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n"
-				 "	@$(MAKE) -C test clean SLNDIR=$(SLNDIR) CONFIG=$(CONFIG)\n";
+				 "	@$(MAKE) -C libtest clean\n"
+				 "	@$(MAKE) -C test clean\n";
 
-static const char *PROJ_TEST_COMPILE = "RM += -r\n"
-				       "\n"
-				       "CONFIG_FLAGS =\n"
-				       "\n"
-				       "SHOW = true\n"
-				       "\n"
-				       ".PHONY: all check check_coverage test compile coverage clean\n"
-				       "\n"
-				       "all: test\n"
-				       "\n"
-				       "check:\n"
-				       "ifeq ($(CONFIG), Debug)\n"
-				       "	$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
-				       "endif\n"
-				       "\n"
-				       "check_coverage: check\n"
-				       "	$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
-				       "ifeq (, $(shell which lcov))\n"
-				       "	$(error \"lcov not found\")\n"
-				       "endif\n"
-				       "\n"
-				       "test: clean compile\n"
-				       "\n"
-				       "compile: check $(TARGET)\n"
-				       "\n"
-				       "coverage: clean check_coverage $(TARGET)\n"
-				       "	@$(TARGET) $(ARGS)\n"
-				       "	@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
-				       "ifeq ($(SHOW), true)\n"
-				       "	@genhtml -q $(LCOV) -o $(REPDIR)\n"
-				       "	@open $(REPDIR)index.html\n"
-				       "endif\n"
-				       "\n"
-				       "$(TARGET): $(OBJ_C)\n"
-				       "	@mkdir -p $(@D)\n"
-				       "	@$(CC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n"
-				       "\n"
-				       "$(INTDIR)%.o: %.c\n"
-				       "	@mkdir -p $(@D)\n"
-				       "	@$(CC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
-				       "\n"
-				       "clean:\n"
-				       "	@$(RM) $(TARGET) $(OBJ_C) $(COV)\n";
+static const char *PROJ_TEST_C_COMPILE = "RM += -r\n"
+					 "\n"
+					 "CONFIG_FLAGS =\n"
+					 "\n"
+					 "SHOW = true\n"
+					 "\n"
+					 ".PHONY: all check check_coverage test compile coverage clean\n"
+					 "\n"
+					 "all: test\n"
+					 "\n"
+					 "check:\n"
+					 "ifeq ($(CONFIG), Debug)\n"
+					 "	$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
+					 "endif\n"
+					 "ifeq (, $(shell which gcc))\n"
+					 "	sudo apt install gcc\n"
+					 "endif\n"
+					 "\n"
+					 "check_coverage: check\n"
+					 "	$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
+					 "ifeq (, $(shell which lcov))\n"
+					 "	sudo apt install lcov\n"
+					 "endif\n"
+					 "\n"
+					 "test: clean compile\n"
+					 "\n"
+					 "compile: check $(TARGET)\n"
+					 "\n"
+					 "coverage: clean check_coverage $(TARGET)\n"
+					 "	@$(TARGET) $(ARGS)\n"
+					 "	@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
+					 "ifeq ($(SHOW), true)\n"
+					 "	@genhtml -q $(LCOV) -o $(REPDIR)\n"
+					 "	@open $(REPDIR)index.html\n"
+					 "endif\n"
+					 "\n"
+					 "$(TARGET): $(OBJ_C)\n"
+					 "	@mkdir -p $(@D)\n"
+					 "	@$(CCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n"
+					 "\n"
+					 "$(INTDIR)%.o: %.c\n"
+					 "	@mkdir -p $(@D)\n"
+					 "	@$(CCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
+					 "\n"
+					 "clean:\n"
+					 "	@$(RM) $(TARGET) $(OBJ_C) $(COV)\n";
 
 static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "\n"
@@ -148,11 +161,14 @@ static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "ifeq ($(CONFIG), Debug)\n"
 					  "	$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
 					  "endif\n"
+					  "ifeq (, $(shell which gcc))\n"
+					  "	sudo apt install gcc\n"
+					  "endif\n"
 					  "\n"
 					  "check_coverage: check\n"
 					  "	$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
 					  "ifeq (, $(shell which lcov))\n"
-					  "	$(error \"lcov not found\")\n"
+					  "	sudo apt install lcov\n"
 					  "endif\n"
 					  "\n"
 					  "libtest: clean compile\n"
@@ -167,10 +183,57 @@ static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "\n"
 					  "$(INTDIR)%.o: %.c\n"
 					  "	@mkdir -p $(@D)\n"
-					  "	@$(CC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
+					  "	@$(CCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
 					  "\n"
 					  "clean:\n"
 					  "	@$(RM) $(TARGET) $(OBJ_C) $(COV)\n";
+
+static const char *PROJ_TEST_CPP_COMPILE = "RM += -r\n"
+					   "\n"
+					   "CONFIG_FLAGS =\n"
+					   "\n"
+					   "SHOW = true\n"
+					   "\n"
+					   ".PHONY: all check check_coverage test compile coverage clean\n"
+					   "\n"
+					   "all: test\n"
+					   "\n"
+					   "check:\n"
+					   "ifeq ($(CONFIG), Debug)\n"
+					   "	$(eval CONFIG_FLAGS += -ggdb3 -O0)\n"
+					   "endif\n"
+					   "ifeq (, $(shell which gcc))\n"
+					   "	sudo apt install gcc\n"
+					   "endif\n"
+					   "\n"
+					   "check_coverage: check\n"
+					   "	$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
+					   "ifeq (, $(shell which lcov))\n"
+					   "	sudo apt install lcov\n"
+					   "endif\n"
+					   "\n"
+					   "test: clean compile\n"
+					   "\n"
+					   "compile: check $(TARGET)\n"
+					   "\n"
+					   "coverage: clean check_coverage $(TARGET)\n"
+					   "	@$(TARGET) $(ARGS)\n"
+					   "	@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
+					   "ifeq ($(SHOW), true)\n"
+					   "	@genhtml -q $(LCOV) -o $(REPDIR)\n"
+					   "	@open $(REPDIR)index.html\n"
+					   "endif\n"
+					   "\n"
+					   "$(TARGET): $(OBJ_CPP)\n"
+					   "	@mkdir -p $(@D)\n"
+					   "	@$(CCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n"
+					   "\n"
+					   "$(INTDIR)%.o: %.cpp\n"
+					   "	@mkdir -p $(@D)\n"
+					   "	@$(CCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n"
+					   "\n"
+					   "clean:\n"
+					   "	@$(RM) $(TARGET) $(OBJ_CPP) $(COV)\n";
 
 TEST(c_small)
 {
@@ -184,8 +247,8 @@ TEST(c_small)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find src -name '*.h')\n"
 				"SRC_C = $(shell find src -name '*.c')\n"
@@ -200,7 +263,7 @@ TEST(c_small)
 				"CFLAGS += $(FLAGS)\n"
 				"LDFLAGS +=\n"
 				"\n",
-				PROJ_TEST_COMPILE,
+				PROJ_TEST_C_COMPILE,
 			},
 
 		},
@@ -224,8 +287,8 @@ TEST(c_args)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find src -name '*.h')\n"
 				"SRC_C = $(shell find src -name '*.c')\n"
@@ -240,7 +303,7 @@ TEST(c_args)
 				"CFLAGS += $(FLAGS)\n"
 				"LDFLAGS +=\n"
 				"\n",
-				PROJ_TEST_COMPILE,
+				PROJ_TEST_C_COMPILE,
 			},
 
 		},
@@ -264,8 +327,8 @@ TEST(c_include)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find include -name '*.h')\n"
 				"DEPS += $(shell find src -name '*.h')\n"
@@ -281,7 +344,7 @@ TEST(c_include)
 				"CFLAGS += $(FLAGS)\n"
 				"LDFLAGS +=\n"
 				"\n",
-				PROJ_TEST_COMPILE,
+				PROJ_TEST_C_COMPILE,
 			},
 		},
 	};
@@ -304,8 +367,8 @@ TEST(c_depends)
 		{
 			.path = "tmp/libtest/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/libtest/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/libtest/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find src -name '*.h')\n"
 				"SRC_C = $(shell find src -name '*.c')\n"
@@ -325,8 +388,8 @@ TEST(c_depends)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find src -name '*.h')\n"
 				"SRC_C = $(shell find src -name '*.c')\n"
@@ -339,9 +402,9 @@ TEST(c_depends)
 				"\n"
 				"FLAGS = -Isrc\n"
 				"CFLAGS += $(FLAGS)\n"
-				"LDFLAGS += -L$(SLNDIR)/bin/$(CONFIG)-x64/libtest/ -l:libtest.a\n"
+				"LDFLAGS += -L$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/ -l:libtest.a\n"
 				"\n",
-				PROJ_TEST_COMPILE,
+				PROJ_TEST_C_COMPILE,
 			},
 		},
 	};
@@ -364,8 +427,8 @@ TEST(cpp_small)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/\n"
-				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-x64/test/int/\n"
+				"OUTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR = $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR = $(OUTDIR)coverage-report/\n"
 				"DEPS = $(shell find src -name '*.h')\n"
 				"DEPS += $(shell find src -name '*.hpp')\n"
@@ -381,7 +444,7 @@ TEST(cpp_small)
 				"CXXFLAGS += $(FLAGS)\n"
 				"LDFLAGS += -lstdc++\n"
 				"\n",
-				PROJ_TEST_COMPILE,
+				PROJ_TEST_CPP_COMPILE,
 			},
 		},
 	};

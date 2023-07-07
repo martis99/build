@@ -252,8 +252,7 @@ TEST(c_include)
 			.path = "tmp/test/test.vcxproj",
 			.data = {
 				PROJ_TEST_CONFIG,
-				"      <AdditionalIncludeDirectories>$(ProjectDir)include</AdditionalIncludeDirectories>\n"
-				"      <AdditionalIncludeDirectories>$(ProjectDir)src</AdditionalIncludeDirectories>\n"
+				"      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src</AdditionalIncludeDirectories>\n"
 				"    </ClCompile>\n"
 				"    <Link>\n"
 				"      <SubSystem>Console</SubSystem>\n"
@@ -261,8 +260,8 @@ TEST(c_include)
 				"    </Link>\n"
 				"  </ItemDefinitionGroup>\n"
 				"  <ItemGroup>\n"
-				"    <ClCompile Include=\"src\\main.c\" />\n"
 				"    <ClCompile Include=\"src\\utils.c\" />\n"
+				"    <ClCompile Include=\"src\\main.c\" />\n"
 				"  </ItemGroup>\n"
 				"  <ItemGroup>\n"
 				"    <ClInclude Include=\"include\\utils.h\" />\n"
