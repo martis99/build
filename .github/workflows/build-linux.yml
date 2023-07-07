@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         configuration: [Debug, Release]
-        platform: [x64]
+        platform: [x64, x86]
 
     steps:
       - uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
         run: ./build-linux
 
       - name: Build
-        run: make CONFIG=${{matrix.configuration}}
+        run: make CONFIG=${{matrix.configuration}} PLATFORM=${{matrix.platform}}
 
       - name: Copy
         run: cp ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build-linux-${{matrix.platform}}-${{matrix.configuration}}
