@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: build-linux-${{matrix.platform}}-${{matrix.configuration}}
-          path: ./bin/${{matrix.configuration}}-x64/build/build-linux-${{matrix.platform}}-${{matrix.configuration}}
+          path: ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build-linux-${{matrix.platform}}-${{matrix.configuration}}
 
   Notify:
     needs: Build
