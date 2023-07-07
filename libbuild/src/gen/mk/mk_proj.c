@@ -435,7 +435,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
 			p_fprintf(fp,
-				  "ifeq (, $(shell which %.*s))\n"
+				  "ifeq (, $(shell dpkg -l %.*s))\n"
 				  "\tsudo apt install %.*s\n"
 				  "endif\n",
 				  require->len, require->data, require->len, require->data);
@@ -606,7 +606,10 @@ static int gen_url(const proj_t *proj, FILE *fp)
 		  "\n"
 		  ".PHONY: all check compile clean\n"
 		  "\n"
-		  "check:\n",
+		  "check:\n"
+		  "ifeq (, $(shell which curl))\n"
+		  "\tsudo apt install curl\n"
+		  "endif\n",
 		  url->len, url->data, name->len, name->data, format->len, format->data);
 
 	if (requires->flags & PROP_SET) {
@@ -614,7 +617,7 @@ static int gen_url(const proj_t *proj, FILE *fp)
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
 			p_fprintf(fp,
-				  "ifeq (, $(shell which %.*s))\n"
+				  "ifeq (, $(shell dpkg -l %.*s))\n"
 				  "\tsudo apt install %.*s\n"
 				  "endif\n",
 				  require->len, require->data, require->len, require->data);
