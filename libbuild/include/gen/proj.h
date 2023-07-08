@@ -35,6 +35,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_CONFIG,
 	PROJ_PROP_TARGET,
 	PROJ_PROP_RUN,
+	PROJ_PROP_ELF,
 	PROJ_PROP_ARGS,
 
 	__PROJ_PROP_MAX,

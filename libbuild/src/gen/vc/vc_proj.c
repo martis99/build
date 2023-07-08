@@ -37,7 +37,70 @@ static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_size, const 
 #define NAME_VAL(_val)		 _val ? "-" : "", _val ? ((const prop_str_t *)_val)->len : 0, _val ? ((const prop_str_t *)_val)->data : ""
 #define NAME(_config, _platform) name->len, name->data, NAME_VAL(_config), NAME_VAL(_platform)
 
-int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
+static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_t *config, const prop_str_t *platform, const char *prefix, const char *action, FILE *f)
+{
+	const prop_str_t *name = proj->name;
+
+	const prop_t *run = &proj->props[PROJ_PROP_RUN];
+
+	p_fprintf(f,
+		  "                {\n"
+		  "                        \"label\": \"%s-" NAME_PATTERN "\",\n"
+		  "                        \"type\": \"shell\",\n"
+		  "                        \"command\": \"make\",\n"
+		  "                        \"args\": [\n"
+		  "                                \"clean\",\n"
+		  "                                \"%.*s/%s\"",
+		  prefix, NAME(config, platform), name->len, name->data, action);
+
+	if (config) {
+		p_fprintf(f,
+			  ",\n"
+			  "                                \"CONFIG=%.*s\"",
+			  config->len, config->data);
+	}
+
+	if (platform) {
+		p_fprintf(f,
+			  ",\n"
+			  "                                \"PLATFORM=%.*s\"",
+			  platform->len, platform->data);
+	}
+
+	p_fprintf(f, "\n"
+		     "                        ]");
+
+	if (run->flags & PROP_SET) {
+		p_fprintf(f, ",\n"
+			     "                        \"isBackground\": true,\n"
+			     "                        \"problemMatcher\": [\n"
+			     "                                {\n"
+			     "                                        \"pattern\": [\n"
+			     "                                        {\n"
+			     "                                                \"regexp\": \".\",\n"
+			     "                                                \"file\": 1,\n"
+			     "                                                \"location\": 2,\n"
+			     "                                                \"message\": 3\n"
+			     "                                        }\n"
+			     "                                        ],\n"
+			     "                                        \"background\": {\n"
+			     "                                                \"activeOnStart\": true,\n"
+			     "                                                \"beginsPattern\": \".\",\n"
+			     "                                                \"endsPattern\": \".\",\n"
+			     "                                        }\n"
+			     "                                }\n"
+			     "                        ]");
+	}
+
+	p_fprintf(f, ",\n"
+		     "                        \"group\": {\n"
+		     "                                \"kind\": \"build\",\n"
+		     "                                \"isDefault\": true\n"
+		     "                        }\n"
+		     "                }");
+}
+
+static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *prefix, const char *action, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -46,41 +109,12 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
 
 	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
-		p_fprintf(f,
-			  "                {\n"
-			  "                        \"label\": \"Build-" NAME_PATTERN "\",\n"
-			  "                        \"type\": \"shell\",\n"
-			  "                        \"command\": \"make\",\n"
-			  "                        \"args\": [\n"
-			  "                                \"clean\",\n"
-			  "                                \"%.*s/compile\"\n"
-			  "                        ],\n"
-			  "                        \"group\": {\n"
-			  "                                \"kind\": \"build\",\n"
-			  "                                \"isDefault\": true\n"
-			  "                        }\n"
-			  "                }",
-			  NAME(NULL, NULL), name->len, name->data);
+		add_task(proj, sln_props, NULL, NULL, prefix, action, f);
 	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			p_fprintf(f,
-				  "                {\n"
-				  "                        \"label\": \"Build-" NAME_PATTERN "\",\n"
-				  "                        \"type\": \"shell\",\n"
-				  "                        \"command\": \"make\",\n"
-				  "                        \"args\": [\n"
-				  "                                \"clean\",\n"
-				  "                                \"%.*s/compile\",\n"
-				  "                                \"CONFIG=%.*s\"\n"
-				  "                        ],\n"
-				  "                        \"group\": {\n"
-				  "                                \"kind\": \"build\",\n"
-				  "                                \"isDefault\": true\n"
-				  "                        }\n"
-				  "                }",
-				  NAME(config, NULL), name->len, name->data, config->len, config->data);
+			add_task(proj, sln_props, config, NULL, prefix, action, f);
 
 			if (i < configs->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -90,22 +124,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 		for (uint i = 0; i < platforms->arr.cnt; i++) {
 			const prop_str_t *platform = arr_get(&platforms->arr, i);
 
-			p_fprintf(f,
-				  "                {\n"
-				  "                        \"label\": \"Build-" NAME_PATTERN "\",\n"
-				  "                        \"type\": \"shell\",\n"
-				  "                        \"command\": \"make\",\n"
-				  "                        \"args\": [\n"
-				  "                                \"clean\",\n"
-				  "                                \"%.*s/compile\",\n"
-				  "                                \"PLATFORM=%.*s\"\n"
-				  "                        ],\n"
-				  "                        \"group\": {\n"
-				  "                                \"kind\": \"build\",\n"
-				  "                                \"isDefault\": true\n"
-				  "                        }\n"
-				  "                }",
-				  NAME(NULL, platform), name->len, name->data, platform->len, platform->data);
+			add_task(proj, sln_props, NULL, platform, prefix, action, f);
 
 			if (i < platforms->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -118,23 +137,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 			for (uint j = 0; j < platforms->arr.cnt; j++) {
 				const prop_str_t *platform = arr_get(&platforms->arr, j);
 
-				p_fprintf(f,
-					  "                {\n"
-					  "                        \"label\": \"Build-" NAME_PATTERN "\",\n"
-					  "                        \"type\": \"shell\",\n"
-					  "                        \"command\": \"make\",\n"
-					  "                        \"args\": [\n"
-					  "                                \"clean\",\n"
-					  "                                \"%.*s/compile\",\n"
-					  "                                \"CONFIG=%.*s\",\n"
-					  "                                \"PLATFORM=%.*s\"\n"
-					  "                        ],\n"
-					  "                        \"group\": {\n"
-					  "                                \"kind\": \"build\",\n"
-					  "                                \"isDefault\": true\n"
-					  "                        }\n"
-					  "                }",
-					  NAME(config, platform), name->len, name->data, config->len, config->data, platform->len, platform->data);
+				add_task(proj, sln_props, config, platform, prefix, action, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
 					p_fprintf(f, ",\n");
@@ -146,9 +149,38 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 	return 0;
 }
 
-static int cppdbg(const proj_t *proj, const prop_str_t *outdir, const prop_str_t *config, const prop_str_t *platform, const prop_str_t *cwd, const prop_t *args, FILE *f)
+int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
+{
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	add_tasks(proj, sln_props, "Build", "compile", f);
+
+	if (type == PROJ_TYPE_EXE) {
+		p_fprintf(f, ",\n");
+		add_tasks(proj, sln_props, "Run", "run", f);
+	}
+
+	return 0;
+}
+
+static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	const prop_str_t *name = proj->name;
+
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	const prop_t *run  = &proj->props[PROJ_PROP_RUN];
+	const prop_t *wdir = &proj->props[PROJ_PROP_WDIR];
+	const prop_t *args = &proj->props[PROJ_PROP_ARGS];
+	const prop_t *elf  = &proj->props[PROJ_PROP_ELF];
+
+	prop_str_t rel_path = {
+		.cdata = proj->rel_path.path,
+		.len   = proj->rel_path.len,
+	};
+
+	const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
+	const prop_str_t *cwd	 = (wdir->flags & PROP_SET) ? &wdir->value : &rel_path;
 
 	char out[P_MAX_PATH] = { 0 };
 	char buf[P_MAX_PATH] = { 0 };
@@ -162,10 +194,18 @@ static int cppdbg(const proj_t *proj, const prop_str_t *outdir, const prop_str_t
 		  "                {\n"
 		  "                        \"name\": \"" NAME_PATTERN "\",\n"
 		  "                        \"type\": \"cppdbg\",\n"
-		  "                        \"request\": \"launch\",\n"
-		  "                        \"program\": \"%.*s%.*s\",\n"
-		  "                        \"args\": [",
-		  NAME(config, platform), out_len, out, name->len, name->data);
+		  "                        \"request\": \"launch\",\n",
+		  NAME(config, platform));
+
+	//TODO: automatically detect elf file based on dependencies
+	if (elf->flags & PROP_SET) {
+		buf_len = resolve(&elf->value, CSTR(buf), proj, config, platform, out, out_len);
+		p_fprintf(f, "                        \"program\": \"%.*s\",\n", buf_len, buf);
+	} else {
+		p_fprintf(f, "                        \"program\": \"%.*s%.*s\",\n", out_len, out, name->len, name->data);
+	}
+
+	p_fprintf(f, "                        \"args\": [");
 
 	if (args->flags & PROP_SET) {
 		p_fprintf(f, "\n");
@@ -198,9 +238,14 @@ static int cppdbg(const proj_t *proj, const prop_str_t *outdir, const prop_str_t
 		p_fprintf(f, "                        ");
 	}
 
+	p_fprintf(f, "],\n");
+
+	if (run->flags & PROP_SET) {
+		p_fprintf(f, "                        \"miDebuggerServerAddress\": \"localhost:1234\",\n");
+	}
+
 	p_fprintf(f,
-		  "],\n"
-		  "                        \"preLaunchTask\": \"Build-" NAME_PATTERN "\",\n"
+		  "                        \"preLaunchTask\": \"%s-" NAME_PATTERN "\",\n"
 		  "                        \"stopAtEntry\": false,\n"
 		  "                        \"cwd\": \"${workspaceFolder}/%.*s\",\n"
 		  "                        \"environment\": [],\n"
@@ -219,28 +264,7 @@ static int cppdbg(const proj_t *proj, const prop_str_t *outdir, const prop_str_t
 		  "                                }\n"
 		  "                        ]\n"
 		  "                }",
-		  NAME(config, platform), cwd->len, cwd->data);
-}
-
-static int f5anything(const proj_t *proj, const prop_str_t *outdir, const prop_str_t *config, const prop_str_t *platform, const prop_str_t *run, FILE *f)
-{
-	const prop_str_t *name = proj->name;
-
-	char out[P_MAX_PATH] = { 0 };
-	char buf[P_MAX_PATH] = { 0 };
-
-	const size_t out_len = resolve(outdir, CSTR(out), proj, config, platform, "", 0);
-	const size_t buf_len = resolve(run, CSTR(buf), proj, config, platform, out, out_len);
-
-	p_fprintf(f,
-		  "                {\n"
-		  "                        \"name\": \"" NAME_PATTERN "\",\n"
-		  "                        \"type\": \"f5anything\",\n"
-		  "                        \"request\": \"launch\",\n"
-		  "                        \"preLaunchTask\": \"Build-" NAME_PATTERN "\",\n"
-		  "                        \"command\": \"%.*s\",\n"
-		  "                }",
-		  NAME(config, platform), NAME(config, platform), buf_len, buf);
+		  run->flags & PROP_SET ? "Run" : "Build", NAME(config, platform), cwd->len, cwd->data);
 }
 
 int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop_t *sln_props, FILE *f)
@@ -254,33 +278,14 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 
 	const prop_t *configs	= &sln_props[SLN_PROP_CONFIGS];
 	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
-	const prop_t *run	= &proj->props[PROJ_PROP_RUN];
-	const prop_t *wdir	= &proj->props[PROJ_PROP_WDIR];
-	const prop_t *args	= &proj->props[PROJ_PROP_ARGS];
-
-	prop_str_t rel_path = {
-		.cdata = proj->rel_path.path,
-		.len   = proj->rel_path.len,
-	};
-
-	const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
-	const prop_str_t *cwd	 = (wdir->flags & PROP_SET) ? &wdir->value : &rel_path;
 
 	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
-		if (run->flags & PROP_SET) {
-			f5anything(proj, outdir, NULL, NULL, &run->value, f);
-		} else {
-			cppdbg(proj, outdir, NULL, NULL, cwd, args, f);
-		}
+		cppdbg(proj, NULL, NULL, f);
 	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			if (run->flags & PROP_SET) {
-				f5anything(proj, outdir, config, NULL, &run->value, f);
-			} else {
-				cppdbg(proj, outdir, config, NULL, cwd, args, f);
-			}
+			cppdbg(proj, config, NULL, f);
 
 			if (i < configs->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -290,11 +295,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 		for (uint i = 0; i < platforms->arr.cnt; i++) {
 			const prop_str_t *platform = arr_get(&platforms->arr, i);
 
-			if (run->flags & PROP_SET) {
-				f5anything(proj, outdir, NULL, platform, &run->value, f);
-			} else {
-				cppdbg(proj, outdir, NULL, platform, cwd, args, f);
-			}
+			cppdbg(proj, NULL, platform, f);
 
 			if (i < platforms->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -307,11 +308,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			for (uint j = 0; j < platforms->arr.cnt; j++) {
 				const prop_str_t *platform = arr_get(&platforms->arr, j);
 
-				if (run->flags & PROP_SET) {
-					f5anything(proj, outdir, config, platform, &run->value, f);
-				} else {
-					cppdbg(proj, outdir, config, platform, cwd, args, f);
-				}
+				cppdbg(proj, config, platform, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
 					p_fprintf(f, ",\n");

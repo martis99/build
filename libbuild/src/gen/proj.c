@@ -34,6 +34,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_CONFIG]   = { .name = STR("CONFIG") },
 	[PROJ_PROP_TARGET]   = { .name = STR("TARGET") },
 	[PROJ_PROP_RUN]	     = { .name = STR("RUN") },
+	[PROJ_PROP_ELF]	     = { .name = STR("ELF") },
 	[PROJ_PROP_ARGS]     = { .name = STR("ARGS") },
 };
 

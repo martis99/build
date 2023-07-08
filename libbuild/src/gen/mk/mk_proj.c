@@ -57,6 +57,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	const prop_t *intdir   = &proj->props[PROJ_PROP_INTDIR];
 	const prop_t *depends  = &proj->props[PROJ_PROP_DEPENDS];
 	const prop_t *requires = &proj->props[PROJ_PROP_REQUIRE];
+	const prop_t *run      = &proj->props[PROJ_PROP_RUN];
 
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
@@ -168,7 +169,11 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "TARGET = $(OUTDIR)%.*s\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_BIN:
-		p_fprintf(fp, "TARGET = $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
+		if (lang == (1 << LANG_ASM)) {
+			p_fprintf(fp, "TARGET = $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
+		} else {
+			p_fprintf(fp, "TARGET = $(OUTDIR)%.*s\n\n", name->len, name->data);
+		}
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
@@ -399,10 +404,16 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "SHOW = true\n\n");
 	}
 
+	p_fprintf(fp, ".PHONY: all check check_coverage %.*s compile", name->len, name->data);
+
+	if (type == PROJ_TYPE_EXE) {
+		p_fprintf(fp, " run");
+	}
+
 	p_fprintf(fp,
-		  ".PHONY: all check check_coverage %.*s compile coverage clean\n\n"
+		  " coverage clean\n\n"
 		  "all: %.*s\n\ncheck:\n",
-		  name->len, name->data, name->len, name->data);
+		  name->len, name->data);
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
@@ -449,9 +460,16 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		  "\tsudo apt install lcov\n"
 		  "endif\n"
 		  "\n%.*s: clean compile\n"
-		  "\ncompile: check $(TARGET)\n"
-		  "\ncoverage: clean check_coverage $(TARGET)\n",
-		  name->len, name->data, name->len, name->data);
+		  "\ncompile: check",
+		  name->len, name->data);
+
+	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
+		p_fprintf(fp, " $(TARGET).bin $(TARGET).elf");
+	} else {
+		p_fprintf(fp, " $(TARGET)");
+	}
+
+	p_fprintf(fp, "\n\ncoverage: clean check_coverage $(TARGET)\n");
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "\t@$(TARGET) $(ARGS)\n"
@@ -462,7 +480,11 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			      "endif\n");
 	}
 
-	p_fprintf(fp, "\n$(TARGET):");
+	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
+		p_fprintf(fp, "\n$(TARGET).bin:");
+	} else {
+		p_fprintf(fp, "\n$(TARGET):");
+	}
 
 	bool dep_bin = 1;
 
@@ -541,6 +563,26 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 
 	p_fprintf(fp, "\n");
 
+	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
+		p_fprintf(fp, "$(TARGET).elf:");
+
+		if (lang & (1 << LANG_ASM)) {
+			p_fprintf(fp, " $(OBJ_ASM)");
+		}
+
+		if (lang & (1 << LANG_C)) {
+			p_fprintf(fp, " $(OBJ_C)");
+		}
+
+		if (lang & (1 << LANG_CPP)) {
+			p_fprintf(fp, " $(OBJ_CPP)");
+		}
+
+		p_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
+			      "\t@$(TLD) -o $@ -Ttext 0x1000 $^\n"
+			      "\n");
+	}
+
 	if (lang == (1 << LANG_ASM)) {
 		p_fprintf(fp, "$(INTDIR)%%.bin: %%.asm\n"
 			      "\t@mkdir -p $(@D)\n"
@@ -563,8 +605,24 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
 
+	if (type == PROJ_TYPE_EXE) {
+		p_fprintf(fp, "run: $(TARGET)\n");
+
+		if (run->flags & PROP_SET) {
+			p_fprintf(fp, "\t%.*s\n", run->value.len, run->value.data);
+		}
+
+		p_fprintf(fp, "\n");
+	}
+
 	p_fprintf(fp, "clean:\n"
-		      "\t@$(RM) $(TARGET)");
+		      "\t@$(RM)");
+
+	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
+		p_fprintf(fp, " $(TARGET).bin $(TARGET).elf");
+	} else {
+		p_fprintf(fp, " $(TARGET)");
+	}
 
 	if (lang & (1 << LANG_ASM)) {
 		p_fprintf(fp, " $(OBJ_ASM)");

@@ -81,7 +81,7 @@ static void add_phony_make(void *key, size_t ksize, void *value, void *priv)
 	p_fprintf(priv, " %.*s", proj->name->len, proj->name->data);
 }
 
-static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, const char *action)
+static void print_action(FILE *file, const proj_t *proj, bool add_depends, bool dep_compile, const char *action)
 {
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
@@ -94,7 +94,11 @@ static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, 
 		p_fprintf(file, ".PHONY: %.*s/%s\n%.*s/%s: check", proj->name->len, proj->name->data, action, proj->name->len, proj->name->data, action);
 	}
 
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+	if (dep_compile) {
+		p_fprintf(file, " %.*s/compile", proj->name->len, proj->name->data);
+	}
+
+	if (add_depends && proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
@@ -118,7 +122,6 @@ static void print_action(FILE *file, const proj_t *proj, const prop_t *configs, 
 typedef struct add_target_make_data_s {
 	const hashmap_t *projects;
 	FILE *file;
-	const prop_t *configs;
 } add_target_make_data_t;
 
 static void add_target_make(void *key, size_t ksize, void *value, void *priv)
@@ -127,15 +130,19 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 
 	proj_t *proj = value;
 
-	print_action(data->file, proj, data->configs, NULL);
-	print_action(data->file, proj, data->configs, "clean");
-	print_action(data->file, proj, data->configs, "compile");
-	print_action(data->file, proj, data->configs, "coverage");
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	print_action(data->file, proj, 1, 0, NULL);
+	print_action(data->file, proj, 1, 0, "clean");
+	print_action(data->file, proj, 1, 0, "compile");
+	if (type == PROJ_TYPE_EXE) {
+		print_action(data->file, proj, 0, 1, "run");
+	}
+	print_action(data->file, proj, 1, 0, "coverage");
 }
 
 typedef struct add_clean_make_data_s {
 	FILE *fp;
-	const prop_t *configs;
 } add_clean_make_data_t;
 
 static void add_clean_make(void *key, size_t ksize, void *value, void *priv)
@@ -223,14 +230,12 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	add_target_make_data_t add_target_make_data = {
 		.projects = &sln->projects,
 		.file	  = file,
-		.configs  = configs,
 	};
 
 	hashmap_iterate_hc(&sln->projects, add_target_make, &add_target_make_data);
 
 	add_clean_make_data_t add_clean_make_data = {
-		.fp	 = file,
-		.configs = configs,
+		.fp = file,
 	};
 
 	p_fprintf(file, "clean: check\n");
