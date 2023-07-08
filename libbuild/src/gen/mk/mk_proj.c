@@ -312,7 +312,28 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "CXXFLAGS += $(FLAGS)\n");
 	}
 
-	if (type == PROJ_TYPE_EXE) {
+	bool dep_bin = 1;
+
+	if (depends->flags & PROP_SET) {
+		for (uint i = 0; i < depends->arr.cnt; i++) {
+			prop_str_t *dpname = arr_get(&depends->arr, i);
+
+			proj_t *dproj = NULL;
+			if (hashmap_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
+				continue;
+			}
+
+			if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_BIN) {
+				dep_bin = 0;
+				break;
+			}
+		}
+	} else {
+		dep_bin = 0;
+	}
+
+	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN)) {
 		p_fprintf(fp, "LDFLAGS +=");
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
@@ -486,11 +507,9 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "\n$(TARGET):");
 	}
 
-	bool dep_bin = 1;
-
-	if (depends->flags & PROP_SET) {
+	if (dep_bin) {
 		for (uint i = 0; i < depends->arr.cnt; i++) {
-			prop_str_t *dpname = arr_get(&depends->arr, i);
+			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			proj_t *dproj = NULL;
 			if (hashmap_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
@@ -498,33 +517,14 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 				continue;
 			}
 
-			if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_BIN) {
-				dep_bin = 0;
-				break;
-			}
+			const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
+
+			buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
+			p_fprintf(fp, " ");
+			print_rel_path(fp, dproj, buf, buf_len);
+
+			p_fprintf(fp, "%.*s.bin", dproj->name->len, dproj->name->data);
 		}
-
-		if (dep_bin) {
-			for (uint i = 0; i < depends->arr.cnt; i++) {
-				const prop_str_t *dpname = arr_get(&depends->arr, i);
-
-				proj_t *dproj = NULL;
-				if (hashmap_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
-					ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
-					continue;
-				}
-
-				const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
-
-				buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-				p_fprintf(fp, " ");
-				print_rel_path(fp, dproj, buf, buf_len);
-
-				p_fprintf(fp, "%.*s.bin", dproj->name->len, dproj->name->data);
-			}
-		}
-	} else {
-		dep_bin = 0;
 	}
 
 	if (lang & (1 << LANG_ASM)) {
@@ -549,7 +549,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		if (lang == (1 << LANG_ASM)) {
 			p_fprintf(fp, "\t@cp $^ $@\n");
 		} else {
-			p_fprintf(fp, "\t@$(TLD) -o $@ -Ttext 0x1000 $^ --oformat binary\n");
+			p_fprintf(fp, "\t@$(TLD) -o $@ -Ttext 0x1000 $^ --oformat binary $(LDFLAGS)\n");
 		}
 		break;
 	case PROJ_TYPE_EXE:
@@ -579,7 +579,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		}
 
 		p_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
-			      "\t@$(TLD) -o $@ -Ttext 0x1000 $^\n"
+			      "\t@$(TLD) -o $@ -Ttext 0x1000 $^ $(LDFLAGS)\n"
 			      "\n");
 	}
 
