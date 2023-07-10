@@ -267,6 +267,31 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 		  run->flags & PROP_SET ? "Run" : "Build", NAME(config, platform), cwd->len, cwd->data);
 }
 
+static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+{
+	const prop_str_t *name = proj->name;
+
+	const prop_t *run = &proj->props[PROJ_PROP_RUN];
+
+	p_fprintf(f,
+		  "                {\n"
+		  "                        \"name\": \"" NAME_PATTERN "\",\n"
+		  "                        \"type\": \"f5anything\",\n"
+		  "                        \"request\": \"launch\",\n"
+		  "                        \"preLaunchTask\": \"%s-" NAME_PATTERN "\",\n"
+		  "                }",
+		  NAME(config, platform), run->flags & PROP_SET ? "Run" : "Build", NAME(config, platform));
+}
+
+static int add_launch(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+{
+	if (config && cstr_cmp(config->data, config->len, CSTR("Release"))) {
+		f5anything(proj, config, platform, f);
+	} else {
+		cppdbg(proj, config, platform, f);
+	}
+}
+
 int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
@@ -280,12 +305,12 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
 
 	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
-		cppdbg(proj, NULL, NULL, f);
+		add_launch(proj, NULL, NULL, f);
 	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			cppdbg(proj, config, NULL, f);
+			add_launch(proj, config, NULL, f);
 
 			if (i < configs->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -295,7 +320,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 		for (uint i = 0; i < platforms->arr.cnt; i++) {
 			const prop_str_t *platform = arr_get(&platforms->arr, i);
 
-			cppdbg(proj, NULL, platform, f);
+			add_launch(proj, NULL, platform, f);
 
 			if (i < platforms->arr.cnt - 1) {
 				p_fprintf(f, ",\n");
@@ -308,7 +333,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			for (uint j = 0; j < platforms->arr.cnt; j++) {
 				const prop_str_t *platform = arr_get(&platforms->arr, j);
 
-				cppdbg(proj, config, platform, f);
+				add_launch(proj, config, platform, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
 					p_fprintf(f, ",\n");

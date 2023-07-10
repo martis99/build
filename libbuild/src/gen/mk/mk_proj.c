@@ -58,6 +58,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	const prop_t *depends  = &proj->props[PROJ_PROP_DEPENDS];
 	const prop_t *requires = &proj->props[PROJ_PROP_REQUIRE];
 	const prop_t *run      = &proj->props[PROJ_PROP_RUN];
+	const prop_t *drun     = &proj->props[PROJ_PROP_DRUN];
 
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
@@ -234,61 +235,23 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		}
 	}
 
+	if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
+		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
+
+		for (uint k = 0; k < defines->cnt; k++) {
+			prop_str_t *define = arr_get(defines, k);
+
+			p_fprintf(fp, " -D%.*s", define->len, define->data);
+		}
+	}
+
 	p_fprintf(fp, "\n");
 
 	if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, "ASMFLAGS =");
+		p_fprintf(fp, "ASMFLAGS += $(FLAGS)");
 
 		if (lang == (1 << LANG_ASM)) {
-			p_fprintf(fp, " -f bin");
-		}
-
-		//TODO: Remove
-		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-			const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
-
-			for (uint i = 0; i < sources->cnt; i++) {
-				prop_str_t *source = arr_get(sources, i);
-
-				buf_len = resolve(source, CSTR(buf), proj);
-				p_fprintf(fp, " -i%.*s", buf_len, buf);
-			}
-		}
-
-		if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
-
-			for (uint i = 0; i < includes->cnt; i++) {
-				prop_str_t *include = arr_get(includes, i);
-
-				buf_len = resolve(include, CSTR(buf), proj);
-				p_fprintf(fp, " -i%.*s", buf_len, buf);
-			}
-		}
-
-		for (uint i = 0; i < proj->includes.cnt; i++) {
-			const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
-
-			if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-				const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
-
-				for (uint i = 0; i < includes->cnt; i++) {
-					prop_str_t *include = arr_get(includes, i);
-
-					char rel_path[P_MAX_PATH] = { 0 };
-					size_t rel_path_len;
-
-					buf_len	     = resolve(include, CSTR(buf), iproj);
-					rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
-					p_fprintf(fp, " -i$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
-				}
-			}
-
-			if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-				buf_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(buf), iproj);
-				p_fprintf(fp, " -i");
-				print_rel_path(fp, iproj, buf, buf_len);
-			}
+			p_fprintf(fp, " -fbin");
 		}
 
 		p_fprintf(fp, "\n");
@@ -449,15 +412,20 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 
 		if (lang != (1 << LANG_ASM)) {
 			p_fprintf(fp, "ifeq ($(PLATFORM), x86_64)\n"
-				      "\t$(eval ASMFLAGS += -f elf64)\n"
+				      "\t$(eval ASMFLAGS += -felf64)\n"
 				      "else\n"
-				      "\t$(eval ASMFLAGS += -f elf32)\n"
+				      "\t$(eval ASMFLAGS += -felf32)\n"
 				      "endif\n");
 		}
 	}
 
 	if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "ifeq (, $(shell which gcc))\n"
+		p_fprintf(fp, "ifeq ($(PLATFORM), x86_64)\n"
+			      "\t$(eval CFLAGS += -m64)\n"
+			      "else\n"
+			      "\t$(eval CFLAGS += -m32)\n"
+			      "endif\n"
+			      "ifeq (, $(shell which gcc))\n"
 			      "\tsudo apt install gcc\n"
 			      "endif\n");
 	}
@@ -549,7 +517,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		if (lang == (1 << LANG_ASM)) {
 			p_fprintf(fp, "\t@cp $^ $@\n");
 		} else {
-			p_fprintf(fp, "\t@$(TLD) -o $@ -Ttext 0x1000 $^ --oformat binary $(LDFLAGS)\n");
+			p_fprintf(fp, "\t@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)\n");
 		}
 		break;
 	case PROJ_TYPE_EXE:
@@ -579,7 +547,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		}
 
 		p_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
-			      "\t@$(TLD) -o $@ -Ttext 0x1000 $^ $(LDFLAGS)\n"
+			      "\t@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)\n"
 			      "\n");
 	}
 
@@ -608,7 +576,15 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	if (type == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "run: $(TARGET)\n");
 
-		if (run->flags & PROP_SET) {
+		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
+			p_fprintf(fp,
+				  "ifeq ($(CONFIG), Debug)\n"
+				  "\t%.*s\n"
+				  "else\n"
+				  "\t%.*s\n"
+				  "endif\n",
+				  drun->value.len, drun->value.data, run->value.len, run->value.data);
+		} else if (run->flags & PROP_SET) {
 			p_fprintf(fp, "\t%.*s\n", run->value.len, run->value.data);
 		}
 
