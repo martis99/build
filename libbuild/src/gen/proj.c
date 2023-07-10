@@ -27,6 +27,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_OUTDIR]   = { .name = STR("OUTDIR") },
 	[PROJ_PROP_INTDIR]   = { .name = STR("INTDIR") },
 	[PROJ_PROP_CFLAGS]   = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
+	[PROJ_PROP_CCFLAGS]  = { .name = STR("CCFLAGS"), .arr = 1 },
 	[PROJ_PROP_LDFLAGS]  = { .name = STR("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .arr = 1 },
 	[PROJ_PROP_LINK]     = { .name = STR("LINK"), .arr = 1 },
 	[PROJ_PROP_EXPORT]   = { .name = STR("EXPORT"), .arr = 1 },

@@ -190,9 +190,9 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		.sln_props = sln->props,
 	};
 
-	p_fprintf(file, "SLNDIR = $(CURDIR)\n"
-			"TLD = $(LD)\n"
-			"TCC = $(CC)\n"
+	p_fprintf(file, "SLNDIR := $(CURDIR)\n"
+			"TLD := $(LD)\n"
+			"TCC := $(CC)\n"
 			"\n");
 
 	hashmap_iterate_hc(&sln->projects, add_export, file);
@@ -200,7 +200,7 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	p_fprintf(file, "\nexport\n\n");
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		p_fprintf(file, "CONFIGS =");
+		p_fprintf(file, "CONFIGS :=");
 
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
@@ -208,10 +208,10 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		}
 
 		prop_str_t *config = arr_get(&configs->arr, 0);
-		p_fprintf(file, "\nCONFIG = %.*s\n\n", config->len, config->data);
+		p_fprintf(file, "\nCONFIG := %.*s\n\n", config->len, config->data);
 	}
 
-	p_fprintf(file, "SHOW = true\n\n");
+	p_fprintf(file, "SHOW := true\n\n");
 
 	p_fprintf(file, ".PHONY: all check clean\n\nall:");
 
