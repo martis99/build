@@ -49,6 +49,7 @@ typedef enum proj_type_e {
 	PROJ_TYPE_EXE,
 	PROJ_TYPE_EXT,
 	PROJ_TYPE_BIN,
+	PROJ_TYPE_FAT12,
 
 	__PROJ_TYPE_MAX,
 } proj_type_t;
@@ -60,6 +61,7 @@ static const str_t s_proj_types[] = {
 	[PROJ_TYPE_EXE]	    = { CSTR("EXE") },
 	[PROJ_TYPE_EXT]	    = { CSTR("EXT") },
 	[PROJ_TYPE_BIN]	    = { CSTR("BIN") },
+	[PROJ_TYPE_FAT12]   = { CSTR("FAT12") },
 };
 // clang-format on
 

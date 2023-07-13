@@ -99,7 +99,9 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 	sln_t *sln   = priv;
 	proj_t *proj = value;
 
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE || proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_BIN) {
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
 		arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
 		arr_init(&proj->all_depends, depends->cap * 2, sizeof(proj_t *));
 		get_all_depends(&proj->all_depends, proj, &sln->projects);

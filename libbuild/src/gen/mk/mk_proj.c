@@ -171,11 +171,10 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_BIN:
-		if (lang == (1 << LANG_ASM)) {
-			p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
-		} else {
-			p_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
-		}
+		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
+		break;
+	case PROJ_TYPE_FAT12:
+		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.img\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
@@ -314,7 +313,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		dep_bin = 0;
 	}
 
-	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN)) {
+	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
 		p_fprintf(fp, "LDFLAGS +=");
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
@@ -409,13 +408,13 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			      "\n");
 	}
 
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+	if (type == PROJ_TYPE_EXE) {
 		p_fprintf(fp, "SHOW := true\n\n");
 	}
 
 	p_fprintf(fp, ".PHONY: all check check_coverage %.*s compile", name->len, name->data);
 
-	if (type == PROJ_TYPE_EXE) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
 		p_fprintf(fp, " run");
 	}
 
@@ -433,6 +432,12 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 		p_fprintf(fp, "ifeq (, $(shell which gcc))\n"
 			      "\tsudo apt install gcc\n"
+			      "endif\n");
+	}
+
+	if (type == PROJ_TYPE_FAT12) {
+		p_fprintf(fp, "ifeq (, $(shell which mcopy))\n"
+			      "\tsudo apt install mtools\n"
 			      "endif\n");
 	}
 
@@ -458,8 +463,8 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		  "\ncompile: check",
 		  name->len, name->data);
 
-	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
-		p_fprintf(fp, " $(TARGET).bin $(TARGET).elf");
+	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
+		p_fprintf(fp, " $(TARGET) $(TARGET).elf");
 	} else {
 		p_fprintf(fp, " $(TARGET)");
 	}
@@ -476,7 +481,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	}
 
 	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
-		p_fprintf(fp, "\n$(TARGET).bin:");
+		p_fprintf(fp, "\n$(TARGET):");
 	} else {
 		p_fprintf(fp, "\n$(TARGET):");
 	}
@@ -520,24 +525,31 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		p_fprintf(fp, "\t@ar rcs $@ $^\n");
 		break;
 	case PROJ_TYPE_BIN:
-		if (lang == (1 << LANG_ASM)) {
-			p_fprintf(fp, "\t@cp $^ $@\n");
+		if (lang == (1 << LANG_ASM) || dep_bin) {
+			p_fprintf(fp, "\t@cat $^ > $@\n");
 		} else {
 			p_fprintf(fp, "\t@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)\n");
 		}
 		break;
 	case PROJ_TYPE_EXE:
-		if (dep_bin) {
-			p_fprintf(fp, "\t@cat $^ > $@\n");
-		} else {
-			p_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
-		}
+		p_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
+		break;
+	case PROJ_TYPE_FAT12:
+		p_fprintf(fp, "# create empty 1.44MB image (block size = 512, block count = 2880)\n"
+			      "\tdd if=/dev/zero of=$@ bs=512 count=2880\n"
+			      "# create file system\n"
+			      "\tmkfs.fat -F12 -n \"NBOS\" $@\n"
+			      "# put first binary to the first sector of the disk\n"
+			      "\tdd if=$< of=$@ conv=notrunc\n"
+			      "# copy files to the image\n"
+			      "\tmcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\"\n"
+			      "\n");
 		break;
 	}
 
 	p_fprintf(fp, "\n");
 
-	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
+	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
 		p_fprintf(fp, "$(TARGET).elf:");
 
 		if (lang & (1 << LANG_ASM)) {
@@ -579,7 +591,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
 
-	if (type == PROJ_TYPE_EXE) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
 		p_fprintf(fp, "run: $(TARGET)\n");
 
 		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
@@ -600,8 +612,8 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	p_fprintf(fp, "clean:\n"
 		      "\t@$(RM)");
 
-	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
-		p_fprintf(fp, " $(TARGET).bin $(TARGET).elf");
+	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
+		p_fprintf(fp, " $(TARGET) $(TARGET).elf");
 	} else {
 		p_fprintf(fp, " $(TARGET)");
 	}

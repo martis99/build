@@ -32,7 +32,9 @@ static void generate_launch(void *key, size_t ksize, void *value, const void *pr
 	const generate_build_priv_t *p = priv;
 	const proj_t *proj	       = value;
 
-	if (proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXE) {
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
 		return;
 	}
 

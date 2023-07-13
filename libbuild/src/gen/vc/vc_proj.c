@@ -155,7 +155,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 
 	add_tasks(proj, sln_props, "Build", "compile", f);
 
-	if (type == PROJ_TYPE_EXE) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
 		p_fprintf(f, ",\n");
 		add_tasks(proj, sln_props, "Run", "run", f);
 	}
@@ -297,7 +297,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	if (type != PROJ_TYPE_EXE) {
+	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
 		return 0;
 	}
 

@@ -98,7 +98,9 @@ static void print_action(FILE *file, const proj_t *proj, bool add_depends, bool 
 		p_fprintf(file, " %.*s/compile", proj->name->len, proj->name->data);
 	}
 
-	if (add_depends && proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+	if (add_depends && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
@@ -110,10 +112,10 @@ static void print_action(FILE *file, const proj_t *proj, bool add_depends, bool 
 		}
 	}
 
-	if (action == NULL) {
-		p_fprintf(file, "\n\t@$(MAKE) -C %.*s", buf_len, buf);
-	} else {
-		p_fprintf(file, "\n\t@$(MAKE) -C %.*s %s", buf_len, buf, action);
+	p_fprintf(file, "\n\t@$(MAKE) -C %.*s", buf_len, buf);
+
+	if (action) {
+		p_fprintf(file, " %s", action);
 	}
 
 	p_fprintf(file, "\n\n");
@@ -135,7 +137,7 @@ static void add_target_make(void *key, size_t ksize, void *value, void *priv)
 	print_action(data->file, proj, 1, 0, NULL);
 	print_action(data->file, proj, 1, 0, "clean");
 	print_action(data->file, proj, 1, 0, "compile");
-	if (type == PROJ_TYPE_EXE) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
 		print_action(data->file, proj, 0, 1, "run");
 	}
 	print_action(data->file, proj, 1, 0, "coverage");
