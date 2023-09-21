@@ -18,7 +18,7 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 		      size_t outdir_len)
 {
 	size_t buf_len = prop->len;
-	mem_cpy(CSTR(buf), prop->data, prop->len);
+	mem_cpy(buf, buf_size, prop->data, prop->len);
 
 	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
@@ -98,6 +98,8 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 		     "                                \"isDefault\": true\n"
 		     "                        }\n"
 		     "                }");
+
+	return 0;
 }
 
 static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *prefix, const char *action, FILE *f)
@@ -265,6 +267,8 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 		  "                        ]\n"
 		  "                }",
 		  run->flags & PROP_SET ? "Run" : "Build", NAME(config, platform), cwd->len, cwd->data);
+
+	return 0;
 }
 
 static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
@@ -281,14 +285,16 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 		  "                        \"preLaunchTask\": \"%s-" NAME_PATTERN "\",\n"
 		  "                }",
 		  NAME(config, platform), run->flags & PROP_SET ? "Run" : "Build", NAME(config, platform));
+
+	return 0;
 }
 
 static int add_launch(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	if (config && cstr_eq(config->data, config->len, CSTR("Release"))) {
-		f5anything(proj, config, platform, f);
+		return f5anything(proj, config, platform, f);
 	} else {
-		cppdbg(proj, config, platform, f);
+		return cppdbg(proj, config, platform, f);
 	}
 }
 

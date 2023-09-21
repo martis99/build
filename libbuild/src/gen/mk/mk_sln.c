@@ -21,7 +21,7 @@ static const var_pol_t vars = {
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
 	size_t buf_len = prop->len;
-	mem_cpy(CSTR(buf), prop->data, prop->len);
+	mem_cpy(buf, buf_size, prop->data, prop->len);
 
 	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);

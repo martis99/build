@@ -25,7 +25,7 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 {
 	size_t buf_len;
 
-	buf_len = convert_slash(CSTR(buf), prop->data, prop->len);
+	buf_len = convert_slash(buf, buf_size, prop->data, prop->len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
@@ -60,11 +60,9 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 	char enclude[P_MAX_PATH] = { 0 };
 	char buf[P_MAX_PATH]	 = { 0 };
-	char buf2[P_MAX_PATH]	 = { 0 };
 
 	size_t enclude_len;
 	size_t buf_len;
-	size_t buf2_len;
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 		enclude_len = convert_slash(CSTR(enclude), proj->props[PROJ_PROP_ENCLUDE].value.data, proj->props[PROJ_PROP_ENCLUDE].value.len);
