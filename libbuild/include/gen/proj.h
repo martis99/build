@@ -5,7 +5,7 @@
 
 #include "arr.h"
 #include "cstr.h"
-#include "hash_map.h"
+#include "dict.h"
 #include "path.h"
 #include "str.h"
 
@@ -56,12 +56,12 @@ typedef enum proj_type_e {
 
 // clang-format off
 static const str_t s_proj_types[] = {
-	[PROJ_TYPE_UNKNOWN] = { CSTR("") },
-	[PROJ_TYPE_LIB]	    = { CSTR("LIB") },
-	[PROJ_TYPE_EXE]	    = { CSTR("EXE") },
-	[PROJ_TYPE_EXT]	    = { CSTR("EXT") },
-	[PROJ_TYPE_BIN]	    = { CSTR("BIN") },
-	[PROJ_TYPE_FAT12]   = { CSTR("FAT12") },
+	[PROJ_TYPE_UNKNOWN] = STRS(""),
+	[PROJ_TYPE_LIB]	    = STRS("LIB"),
+	[PROJ_TYPE_EXE]	    = STRS("EXE"),
+	[PROJ_TYPE_EXT]	    = STRS("EXT"),
+	[PROJ_TYPE_BIN]	    = STRS("BIN"),
+	[PROJ_TYPE_FAT12]   = STRS("FAT12"),
 };
 // clang-format on
 
@@ -76,10 +76,10 @@ typedef enum lang_e {
 
 // clang-format off
 static const str_t s_langs[] = {
-	[LANG_NONE]    = { CSTR("NONE") },
-	[LANG_ASM]     = { CSTR("ASM") },
-	[LANG_C]       = { CSTR("C") },
-	[LANG_CPP]     = { CSTR("CPP") },
+	[LANG_NONE]    = STRS("NONE"),
+	[LANG_ASM]     = STRS("ASM"),
+	[LANG_C]       = STRS("C"),
+	[LANG_CPP]     = STRS("CPP"),
 };
 // clang-format on
 
@@ -92,9 +92,9 @@ typedef enum charset_e {
 } charset_t;
 
 static const str_t s_charsets[] = {
-	[CHARSET_UNKNOWN]    = { CSTR("") },
-	[CHARSET_UNICODE]    = { CSTR("Unicode") },
-	[CHARSET_MULTI_BYTE] = { CSTR("MultiByte") },
+	[CHARSET_UNKNOWN]    = STRS(""),
+	[CHARSET_UNICODE]    = STRS("Unicode"),
+	[CHARSET_MULTI_BYTE] = STRS("MultiByte"),
 };
 
 typedef enum cflag_e {
@@ -106,9 +106,9 @@ typedef enum cflag_e {
 } cflag_t;
 
 static const str_t s_cflags[] = {
-	[CFLAG_NONE]	     = { CSTR("NONE") },
-	[CFLAG_STD_C99]	     = { CSTR("STD_C99") },
-	[CFLAG_FREESTANDING] = { CSTR("FREESTANDING") },
+	[CFLAG_NONE]	     = STRS("NONE"),
+	[CFLAG_STD_C99]	     = STRS("STD_C99"),
+	[CFLAG_FREESTANDING] = STRS("FREESTANDING"),
 };
 
 typedef enum ldflag_e {
@@ -124,13 +124,13 @@ typedef enum ldflag_e {
 } ldflag_t;
 
 static const str_t s_ldflags[] = {
-	[LDFLAG_NONE]			 = { CSTR("NONE") },
-	[LDFLAG_WHOLEARCHIVE]		 = { CSTR("WHOLEARCHIVE") },
-	[LDFLAG_ALLOWMULTIPLEDEFINITION] = { CSTR("ALLOWMULTIPLEDEFINITION") },
-	[LDFLAG_MATH]			 = { CSTR("MATH") },
-	[LDFLAG_X11]			 = { CSTR("X11") },
-	[LDFLAG_GL]			 = { CSTR("GL") },
-	[LDFLAG_GLX]			 = { CSTR("GLX") },
+	[LDFLAG_NONE]			 = STRS("NONE"),
+	[LDFLAG_WHOLEARCHIVE]		 = STRS("WHOLEARCHIVE"),
+	[LDFLAG_ALLOWMULTIPLEDEFINITION] = STRS("ALLOWMULTIPLEDEFINITION"),
+	[LDFLAG_MATH]			 = STRS("MATH"),
+	[LDFLAG_X11]			 = STRS("X11"),
+	[LDFLAG_GL]			 = STRS("GL"),
+	[LDFLAG_GLX]			 = STRS("GLX"),
 };
 
 typedef struct proj_s {

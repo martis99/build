@@ -4,10 +4,10 @@
 
 #include "common.h"
 
-#include "c_md5.h"
+#include "md5.h"
 
 static const prop_pol_t s_dir_props[] = {
-	[DIR_PROP_DIRS] = { .name = STR("DIRS"), .arr = 1 },
+	[DIR_PROP_DIRS] = { .name = STRS("DIRS"), .arr = 1 },
 };
 
 static int add_dir(path_t *path, const char *folder, void *priv)
@@ -16,11 +16,11 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 
 	prop_str_t dir = {
 		.path = NULL,
-		.data = m_calloc(folder_len + 1, sizeof(char)),
+		.data = mem_calloc(folder_len + 1, sizeof(char)),
 		.len  = folder_len,
 	};
 
-	m_memcpy(dir.data, dir.len, folder, folder_len);
+	mem_cpy(dir.data, dir.len, folder, folder_len);
 	arr_app(priv, &dir);
 	return 0;
 }
@@ -39,7 +39,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	dir->parent = parent;
 
-	if (path_child(&dir->file_path, CSTR("Directory.txt"))) {
+	if (path_child(&dir->file_path, CSTR("Directory.txt")) == NULL) {
 		return 1;
 	}
 
@@ -65,7 +65,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 #if defined(C_LINUX)
 	convert_backslash((char *)dir->dir.path, dir->dir.len, dir->dir.path, dir->dir.len);
 #endif
-	c_md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
+	md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
 
 	arr_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
@@ -84,7 +84,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		if (folder_exists(child_path.path)) {
 			int r = on_dir(&child_path, dir->data, &read_dir_data);
 			if (r == -1) {
-				m_free(dir->data, dir->len + 1);
+				mem_free(dir->data, dir->len + 1);
 				dir->data = NULL;
 			} else if (r) {
 				ret	       = 1;
@@ -120,21 +120,18 @@ void dir_print(dir_t *dir)
 	props_print(dir->props, s_dir_props, sizeof(s_dir_props));
 }
 
-static int free_dir(const arr_t *arr, uint index, void *value, int ret, void *priv)
-{
-	prop_str_t *dir = value;
-	if (dir->data == NULL) {
-		return ret + 1;
-	}
-
-	m_free(dir->data, dir->len + 1);
-	return ret;
-}
-
 void dir_free(dir_t *dir)
 {
 	if (!(dir->props[DIR_PROP_DIRS].flags & PROP_SET)) {
-		arr_iterate(&dir->props[DIR_PROP_DIRS].arr, free_dir, 0, NULL);
+		prop_str_t *prop = NULL;
+		arr_foreach(&dir->props[DIR_PROP_DIRS].arr, prop)
+		{
+			if (prop->data == NULL) {
+				continue;
+			}
+
+			mem_free(prop->data, prop->len + 1);
+		}
 	}
 	props_free(dir->props, s_dir_props, sizeof(s_dir_props));
 }

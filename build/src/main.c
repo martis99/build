@@ -70,8 +70,8 @@ typedef int (*gen_fn)(const sln_t *sln, const path_t *path);
 
 int main(int argc, const char **argv)
 {
-	m_stats_t m_stats = { 0 };
-	m_init(&m_stats);
+	mem_stats_t mem_stats = { 0 };
+	mem_init(&mem_stats);
 
 	const char *name	= "build";
 	const char *description = "Build solution";
@@ -134,14 +134,14 @@ int main(int argc, const char **argv)
 	};
 	// clang-format on
 
-	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params)) {
+	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params, stdout)) {
 		return 1;
 	}
 
 	build = build ? build : solution;
 
 	path_t sln_dir = { 0 };
-	if (path_init(&sln_dir, solution, cstr_len(solution))) {
+	if (path_init(&sln_dir, solution, cstr_len(solution)) == NULL) {
 		return 1;
 	}
 
@@ -153,7 +153,7 @@ int main(int argc, const char **argv)
 	sln_print(&sln);
 
 	path_t build_dir = { 0 };
-	if (path_init(&build_dir, build, cstr_len(build))) {
+	if (path_init(&build_dir, build, cstr_len(build)) == NULL) {
 		return 1;
 	}
 
@@ -163,6 +163,6 @@ int main(int argc, const char **argv)
 
 	sln_free(&sln);
 
-	m_print(stdout);
+	mem_print(stdout);
 	return ret;
 }

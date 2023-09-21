@@ -15,7 +15,7 @@
 static uint val_to_mask(const prop_str_t *val, const str_t *table, size_t table_len)
 {
 	for (size_t i = 0; i < table_len; i++) {
-		if (cstr_cmp(table[i].data, table[i].len, val->data, val->len)) {
+		if (cstr_eq(table[i].data, table[i].len, val->data, val->len)) {
 			return (uint)i;
 		}
 	}
@@ -28,7 +28,7 @@ static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t
 {
 	str_t platform = { 0 };
 	;
-	if (!cstrn_cmp(value->data, value->len, CSTR("http"), 4) && !str_chr(value, &platform, value, ':') && !str_eq_cstr(&platform, CSTR(PLATFORM))) {
+	if (!cstr_eqn(value->data, value->len, CSTR("http"), 4) && !str_chr(*value, &platform, value, ':') && !str_eqc(platform, CSTR(PLATFORM))) {
 		return 1;
 	}
 
@@ -58,7 +58,7 @@ static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_
 	int end	    = 0;
 
 	while (!end) {
-		if (str_cstr(&value, &value, &next, CSTR(", "))) {
+		if (str_cstr(value, &value, &next, CSTR(", "))) {
 			value.len = (size_t)(arr->data + arr->len - value.data);
 			end	  = 1;
 		}
@@ -82,7 +82,7 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 	str_t name  = { 0 };
 	str_t value = { 0 };
 
-	if (str_cstr(line, &name, &value, CSTR(": "))) {
+	if (str_cstr(*line, &name, &value, CSTR(": "))) {
 		ERR_SYNTAX("missing ': '", data.path, data.line, 0);
 		return 1;
 	}
@@ -100,7 +100,7 @@ static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_po
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
 	for (size_t i = 0; i < props_pol_len; i++) {
 		const prop_pol_t *pol = &props_pol[i];
-		if (str_eq_str(&name, &pol->name)) {
+		if (str_eq(name, pol->name)) {
 			if (props[i].flags & PROP_SET) {
 				ERR_LOGICS("property redefinition", data.path, data.line, 0);
 				return 1;
@@ -129,7 +129,7 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 {
 	int ret = 0;
 
-	m_memset(props, 0, props_pol_size / sizeof(prop_pol_t) * sizeof(prop_t));
+	mem_set(props, 0, props_pol_size / sizeof(prop_pol_t) * sizeof(prop_t));
 
 	data.line = 0;
 
@@ -141,8 +141,8 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 	int end	   = 0;
 
 	while (!end) {
-		if (str_chr(&line, &line, &next, '\n')) {
-			str_chr(&line, &line, &next, '\0');
+		if (str_chr(line, &line, &next, '\n')) {
+			str_chr(line, &line, &next, '\0');
 			end = 1;
 		}
 
@@ -181,9 +181,9 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 	INFF();
 }
 
-int prop_cmp(const prop_str_t *l, const prop_str_t *r)
+int prop_eq(const prop_str_t *l, const prop_str_t *r)
 {
-	return cstr_cmp(l->data, l->len, r->data, r->len);
+	return cstr_eq(l->data, l->len, r->data, r->len);
 }
 
 void prop_print_arr(const prop_t *prop)
@@ -240,7 +240,7 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 
 size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 {
-	m_memcpy(dst, dst_len, src, src_len);
+	mem_cpy(dst, dst_len, src, src_len);
 	for (size_t i = 0; i < src_len; i++) {
 		if (dst[i] == '\\') {
 			dst[i] = '/';
@@ -251,7 +251,7 @@ size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
 
 size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_len)
 {
-	m_memcpy(dst, dst_len, src, src_len);
+	mem_cpy(dst, dst_len, src, src_len);
 	for (size_t i = 0; i < src_len; i++) {
 		if (dst[i] == '/') {
 			dst[i] = '\\';

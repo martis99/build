@@ -3,7 +3,7 @@
 
 #include "prop.h"
 
-#include "hash_map.h"
+#include "dict.h"
 #include "path.h"
 
 typedef enum sln_prop_e {
@@ -28,8 +28,8 @@ typedef struct sln_s {
 	prop_str_t data;
 	prop_t props[__SLN_PROP_MAX];
 	char guid[37];
-	hashmap_t projects;
-	hashmap_t dirs;
+	dict_t projects;
+	dict_t dirs;
 } sln_t;
 
 int sln_read(sln_t *sln, const path_t *path);

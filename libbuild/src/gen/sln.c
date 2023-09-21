@@ -5,19 +5,19 @@
 
 #include "common.h"
 
-#include "c_md5.h"
+#include "md5.h"
 
 static const prop_pol_t s_sln_props[] = {
-	[SLN_PROP_NAME]	     = { .name = STR("NAME"), },
-	[SLN_PROP_LANGS]     = { .name = STR("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
-	[SLN_PROP_DIRS]	     = { .name = STR("DIRS"),  .arr = 1 },
-	[SLN_PROP_STARTUP]   = { .name = STR("STARTUP"), },
-	[SLN_PROP_CONFIGS]   = { .name = STR("CONFIGS"),.arr = 1 },
-	[SLN_PROP_PLATFORMS] = { .name = STR("PLATFORMS"), .arr = 1 },
-	[SLN_PROP_CHARSET]   = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[SLN_PROP_CFLAGS]    = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
-	[SLN_PROP_OUTDIR]    = { .name = STR("OUTDIR"), .def = STR("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\")},
-	[SLN_PROP_INTDIR]    = { .name = STR("INTDIR"), .def = STR("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\int\\")},
+	[SLN_PROP_NAME]	     = { .name = STRS("NAME"), },
+	[SLN_PROP_LANGS]     = { .name = STRS("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
+	[SLN_PROP_DIRS]	     = { .name = STRS("DIRS"),  .arr = 1 },
+	[SLN_PROP_STARTUP]   = { .name = STRS("STARTUP"), },
+	[SLN_PROP_CONFIGS]   = { .name = STRS("CONFIGS"),.arr = 1 },
+	[SLN_PROP_PLATFORMS] = { .name = STRS("PLATFORMS"), .arr = 1 },
+	[SLN_PROP_CHARSET]   = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[SLN_PROP_CFLAGS]    = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
+	[SLN_PROP_OUTDIR]    = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\")},
+	[SLN_PROP_INTDIR]    = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\int\\")},
 };
 
 typedef struct read_dir_data_s {
@@ -32,20 +32,20 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	MSG("entering directory: %s", path->path);
 
 	path_t file_path = *path;
-	if (path_child(&file_path, CSTR("Project.txt"))) {
+	if (path_child(&file_path, CSTR("Project.txt")) == NULL) {
 		return 1;
 	}
 
 	read_dir_data_t *data = priv;
 	if (file_exists(file_path.path)) {
-		proj_t *proj = m_calloc(1, sizeof(proj_t));
+		proj_t *proj = mem_calloc(1, sizeof(proj_t));
 		ret += proj_read(proj, &data->sln->path, path, data->parent, data->sln->props);
 		const prop_str_t *name = proj->name;
-		if (hashmap_get(&data->sln->projects, name->data, name->len, NULL)) {
-			hashmap_set(&data->sln->projects, name->data, name->len, proj);
+		if (dict_get(&data->sln->projects, name->data, name->len, NULL)) {
+			dict_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
 			proj_free(proj);
-			m_free(proj, sizeof(proj_t));
+			mem_free(proj, sizeof(proj_t));
 			return -1;
 		}
 
@@ -53,52 +53,49 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	}
 
 	path_set_len(&file_path, path->len);
-	if (path_child(&file_path, CSTR("Directory.txt"))) {
+	if (path_child(&file_path, CSTR("Directory.txt")) == NULL) {
 		return 1;
 	}
 
-	dir_t *dir = m_calloc(1, sizeof(dir_t));
-	if (hashmap_get(&data->sln->dirs, path->path, path->len, NULL)) {
-		hashmap_set(&data->sln->dirs, path->path, path->len, dir);
+	dir_t *dir = mem_calloc(1, sizeof(dir_t));
+	if (dict_get(&data->sln->dirs, path->path, path->len, NULL)) {
+		dict_set(&data->sln->dirs, path->path, path->len, dir);
 		ret += dir_read(dir, &data->sln->path, path, read_dir, data->parent, data);
 	} else {
 		//ERR_LOGICS("Direcotry '%.*s' with the same path already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
-		m_free(dir, sizeof(dir_t));
+		mem_free(dir, sizeof(dir_t));
 	}
 
 	return ret;
 }
 
-static int proj_cmp_name(const void *proj, const void *name)
+static int proj_eq_name(const void *proj, const void *name)
 {
-	return prop_cmp((*(const proj_t **)proj)->name, *(const prop_str_t **)name);
+	return prop_eq((*(const proj_t **)proj)->name, *(const prop_str_t **)name);
 }
 
-static void get_all_depends(arr_t *arr, proj_t *proj, hashmap_t *projects)
+static void get_all_depends(arr_t *arr, proj_t *proj, dict_t *projects)
 {
 	arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
 	for (uint i = 0; i < depends->cnt; i++) {
 		prop_str_t *dname = arr_get(depends, i);
 
 		proj_t *dproj = NULL;
-		if (hashmap_get(projects, dname->data, dname->len, (void **)&dproj)) {
+		if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
 			ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
 			continue;
 		}
 
 		get_all_depends(arr, dproj, projects);
 
-		if (arr_index_cmp(arr, &dname, proj_cmp_name) == -1) {
+		if (arr_index_cmp(arr, &dname, proj_eq_name) == -1) {
 			arr_app(arr, &dproj);
 		}
 	}
 }
 
-static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
+static void calculate_depends(proj_t *proj, sln_t *sln)
 {
-	sln_t *sln   = priv;
-	proj_t *proj = value;
-
 	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
 	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
@@ -119,12 +116,12 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 				prop_str_t *dpname = arr_get(depend, i);
 
 				proj_t *dpproj = NULL;
-				if (hashmap_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
+				if (dict_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
 					ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 					continue;
 				}
 
-				if (arr_index_cmp(&proj->all_depends, &dpname, proj_cmp_name) == -1) {
+				if (arr_index_cmp(&proj->all_depends, &dpname, proj_eq_name) == -1) {
 					arr_app(&proj->all_depends, &dpproj);
 				}
 			}
@@ -132,31 +129,28 @@ static void calculate_depends(void *key, size_t ksize, void *value, void *priv)
 	}
 }
 
-static void get_all_includes(arr_t *arr, proj_t *proj, hashmap_t *projects)
+static void get_all_includes(arr_t *arr, proj_t *proj, dict_t *projects)
 {
 	arr_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
 	for (uint i = 0; i < includes->cnt; i++) {
 		prop_str_t *iname = arr_get(includes, i);
 
 		proj_t *iproj = NULL;
-		if (hashmap_get(projects, iname->data, iname->len, (void **)&iproj)) {
+		if (dict_get(projects, iname->data, iname->len, (void **)&iproj)) {
 			ERR("project doesn't exists: '%.*s'", (int)iname->len, iname->data);
 			continue;
 		}
 
 		get_all_includes(arr, iproj, projects);
 
-		if (arr_index_cmp(arr, &iname, proj_cmp_name) == -1) {
+		if (arr_index_cmp(arr, &iname, proj_eq_name) == -1) {
 			arr_app(arr, &iproj);
 		}
 	}
 }
 
-static void calculate_includes(void *key, size_t ksize, void *value, void *priv)
+static void calculate_includes(proj_t *proj, sln_t *sln)
 {
-	sln_t *sln   = priv;
-	proj_t *proj = value;
-
 	arr_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
 	arr_init(&proj->includes, includes->cap * 2, sizeof(proj_t *));
 	get_all_includes(&proj->includes, proj, &sln->projects);
@@ -167,7 +161,7 @@ int sln_read(sln_t *sln, const path_t *path)
 	sln->path      = *path;
 	sln->file_path = *path;
 
-	if (path_child(&sln->file_path, CSTR("Solution.txt"))) {
+	if (path_child(&sln->file_path, CSTR("Solution.txt")) == NULL) {
 		return 1;
 	}
 
@@ -190,14 +184,14 @@ int sln_read(sln_t *sln, const path_t *path)
 	path_child_s(&name, CSTR("sln"), '.');
 
 	byte buf[256] = { 0 };
-	c_md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
+	md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
 
 	arr_t *dirs	      = &sln->props[SLN_PROP_DIRS].arr;
 	path_t child_path     = sln->path;
 	size_t child_path_len = child_path.len;
 
-	hashmap_create(&sln->projects, 16);
-	hashmap_create(&sln->dirs, 16);
+	dict_init(&sln->projects, 16);
+	dict_init(&sln->dirs, 16);
 
 	read_dir_data_t read_dir_data = {
 		.sln	= sln,
@@ -223,20 +217,17 @@ int sln_read(sln_t *sln, const path_t *path)
 		child_path.len = child_path_len;
 	}
 
-	hashmap_iterate(&sln->projects, calculate_depends, sln);
-	hashmap_iterate(&sln->projects, calculate_includes, sln);
+	dict_foreach(&sln->projects, pair)
+	{
+		calculate_depends(pair->value, sln);
+	}
+
+	dict_foreach(&sln->projects, pair)
+	{
+		calculate_includes(pair->value, sln);
+	}
 
 	return ret;
-}
-
-static void print_project(void *key, size_t ksize, void *value, void *priv)
-{
-	proj_print(value);
-}
-
-static void print_dir(void *key, size_t ksize, void *value, void *priv)
-{
-	dir_print(value);
 }
 
 void sln_print(sln_t *sln)
@@ -249,27 +240,39 @@ void sln_print(sln_t *sln)
 
 	props_print(sln->props, s_sln_props, sizeof(s_sln_props));
 
-	hashmap_iterate(&sln->dirs, print_dir, NULL);
-	hashmap_iterate(&sln->projects, print_project, NULL);
-}
+	dict_foreach(&sln->dirs, pair)
+	{
+		dir_print(pair->value);
+	}
 
-static void free_project(void *key, size_t ksize, void *value, void *priv)
-{
-	proj_free(value);
-	m_free(value, sizeof(proj_t));
+	dict_foreach(&sln->projects, pair)
+	{
+		proj_print(pair->value);
+	}
 }
 
 static void free_dir(void *key, size_t ksize, void *value, void *priv)
 {
 	dir_free(value);
-	m_free(value, sizeof(dir_t));
+	mem_free(value, sizeof(dir_t));
 }
 
 void sln_free(sln_t *sln)
 {
-	hashmap_iterate(&sln->projects, free_project, sln);
-	hashmap_free(&sln->projects);
-	hashmap_iterate(&sln->dirs, free_dir, sln);
-	hashmap_free(&sln->dirs);
+	dict_foreach(&sln->projects, pair)
+	{
+		proj_free(pair->value);
+		mem_free(pair->value, sizeof(proj_t));
+	}
+
+	dict_free(&sln->projects);
+
+	dict_foreach(&sln->dirs, pair)
+	{
+		dir_free(pair->value);
+		mem_free(pair->value, sizeof(dir_t));
+	}
+	dict_free(&sln->dirs);
+
 	props_free(sln->props, s_sln_props, sizeof(s_sln_props));
 }

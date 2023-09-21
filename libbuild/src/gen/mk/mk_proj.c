@@ -18,17 +18,17 @@ static const var_pol_t vars = {
 	},
 };
 
-static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_size, const proj_t *proj)
+static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
-	size_t dst_len = prop->len;
-	m_memcpy(CSTR(dst), prop->data, prop->len);
+	size_t buf_len = prop->len;
+	mem_cpy(CSTR(buf), prop->data, prop->len);
 
-	dst_len = invert_slash(dst, dst_len);
-	dst_len = cstr_inplaces(dst, dst_size, dst_len, vars.old, vars.new, __VAR_MAX);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
+	buf_len = invert_slash(buf, buf_len);
+	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
 
-	return dst_len;
+	return buf_len;
 }
 
 static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
@@ -38,14 +38,14 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 	char rel_path[P_MAX_PATH] = { 0 };
 	size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
 
-	if (cstrn_cmp(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
-		p_fprintf(fp, "%.*s", path_b_len, path_b);
+	if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
+		c_fprintf(fp, "%.*s", path_b_len, path_b);
 	} else {
-		p_fprintf(fp, "$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, path_b_len, path_b);
+		c_fprintf(fp, "$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, path_b_len, path_b);
 	}
 }
 
-static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_t *sln_props, FILE *fp)
+static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *fp)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -72,10 +72,10 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 
 	if (intdir->flags & PROP_SET) {
 		buf_len = resolve(&intdir->value, CSTR(buf), proj);
-		p_fprintf(fp, "INTDIR := %.*s\n", buf_len, buf);
+		c_fprintf(fp, "INTDIR := %.*s\n", buf_len, buf);
 	}
 
-	p_fprintf(fp, "REPDIR := $(OUTDIR)coverage-report/\n");
+	c_fprintf(fp, "REPDIR := $(OUTDIR)coverage-report/\n");
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
@@ -84,17 +84,17 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			prop_str_t *include = arr_get(includes, i);
 
 			if (lang & (1 << LANG_ASM)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", include->len, include->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", include->len, include->data);
 				deps_first = 0;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", include->len, include->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", include->len, include->data);
 				deps_first = 0;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", include->len, include->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", include->len, include->data);
 				deps_first = 0;
 			}
 		}
@@ -107,92 +107,92 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			prop_str_t *source = arr_get(sources, i);
 
 			if (lang & (1 << LANG_ASM)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", source->len, source->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", source->len, source->data);
 				deps_first = 0;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", source->len, source->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", source->len, source->data);
 				deps_first = 0;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				p_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", source->len, source->data);
+				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", source->len, source->data);
 				deps_first = 0;
 			}
 
 			if (lang & (1 << LANG_ASM)) {
-				p_fprintf(fp, "SRC_ASM := $(shell find %.*s -name '*.asm')\n", source->len, source->data);
+				c_fprintf(fp, "SRC_ASM := $(shell find %.*s -name '*.asm')\n", source->len, source->data);
 			}
 
 			if (lang & (1 << LANG_C)) {
-				p_fprintf(fp, "SRC_C := $(shell find %.*s -name '*.c')\n", source->len, source->data);
+				c_fprintf(fp, "SRC_C := $(shell find %.*s -name '*.c')\n", source->len, source->data);
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				p_fprintf(fp, "SRC_CPP := $(shell find %.*s -name '*.cpp')\n", source->len, source->data);
+				c_fprintf(fp, "SRC_CPP := $(shell find %.*s -name '*.cpp')\n", source->len, source->data);
 			}
 		}
 	}
 
 	if (lang == (1 << LANG_ASM)) {
-		p_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.bin, $(SRC_ASM))\n");
+		c_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.bin, $(SRC_ASM))\n");
 	} else if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.o, $(SRC_ASM))\n");
+		c_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.o, $(SRC_ASM))\n");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, "OBJ_C := $(patsubst %%.c, $(INTDIR)%%.o, $(SRC_C))\n");
+		c_fprintf(fp, "OBJ_C := $(patsubst %%.c, $(INTDIR)%%.o, $(SRC_C))\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "OBJ_CPP := $(patsubst %%.cpp, $(INTDIR)%%.o, $(SRC_CPP))\n");
+		c_fprintf(fp, "OBJ_CPP := $(patsubst %%.cpp, $(INTDIR)%%.o, $(SRC_CPP))\n");
 	}
 
-	p_fprintf(fp, "LCOV := $(OUTDIR)lcov.info\n");
+	c_fprintf(fp, "LCOV := $(OUTDIR)lcov.info\n");
 
 	bool cov_first = 1;
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcno, $(SRC_C))\n", cov_first ? ":" : "+");
+		c_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcno, $(SRC_C))\n", cov_first ? ":" : "+");
 		cov_first = 0;
-		p_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcda, $(SRC_C))\n", cov_first ? ":" : "+");
+		c_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcda, $(SRC_C))\n", cov_first ? ":" : "+");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcno, $(SRC_CPP))\n", cov_first ? ":" : "+");
+		c_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcno, $(SRC_CPP))\n", cov_first ? ":" : "+");
 		cov_first = 0;
-		p_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcda, $(SRC_CPP))\n", cov_first ? ":" : "+");
+		c_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcda, $(SRC_CPP))\n", cov_first ? ":" : "+");
 	}
 
-	p_fprintf(fp, "COV %s= $(LCOV) $(REPDIR)\n", cov_first ? ":" : "+");
+	c_fprintf(fp, "COV %s= $(LCOV) $(REPDIR)\n", cov_first ? ":" : "+");
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
-		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
+		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_BIN:
-		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
+		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_FAT12:
-		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.img\n\n", name->len, name->data);
+		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.img\n\n", name->len, name->data);
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
-		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s.a\n\n", name->len, name->data);
+		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.a\n\n", name->len, name->data);
 		break;
 	default:
-		p_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
+		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
 		break;
 	}
 
-	p_fprintf(fp, "ifeq ($(PLATFORM), x86_64)\n"
+	c_fprintf(fp, "ifeq ($(PLATFORM), x86_64)\n"
 		      "BITS := 64\n"
 		      "else\n"
 		      "BITS := 32\n"
 		      "endif\n"
 		      "\n");
 
-	p_fprintf(fp, "FLAGS :=");
+	c_fprintf(fp, "FLAGS :=");
 
 	//TODO: Remove
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
@@ -202,7 +202,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			prop_str_t *source = arr_get(sources, i);
 
 			buf_len = resolve(source, CSTR(buf), proj);
-			p_fprintf(fp, " -I%.*s", buf_len, buf);
+			c_fprintf(fp, " -I%.*s", buf_len, buf);
 		}
 	}
 
@@ -213,7 +213,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			prop_str_t *include = arr_get(includes, i);
 
 			buf_len = resolve(include, CSTR(buf), proj);
-			p_fprintf(fp, " -I%.*s", buf_len, buf);
+			c_fprintf(fp, " -I%.*s", buf_len, buf);
 		}
 	}
 
@@ -231,13 +231,13 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 
 				buf_len	     = resolve(include, CSTR(buf), iproj);
 				rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
-				p_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
+				c_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
 			}
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 			buf_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(buf), iproj);
-			p_fprintf(fp, " -I");
+			c_fprintf(fp, " -I");
 			print_rel_path(fp, iproj, buf, buf_len);
 		}
 	}
@@ -248,48 +248,48 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		for (uint k = 0; k < defines->cnt; k++) {
 			prop_str_t *define = arr_get(defines, k);
 
-			p_fprintf(fp, " -D%.*s", define->len, define->data);
+			c_fprintf(fp, " -D%.*s", define->len, define->data);
 		}
 	}
 
-	p_fprintf(fp, "\n");
+	c_fprintf(fp, "\n");
 
 	if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, "ASMFLAGS += $(FLAGS)");
+		c_fprintf(fp, "ASMFLAGS += $(FLAGS)");
 
 		if (lang == (1 << LANG_ASM)) {
-			p_fprintf(fp, " -fbin");
+			c_fprintf(fp, " -fbin");
 		} else {
-			p_fprintf(fp, " -felf$(BITS)");
+			c_fprintf(fp, " -felf$(BITS)");
 		}
 
-		p_fprintf(fp, "\n");
+		c_fprintf(fp, "\n");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, "CFLAGS += $(FLAGS)");
+		c_fprintf(fp, "CFLAGS += $(FLAGS)");
 
 		if ((cflags->flags & PROP_SET)) {
 			if (cflags->mask & (1 << CFLAG_STD_C99)) {
-				p_fprintf(fp, " -std=c99");
+				c_fprintf(fp, " -std=c99");
 			}
 			if (cflags->mask & (1 << CFLAG_FREESTANDING)) {
-				p_fprintf(fp, " -ffreestanding");
+				c_fprintf(fp, " -ffreestanding");
 			}
 		}
 
 		if (ccflags->flags & PROP_SET) {
 			for (uint i = 0; i < ccflags->arr.cnt; i++) {
 				prop_str_t *ccflag = arr_get(&ccflags->arr, i);
-				p_fprintf(fp, " %.*s", ccflag->len, ccflag->data);
+				c_fprintf(fp, " %.*s", ccflag->len, ccflag->data);
 			}
 		}
 
-		p_fprintf(fp, "\n");
+		c_fprintf(fp, "\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "CXXFLAGS += $(FLAGS)\n");
+		c_fprintf(fp, "CXXFLAGS += $(FLAGS)\n");
 	}
 
 	bool dep_bin = 1;
@@ -299,7 +299,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			proj_t *dproj = NULL;
-			if (hashmap_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
+			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
 				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 				continue;
 			}
@@ -314,16 +314,16 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	}
 
 	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
-		p_fprintf(fp, "LDFLAGS +=");
+		c_fprintf(fp, "LDFLAGS +=");
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
 
 		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE)) {
-				p_fprintf(fp, " -Wl,--whole-archive");
+				c_fprintf(fp, " -Wl,--whole-archive");
 			}
 			if (ldflags->mask & (1 << LDFLAG_ALLOWMULTIPLEDEFINITION)) {
-				p_fprintf(fp, " -Wl,--allow-multiple-definition");
+				c_fprintf(fp, " -Wl,--allow-multiple-definition");
 			}
 		}
 
@@ -335,13 +335,13 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 
 				if (doutdir->flags & PROP_SET) {
 					buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-					p_fprintf(fp, " -L");
+					c_fprintf(fp, " -L");
 					print_rel_path(fp, dproj, buf, buf_len);
 
-					p_fprintf(fp, " -l:%.*s.a", dproj->name->len, dproj->name->data);
+					c_fprintf(fp, " -l:%.*s.a", dproj->name->len, dproj->name->data);
 				} else {
 					buf_len = convert_slash(CSTR(buf), dproj->rel_path.path, dproj->rel_path.len);
-					p_fprintf(fp, " -L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data);
+					c_fprintf(fp, " -L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data);
 				}
 			}
 
@@ -351,7 +351,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 					prop_str_t *libdir = arr_get(libdirs, j);
 					if (libdir->len > 0) {
 						buf_len = resolve(libdir, CSTR(buf), dproj);
-						p_fprintf(fp, " -L");
+						c_fprintf(fp, " -L");
 						print_rel_path(fp, dproj, buf, buf_len);
 					}
 				}
@@ -362,81 +362,81 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 				for (uint j = 0; j < links->cnt; j++) {
 					prop_str_t *link = arr_get(links, j);
 					if (link->len > 0) {
-						p_fprintf(fp, " -l:%.*s.a", link->len, link->data);
+						c_fprintf(fp, " -l:%.*s.a", link->len, link->data);
 					}
 				}
 			}
 		}
 
 		if ((ldflags->flags & PROP_SET) && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
-			p_fprintf(fp, " -Wl,--no-whole-archive");
+			c_fprintf(fp, " -Wl,--no-whole-archive");
 		}
 
 		if (lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, " -lstdc++");
+			c_fprintf(fp, " -lstdc++");
 		}
 
 		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_MATH)) {
-				p_fprintf(fp, " -lm");
+				c_fprintf(fp, " -lm");
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_X11)) {
-				p_fprintf(fp, " -lX11");
+				c_fprintf(fp, " -lX11");
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_GL)) {
-				p_fprintf(fp, " -lGL");
+				c_fprintf(fp, " -lGL");
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_GLX)) {
-				p_fprintf(fp, " -lGLX");
+				c_fprintf(fp, " -lGLX");
 			}
 		}
 
-		p_fprintf(fp, "\n");
+		c_fprintf(fp, "\n");
 	}
 
-	p_fprintf(fp, "\nRM += -r\n");
+	c_fprintf(fp, "\nRM += -r\n");
 
-	p_fprintf(fp, "\nCONFIG_FLAGS :=\n\n");
+	c_fprintf(fp, "\nCONFIG_FLAGS :=\n\n");
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		p_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
+		c_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
 			      "CONFIG_FLAGS += -ggdb3 -O0\n"
 			      "endif\n"
 			      "\n");
 	}
 
 	if (type == PROJ_TYPE_EXE) {
-		p_fprintf(fp, "SHOW := true\n\n");
+		c_fprintf(fp, "SHOW := true\n\n");
 	}
 
-	p_fprintf(fp, ".PHONY: all check check_coverage %.*s compile", name->len, name->data);
+	c_fprintf(fp, ".PHONY: all check check_coverage %.*s compile", name->len, name->data);
 
 	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-		p_fprintf(fp, " run");
+		c_fprintf(fp, " run");
 	}
 
-	p_fprintf(fp,
+	c_fprintf(fp,
 		  " coverage clean\n\n"
 		  "all: %.*s\n\ncheck:\n",
 		  name->len, name->data);
 
 	if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, "ifeq (, $(shell which nasm))\n"
+		c_fprintf(fp, "ifeq (, $(shell which nasm))\n"
 			      "\tsudo apt install nasm\n"
 			      "endif\n");
 	}
 
 	if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "ifeq (, $(shell which gcc))\n"
+		c_fprintf(fp, "ifeq (, $(shell which gcc))\n"
 			      "\tsudo apt install gcc\n"
 			      "endif\n");
 	}
 
 	if (type == PROJ_TYPE_FAT12) {
-		p_fprintf(fp, "ifeq (, $(shell which mcopy))\n"
+		c_fprintf(fp, "ifeq (, $(shell which mcopy))\n"
 			      "\tsudo apt install mtools\n"
 			      "endif\n");
 	}
@@ -445,7 +445,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			p_fprintf(fp,
+			c_fprintf(fp,
 				  "ifeq (, $(shell dpkg -l %.*s))\n"
 				  "\tsudo apt install %.*s\n"
 				  "endif\n",
@@ -453,7 +453,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		}
 	}
 
-	p_fprintf(fp,
+	c_fprintf(fp,
 		  "\ncheck_coverage: check\n"
 		  "\t$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
 		  "ifeq (, $(shell which lcov))\n"
@@ -464,15 +464,15 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		  name->len, name->data);
 
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		p_fprintf(fp, " $(TARGET) $(TARGET).elf");
+		c_fprintf(fp, " $(TARGET) $(TARGET).elf");
 	} else {
-		p_fprintf(fp, " $(TARGET)");
+		c_fprintf(fp, " $(TARGET)");
 	}
 
-	p_fprintf(fp, "\n\ncoverage: clean check_coverage $(TARGET)\n");
+	c_fprintf(fp, "\n\ncoverage: clean check_coverage $(TARGET)\n");
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		p_fprintf(fp, "\t@$(TARGET) $(ARGS)\n"
+		c_fprintf(fp, "\t@$(TARGET) $(ARGS)\n"
 			      "\t@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
 			      "ifeq ($(SHOW), true)\n"
 			      "\t@genhtml -q $(LCOV) -o $(REPDIR)\n"
@@ -481,9 +481,9 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 	}
 
 	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
-		p_fprintf(fp, "\n$(TARGET):");
+		c_fprintf(fp, "\n$(TARGET):");
 	} else {
-		p_fprintf(fp, "\n$(TARGET):");
+		c_fprintf(fp, "\n$(TARGET):");
 	}
 
 	if (dep_bin) {
@@ -491,7 +491,7 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			proj_t *dproj = NULL;
-			if (hashmap_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
+			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
 				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 				continue;
 			}
@@ -499,43 +499,43 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 			const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
 
 			buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-			p_fprintf(fp, " ");
+			c_fprintf(fp, " ");
 			print_rel_path(fp, dproj, buf, buf_len);
 
-			p_fprintf(fp, "%.*s.bin", dproj->name->len, dproj->name->data);
+			c_fprintf(fp, "%.*s.bin", dproj->name->len, dproj->name->data);
 		}
 	}
 
 	if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, " $(OBJ_ASM)");
+		c_fprintf(fp, " $(OBJ_ASM)");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, " $(OBJ_C)");
+		c_fprintf(fp, " $(OBJ_C)");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, " $(OBJ_CPP)");
+		c_fprintf(fp, " $(OBJ_CPP)");
 	}
 
-	p_fprintf(fp, "\n\t@mkdir -p $(@D)\n");
+	c_fprintf(fp, "\n\t@mkdir -p $(@D)\n");
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
-		p_fprintf(fp, "\t@ar rcs $@ $^\n");
+		c_fprintf(fp, "\t@ar rcs $@ $^\n");
 		break;
 	case PROJ_TYPE_BIN:
 		if (lang == (1 << LANG_ASM) || dep_bin) {
-			p_fprintf(fp, "\t@cat $^ > $@\n");
+			c_fprintf(fp, "\t@cat $^ > $@\n");
 		} else {
-			p_fprintf(fp, "\t@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)\n");
+			c_fprintf(fp, "\t@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)\n");
 		}
 		break;
 	case PROJ_TYPE_EXE:
-		p_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
+		c_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
 		break;
 	case PROJ_TYPE_FAT12:
-		p_fprintf(fp, "# create empty 1.44MB image (block size = 512, block count = 2880)\n"
+		c_fprintf(fp, "# create empty 1.44MB image (block size = 512, block count = 2880)\n"
 			      "\tdd if=/dev/zero of=$@ bs=512 count=2880\n"
 			      "# create file system\n"
 			      "\tmkfs.fat -F12 -n \"NBOS\" $@\n"
@@ -547,55 +547,55 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 		break;
 	}
 
-	p_fprintf(fp, "\n");
+	c_fprintf(fp, "\n");
 
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		p_fprintf(fp, "$(TARGET).elf:");
+		c_fprintf(fp, "$(TARGET).elf:");
 
 		if (lang & (1 << LANG_ASM)) {
-			p_fprintf(fp, " $(OBJ_ASM)");
+			c_fprintf(fp, " $(OBJ_ASM)");
 		}
 
 		if (lang & (1 << LANG_C)) {
-			p_fprintf(fp, " $(OBJ_C)");
+			c_fprintf(fp, " $(OBJ_C)");
 		}
 
 		if (lang & (1 << LANG_CPP)) {
-			p_fprintf(fp, " $(OBJ_CPP)");
+			c_fprintf(fp, " $(OBJ_CPP)");
 		}
 
-		p_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
+		c_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
 			      "\t@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)\n"
 			      "\n");
 	}
 
 	if (lang == (1 << LANG_ASM)) {
-		p_fprintf(fp, "$(INTDIR)%%.bin: %%.asm\n"
+		c_fprintf(fp, "$(INTDIR)%%.bin: %%.asm\n"
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@nasm $< $(ASMFLAGS) -o $@\n\n");
 	} else if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, "$(INTDIR)%%.o: %%.asm\n"
+		c_fprintf(fp, "$(INTDIR)%%.o: %%.asm\n"
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@nasm $< $(ASMFLAGS) -o $@\n\n");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, "$(INTDIR)%%.o: %%.c\n"
+		c_fprintf(fp, "$(INTDIR)%%.o: %%.c\n"
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, "$(INTDIR)%%.o: %%.cpp\n"
+		c_fprintf(fp, "$(INTDIR)%%.o: %%.cpp\n"
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
 	}
 
 	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-		p_fprintf(fp, "run: $(TARGET)\n");
+		c_fprintf(fp, "run: $(TARGET)\n");
 
 		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
-			p_fprintf(fp,
+			c_fprintf(fp,
 				  "ifeq ($(CONFIG), Debug)\n"
 				  "\t%.*s\n"
 				  "else\n"
@@ -603,38 +603,38 @@ static int gen_source(const proj_t *proj, const hashmap_t *projects, const prop_
 				  "endif\n",
 				  drun->value.len, drun->value.data, run->value.len, run->value.data);
 		} else if (run->flags & PROP_SET) {
-			p_fprintf(fp, "\t%.*s\n", run->value.len, run->value.data);
+			c_fprintf(fp, "\t%.*s\n", run->value.len, run->value.data);
 		}
 
-		p_fprintf(fp, "\n");
+		c_fprintf(fp, "\n");
 	}
 
-	p_fprintf(fp, "clean:\n"
+	c_fprintf(fp, "clean:\n"
 		      "\t@$(RM)");
 
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		p_fprintf(fp, " $(TARGET) $(TARGET).elf");
+		c_fprintf(fp, " $(TARGET) $(TARGET).elf");
 	} else {
-		p_fprintf(fp, " $(TARGET)");
+		c_fprintf(fp, " $(TARGET)");
 	}
 
 	if (lang & (1 << LANG_ASM)) {
-		p_fprintf(fp, " $(OBJ_ASM)");
+		c_fprintf(fp, " $(OBJ_ASM)");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		p_fprintf(fp, " $(OBJ_C)");
+		c_fprintf(fp, " $(OBJ_C)");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		p_fprintf(fp, " $(OBJ_CPP)");
+		c_fprintf(fp, " $(OBJ_CPP)");
 	}
 
 	if (lang & (((1 << LANG_C) | (1 << LANG_CPP)))) {
-		p_fprintf(fp, " $(COV)");
+		c_fprintf(fp, " $(COV)");
 	}
 
-	p_fprintf(fp, "\n");
+	c_fprintf(fp, "\n");
 }
 
 static int gen_url(const proj_t *proj, FILE *fp)
@@ -646,7 +646,7 @@ static int gen_url(const proj_t *proj, FILE *fp)
 	const prop_str_t *target = &proj->props[PROJ_PROP_TARGET].value;
 	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
 
-	p_fprintf(fp,
+	c_fprintf(fp,
 		  "URL = %.*s\n"
 		  "NAME = %.*s\n"
 		  "FORMAT = %.*s\n"
@@ -668,7 +668,7 @@ static int gen_url(const proj_t *proj, FILE *fp)
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			p_fprintf(fp,
+			c_fprintf(fp,
 				  "ifeq (, $(shell dpkg -l %.*s))\n"
 				  "\tsudo apt install %.*s\n"
 				  "endif\n",
@@ -676,7 +676,7 @@ static int gen_url(const proj_t *proj, FILE *fp)
 		}
 	}
 
-	p_fprintf(fp,
+	c_fprintf(fp,
 		  "\n"
 		  "all: compile\n"
 		  "\n"
@@ -701,7 +701,7 @@ static int gen_url(const proj_t *proj, FILE *fp)
 		  config->len, config->data, target->len, target->data);
 }
 
-int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *path, const prop_t *sln_props)
+int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -719,7 +719,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 	int ret = 0;
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, proj->rel_path.path, proj->rel_path.len)) {
+	if (path_child(&cmake_path, proj->rel_path.path, proj->rel_path.len) == NULL) {
 		return 1;
 	}
 
@@ -727,7 +727,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 		folder_create(cmake_path.path);
 	}
 
-	if (path_child(&cmake_path, CSTR("Makefile"))) {
+	if (path_child(&cmake_path, CSTR("Makefile")) == NULL) {
 		return 1;
 	}
 
@@ -740,7 +740,7 @@ int mk_proj_gen(const proj_t *proj, const hashmap_t *projects, const path_t *pat
 
 	if (outdir->flags & PROP_SET) {
 		buf_len = resolve(&outdir->value, CSTR(buf), proj);
-		p_fprintf(fp, "OUTDIR := %.*s\n", buf_len, buf);
+		c_fprintf(fp, "OUTDIR := %.*s\n", buf_len, buf);
 	}
 
 	if (url->flags & PROP_SET) {

@@ -14,23 +14,23 @@ static const var_pol_t vars = {
 	},
 };
 
-static size_t resolve(const prop_str_t *prop, char *dst, size_t dst_size, const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, const char *outdir,
+static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, const char *outdir,
 		      size_t outdir_len)
 {
-	size_t dst_len = prop->len;
-	m_memcpy(CSTR(dst), prop->data, prop->len);
+	size_t buf_len = prop->len;
+	mem_cpy(CSTR(buf), prop->data, prop->len);
 
-	dst_len = invert_slash(dst, dst_len);
-	dst_len = cstr_inplaces(dst, dst_size, dst_len, vars.old, vars.new, __VAR_MAX);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(CONFIG)"), config ? config->data : "", config ? config->len : 0);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(PLATFORM)"), platform ? platform->data : "", platform ? platform->len : 0);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(BIN)"), CSTR("$(BIN_PATH)$(BIN_FILE)"));
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(BIN_PATH)"), outdir, outdir_len);
-	dst_len = cstr_inplace(dst, dst_size, dst_len, CSTR("$(BIN_FILE)"), proj->name->data, proj->name->len);
+	buf_len = invert_slash(buf, buf_len);
+	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), config ? config->data : "", config ? config->len : 0, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), platform ? platform->data : "", platform ? platform->len : 0, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN)"), CSTR("$(BIN_PATH)$(BIN_FILE)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_PATH)"), outdir, outdir_len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_FILE)"), proj->name->data, proj->name->len, NULL);
 
-	return dst_len;
+	return buf_len;
 }
 
 #define NAME_PATTERN		 "%.*s%s%.*s%s%.*s"
@@ -43,7 +43,7 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 
-	p_fprintf(f,
+	c_fprintf(f,
 		  "                {\n"
 		  "                        \"label\": \"%s-" NAME_PATTERN "\",\n"
 		  "                        \"type\": \"shell\",\n"
@@ -54,24 +54,24 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 		  prefix, NAME(config, platform), name->len, name->data, action);
 
 	if (config) {
-		p_fprintf(f,
+		c_fprintf(f,
 			  ",\n"
 			  "                                \"CONFIG=%.*s\"",
 			  config->len, config->data);
 	}
 
 	if (platform) {
-		p_fprintf(f,
+		c_fprintf(f,
 			  ",\n"
 			  "                                \"PLATFORM=%.*s\"",
 			  platform->len, platform->data);
 	}
 
-	p_fprintf(f, "\n"
+	c_fprintf(f, "\n"
 		     "                        ]");
 
 	if (run->flags & PROP_SET) {
-		p_fprintf(f, ",\n"
+		c_fprintf(f, ",\n"
 			     "                        \"isBackground\": true,\n"
 			     "                        \"problemMatcher\": [\n"
 			     "                                {\n"
@@ -92,7 +92,7 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 			     "                        ]");
 	}
 
-	p_fprintf(f, ",\n"
+	c_fprintf(f, ",\n"
 		     "                        \"group\": {\n"
 		     "                                \"kind\": \"build\",\n"
 		     "                                \"isDefault\": true\n"
@@ -117,7 +117,7 @@ static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *pr
 			add_task(proj, sln_props, config, NULL, prefix, action, f);
 
 			if (i < configs->arr.cnt - 1) {
-				p_fprintf(f, ",\n");
+				c_fprintf(f, ",\n");
 			}
 		}
 	} else if (!(configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
@@ -127,7 +127,7 @@ static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *pr
 			add_task(proj, sln_props, NULL, platform, prefix, action, f);
 
 			if (i < platforms->arr.cnt - 1) {
-				p_fprintf(f, ",\n");
+				c_fprintf(f, ",\n");
 			}
 		}
 	} else if ((configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
@@ -140,7 +140,7 @@ static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *pr
 				add_task(proj, sln_props, config, platform, prefix, action, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
-					p_fprintf(f, ",\n");
+					c_fprintf(f, ",\n");
 				}
 			}
 		}
@@ -156,7 +156,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 	add_tasks(proj, sln_props, "Build", "compile", f);
 
 	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-		p_fprintf(f, ",\n");
+		c_fprintf(f, ",\n");
 		add_tasks(proj, sln_props, "Run", "run", f);
 	}
 
@@ -190,7 +190,7 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 
 	out_len = resolve(outdir, CSTR(out), proj, config, platform, "", 0);
 
-	p_fprintf(f,
+	c_fprintf(f,
 		  "                {\n"
 		  "                        \"name\": \"" NAME_PATTERN "\",\n"
 		  "                        \"type\": \"cppdbg\",\n"
@@ -200,15 +200,15 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 	//TODO: automatically detect elf file based on dependencies
 	if (elf->flags & PROP_SET) {
 		buf_len = resolve(&elf->value, CSTR(buf), proj, config, platform, out, out_len);
-		p_fprintf(f, "                        \"program\": \"%.*s\",\n", buf_len, buf);
+		c_fprintf(f, "                        \"program\": \"%.*s\",\n", buf_len, buf);
 	} else {
-		p_fprintf(f, "                        \"program\": \"%.*s%.*s\",\n", out_len, out, name->len, name->data);
+		c_fprintf(f, "                        \"program\": \"%.*s%.*s\",\n", out_len, out, name->len, name->data);
 	}
 
-	p_fprintf(f, "                        \"args\": [");
+	c_fprintf(f, "                        \"args\": [");
 
 	if (args->flags & PROP_SET) {
-		p_fprintf(f, "\n");
+		c_fprintf(f, "\n");
 		int end = 0;
 
 		str_t arg = {
@@ -218,8 +218,8 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 		str_t next = { 0 };
 
 		while (!end) {
-			if (str_chr(&arg, &arg, &next, ' ')) {
-				str_chr(&arg, &arg, &next, '\n');
+			if (str_chr(arg, &arg, &next, ' ')) {
+				str_chr(arg, &arg, &next, '\n');
 				end = 1;
 			}
 
@@ -230,21 +230,21 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 
 			buf_len = resolve(&argp, CSTR(buf), proj, config, platform, out, out_len);
 
-			p_fprintf(f, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
+			c_fprintf(f, "                                \"%.*s\"%.*s\n", buf_len, buf, !end, ",");
 
 			arg = next;
 		}
 
-		p_fprintf(f, "                        ");
+		c_fprintf(f, "                        ");
 	}
 
-	p_fprintf(f, "],\n");
+	c_fprintf(f, "],\n");
 
 	if (run->flags & PROP_SET) {
-		p_fprintf(f, "                        \"miDebuggerServerAddress\": \"localhost:1234\",\n");
+		c_fprintf(f, "                        \"miDebuggerServerAddress\": \"localhost:1234\",\n");
 	}
 
-	p_fprintf(f,
+	c_fprintf(f,
 		  "                        \"preLaunchTask\": \"%s-" NAME_PATTERN "\",\n"
 		  "                        \"stopAtEntry\": false,\n"
 		  "                        \"cwd\": \"${workspaceFolder}/%.*s\",\n"
@@ -273,7 +273,7 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 
-	p_fprintf(f,
+	c_fprintf(f,
 		  "                {\n"
 		  "                        \"name\": \"" NAME_PATTERN "\",\n"
 		  "                        \"type\": \"f5anything\",\n"
@@ -285,14 +285,14 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 
 static int add_launch(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
-	if (config && cstr_cmp(config->data, config->len, CSTR("Release"))) {
+	if (config && cstr_eq(config->data, config->len, CSTR("Release"))) {
 		f5anything(proj, config, platform, f);
 	} else {
 		cppdbg(proj, config, platform, f);
 	}
 }
 
-int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop_t *sln_props, FILE *f)
+int vc_proj_gen_launch(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -313,7 +313,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			add_launch(proj, config, NULL, f);
 
 			if (i < configs->arr.cnt - 1) {
-				p_fprintf(f, ",\n");
+				c_fprintf(f, ",\n");
 			}
 		}
 	} else if (!(configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
@@ -323,7 +323,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 			add_launch(proj, NULL, platform, f);
 
 			if (i < platforms->arr.cnt - 1) {
-				p_fprintf(f, ",\n");
+				c_fprintf(f, ",\n");
 			}
 		}
 	} else if ((platforms->flags & PROP_SET) && (configs->flags & PROP_SET)) {
@@ -336,7 +336,7 @@ int vc_proj_gen_launch(const proj_t *proj, const hashmap_t *projects, const prop
 				add_launch(proj, config, platform, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
-					p_fprintf(f, ",\n");
+					c_fprintf(f, ",\n");
 				}
 			}
 		}

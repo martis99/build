@@ -45,7 +45,7 @@ typedef struct prop_pol_s {
 int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
-int prop_cmp(const prop_str_t *l, const prop_str_t *r);
+int prop_eq(const prop_str_t *l, const prop_str_t *r);
 
 void prop_print_arr(const prop_t *prop);
 void prop_print_flags(const prop_t *prop, const str_t *str_table, size_t str_table_len);
@@ -60,4 +60,7 @@ size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_
 
 size_t invert_slash(char *str, size_t str_len);
 
+// clang-format off
+#define PSTR(_str) { .data = _str, .len = sizeof(_str) - 1 }
+// clang-format on
 #endif

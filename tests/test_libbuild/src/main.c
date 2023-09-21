@@ -26,14 +26,14 @@ TEST(tests)
 
 int main(int argc, char **argv)
 {
-	m_stats_t m_stats = { 0 };
-	m_init(&m_stats);
+	mem_stats_t mem_stats = { 0 };
+	mem_init(&mem_stats);
 
 	t_init(80);
 	tests();
 	const int ret = t_finish();
 
-	m_print(stdout);
+	mem_print(stdout);
 
 	return ret;
 }

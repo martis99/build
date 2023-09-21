@@ -10,40 +10,6 @@
 
 #include <errno.h>
 
-typedef struct generate_build_priv_s {
-	const sln_t *sln;
-	FILE *file;
-	int first;
-} generate_build_priv_t;
-
-static void generate_build(void *key, size_t ksize, void *value, const void *priv)
-{
-	const generate_build_priv_t *p = priv;
-	const proj_t *proj	       = value;
-
-	p_fprintf(p->file, "%.*s\n", !p->first, ",");
-	((generate_build_priv_t *)p)->first = 0;
-
-	vc_proj_gen_build(proj, p->sln->props, p->file);
-}
-
-static void generate_launch(void *key, size_t ksize, void *value, const void *priv)
-{
-	const generate_build_priv_t *p = priv;
-	const proj_t *proj	       = value;
-
-	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
-
-	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
-		return;
-	}
-
-	p_fprintf(p->file, "%.*s\n", !p->first, ",");
-	((generate_build_priv_t *)p)->first = 0;
-
-	vc_proj_gen_launch(proj, &p->sln->projects, p->sln->props, p->file);
-}
-
 int vc_sln_gen(const sln_t *sln, const path_t *path)
 {
 	mk_sln_gen(sln, path);
@@ -51,7 +17,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	MSG("%s", "generating tasks");
 
 	path_t tasks_path = *path;
-	if (path_child(&tasks_path, CSTR(".vscode"))) {
+	if (path_child(&tasks_path, CSTR(".vscode")) == NULL) {
 		return 1;
 	}
 
@@ -61,7 +27,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	path_t launch_path = tasks_path;
 
-	if (path_child(&tasks_path, CSTR("tasks.json"))) {
+	if (path_child(&tasks_path, CSTR("tasks.json")) == NULL) {
 		return 1;
 	}
 
@@ -76,19 +42,23 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 	const prop_t *outdir  = &sln->props[SLN_PROP_OUTDIR];
 
-	p_fprintf(file, "{\n"
+	c_fprintf(file, "{\n"
 			"        \"version\": \"2.0.0\",\n"
 			"        \"tasks\": [");
 
-	generate_build_priv_t generate_build_priv = {
-		.sln   = sln,
-		.file  = file,
-		.first = 1,
-	};
+	int first = 1;
 
-	hashmap_iterate_c(&sln->projects, generate_build, &generate_build_priv);
+	dict_foreach(&sln->projects, pair)
+	{
+		const proj_t *proj = pair->value;
 
-	p_fprintf(file, "\n        ]\n"
+		c_fprintf(file, "%.*s\n", !first, ",");
+		first = 0;
+
+		vc_proj_gen_build(proj, sln->props, file);
+	}
+
+	c_fprintf(file, "\n        ]\n"
 			"}");
 
 	file_close(file);
@@ -106,7 +76,7 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	ret = 0;
 
-	if (path_child(&launch_path, CSTR("launch.json"))) {
+	if (path_child(&launch_path, CSTR("launch.json")) == NULL) {
 		return 1;
 	}
 
@@ -116,16 +86,29 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	p_fprintf(file, "{\n"
+	c_fprintf(file, "{\n"
 			"        \"version\": \"0.2.0\",\n"
 			"        \"configurations\": [");
 
-	generate_build_priv.file  = file;
-	generate_build_priv.first = 1;
+	first = 1;
 
-	hashmap_iterate_c(&sln->projects, generate_launch, &generate_build_priv);
+	dict_foreach(&sln->projects, pair)
+	{
+		const proj_t *proj = pair->value;
 
-	p_fprintf(file, "\n        ]\n"
+		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+
+		if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
+			continue;
+		}
+
+		c_fprintf(file, "%.*s\n", !first, ",");
+		first = 0;
+
+		vc_proj_gen_launch(proj, &sln->projects, sln->props, file);
+	}
+
+	c_fprintf(file, "\n        ]\n"
 			"}");
 
 	file_close(file);

@@ -2,12 +2,14 @@
 
 #include "common.h"
 
+#include "cstr.h"
+
 int cm_dir_gen(const dir_t *dir, const path_t *path)
 {
 	const arr_t *dirs = &dir->props[DIR_PROP_DIRS].arr;
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, dir->dir.path, dir->dir.len)) {
+	if (path_child(&cmake_path, dir->dir.path, dir->dir.len) == NULL) {
 		return 1;
 	}
 
@@ -15,7 +17,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 		folder_create(cmake_path.path);
 	}
 
-	if (path_child(&cmake_path, CSTR("CMakeLists.txt"))) {
+	if (path_child(&cmake_path, CSTR("CMakeLists.txt")) == NULL) {
 		return 1;
 	}
 
@@ -34,7 +36,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 			continue;
 		}
 
-		p_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->len, dir->data);
+		c_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->len, dir->data);
 	}
 
 	file_close(file);

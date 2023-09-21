@@ -92,13 +92,13 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 
 		FILE *f = file_open(in[i].path, "w");
 		for (int j = 0; j < MAX_DATA_CNT && in[i].data[j].data; j++) {
-			p_fprintf(f, "%s", in[i].data[j].data);
+			c_fprintf(f, "%s", in[i].data[j].data);
 		}
 		file_close(f);
 	}
 
 	path_t sln_dir = { 0 };
-	if (path_init(&sln_dir, CSTR("tmp"))) {
+	if (path_init(&sln_dir, CSTR("tmp")) == NULL) {
 		return 1;
 	}
 
@@ -112,7 +112,7 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 
 	path_t build_dir = { 0 };
 
-	if (path_init(&build_dir, CSTR("tmp"))) {
+	if (path_init(&build_dir, CSTR("tmp")) == NULL) {
 		return 1;
 	}
 

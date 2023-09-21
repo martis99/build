@@ -6,38 +6,38 @@
 #include "common.h"
 #include "defines.h"
 
-#include "c_md5.h"
+#include "md5.h"
 
 static const prop_pol_t s_proj_props[] = {
-	[PROJ_PROP_NAME]     = { .name = STR("NAME") },
-	[PROJ_PROP_TYPE]     = { .name = STR("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
-	[PROJ_PROP_LANGS]    = { .name = STR("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
-	[PROJ_PROP_SOURCE]   = { .name = STR("SOURCE"), .arr = 1 },
-	[PROJ_PROP_URL]	     = { .name = STR("URL") },
-	[PROJ_PROP_FORMAT]   = { .name = STR("FORMAT") },
-	[PROJ_PROP_INCLUDE]  = { .name = STR("INCLUDE"), .arr = 1 },
-	[PROJ_PROP_ENCLUDE]  = { .name = STR("ENCLUDE") },
-	[PROJ_PROP_DEPENDS]  = { .name = STR("DEPENDS"), .arr = 1 },
-	[PROJ_PROP_DEPEND]   = { .name = STR("DEPEND"), .arr = 1 },
-	[PROJ_PROP_INCLUDES] = { .name = STR("INCLUDES"), .arr = 1 },
-	[PROJ_PROP_DEFINES]  = { .name = STR("DEFINES"), .arr = 1 },
-	[PROJ_PROP_LIBDIRS]  = { .name = STR("LIBDIRS"), .arr = 1 },
-	[PROJ_PROP_WDIR]     = { .name = STR("WDIR") },
-	[PROJ_PROP_CHARSET]  = { .name = STR("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[PROJ_PROP_OUTDIR]   = { .name = STR("OUTDIR") },
-	[PROJ_PROP_INTDIR]   = { .name = STR("INTDIR") },
-	[PROJ_PROP_CFLAGS]   = { .name = STR("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
-	[PROJ_PROP_CCFLAGS]  = { .name = STR("CCFLAGS"), .arr = 1 },
-	[PROJ_PROP_LDFLAGS]  = { .name = STR("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .arr = 1 },
-	[PROJ_PROP_LINK]     = { .name = STR("LINK"), .arr = 1 },
-	[PROJ_PROP_EXPORT]   = { .name = STR("EXPORT"), .arr = 1 },
-	[PROJ_PROP_REQUIRE]  = { .name = STR("REQUIRE"), .arr = 1 },
-	[PROJ_PROP_CONFIG]   = { .name = STR("CONFIG") },
-	[PROJ_PROP_TARGET]   = { .name = STR("TARGET") },
-	[PROJ_PROP_RUN]	     = { .name = STR("RUN") },
-	[PROJ_PROP_DRUN]     = { .name = STR("DRUN") },
-	[PROJ_PROP_ELF]	     = { .name = STR("ELF") },
-	[PROJ_PROP_ARGS]     = { .name = STR("ARGS") },
+	[PROJ_PROP_NAME]     = { .name = STRS("NAME") },
+	[PROJ_PROP_TYPE]     = { .name = STRS("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
+	[PROJ_PROP_LANGS]    = { .name = STRS("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
+	[PROJ_PROP_SOURCE]   = { .name = STRS("SOURCE"), .arr = 1 },
+	[PROJ_PROP_URL]	     = { .name = STRS("URL") },
+	[PROJ_PROP_FORMAT]   = { .name = STRS("FORMAT") },
+	[PROJ_PROP_INCLUDE]  = { .name = STRS("INCLUDE"), .arr = 1 },
+	[PROJ_PROP_ENCLUDE]  = { .name = STRS("ENCLUDE") },
+	[PROJ_PROP_DEPENDS]  = { .name = STRS("DEPENDS"), .arr = 1 },
+	[PROJ_PROP_DEPEND]   = { .name = STRS("DEPEND"), .arr = 1 },
+	[PROJ_PROP_INCLUDES] = { .name = STRS("INCLUDES"), .arr = 1 },
+	[PROJ_PROP_DEFINES]  = { .name = STRS("DEFINES"), .arr = 1 },
+	[PROJ_PROP_LIBDIRS]  = { .name = STRS("LIBDIRS"), .arr = 1 },
+	[PROJ_PROP_WDIR]     = { .name = STRS("WDIR") },
+	[PROJ_PROP_CHARSET]  = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[PROJ_PROP_OUTDIR]   = { .name = STRS("OUTDIR") },
+	[PROJ_PROP_INTDIR]   = { .name = STRS("INTDIR") },
+	[PROJ_PROP_CFLAGS]   = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
+	[PROJ_PROP_CCFLAGS]  = { .name = STRS("CCFLAGS"), .arr = 1 },
+	[PROJ_PROP_LDFLAGS]  = { .name = STRS("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .arr = 1 },
+	[PROJ_PROP_LINK]     = { .name = STRS("LINK"), .arr = 1 },
+	[PROJ_PROP_EXPORT]   = { .name = STRS("EXPORT"), .arr = 1 },
+	[PROJ_PROP_REQUIRE]  = { .name = STRS("REQUIRE"), .arr = 1 },
+	[PROJ_PROP_CONFIG]   = { .name = STRS("CONFIG") },
+	[PROJ_PROP_TARGET]   = { .name = STRS("TARGET") },
+	[PROJ_PROP_RUN]	     = { .name = STRS("RUN") },
+	[PROJ_PROP_DRUN]     = { .name = STRS("DRUN") },
+	[PROJ_PROP_ELF]	     = { .name = STRS("ELF") },
+	[PROJ_PROP_ARGS]     = { .name = STRS("ARGS") },
 };
 
 static void replace_prop(prop_t *proj_prop, const prop_t *sln_prop)
@@ -63,7 +63,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 	proj->parent = parent;
 
-	if (path_child(&proj->file_path, CSTR("Project.txt"))) {
+	if (path_child(&proj->file_path, CSTR("Project.txt")) == NULL) {
 		return 1;
 	}
 
@@ -92,7 +92,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 #if defined(C_LINUX)
 	convert_backslash(rel_path_name.path, rel_path_name.len, rel_path_name.path, rel_path_name.len);
 #endif
-	c_md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
+	md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
@@ -102,7 +102,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 			path_t path = { 0 };
 			path_init(&path, proj->path.path, proj->path.len);
-			if (path_child(&path, source->data, source->len)) {
+			if (path_child(&path, source->data, source->len) == NULL) {
 				ret++;
 			} else {
 				if (!folder_exists(path.path)) {
@@ -121,7 +121,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 
 			path_t path = { 0 };
 			path_init(&path, proj->path.path, proj->path.len);
-			if (path_child(&path, include->data, include->len)) {
+			if (path_child(&path, include->data, include->len) == NULL) {
 				ret++;
 			} else {
 				if (!folder_exists(path.path)) {
