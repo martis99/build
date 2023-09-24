@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "make.h"
+
 static const var_pol_t vars = {
 	.old = {
 		[VAR_SLN_DIR] = "$(SLN_DIR)",
@@ -31,21 +33,18 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	return buf_len;
 }
 
-static void print_action(FILE *file, const proj_t *proj, bool add_depends, bool dep_compile, const char *action)
+static void add_action(make_t *make, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
 {
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
 
 	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
 
-	if (action == NULL) {
-		c_fprintf(file, ".PHONY: %.*s\n%.*s: check", proj->name->len, proj->name->data, proj->name->len, proj->name->data);
-	} else {
-		c_fprintf(file, ".PHONY: %.*s/%s\n%.*s/%s: check", proj->name->len, proj->name->data, action, proj->name->len, proj->name->data, action);
-	}
+	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), action), 0));
+	make_rule_add_depend(make, maction, MRULE(MSTR(STR("check"))));
 
 	if (dep_compile) {
-		c_fprintf(file, " %.*s/compile", proj->name->len, proj->name->data);
+		make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), STR("compile")));
 	}
 
 	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
@@ -53,22 +52,11 @@ static void print_action(FILE *file, const proj_t *proj, bool add_depends, bool 
 	if (add_depends && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
-
-			if (action == NULL) {
-				c_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
-			} else {
-				c_fprintf(file, " %.*s/%s", dproj->name->len, dproj->name->data, action);
-			}
+			make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
 		}
 	}
 
-	c_fprintf(file, "\n\t@$(MAKE) -C %.*s", buf_len, buf);
-
-	if (action) {
-		c_fprintf(file, " %s", action);
-	}
-
-	c_fprintf(file, "\n\n");
+	make_rule_add_act(make, maction, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), action)));
 }
 
 int mk_sln_gen(const sln_t *sln, const path_t *path)
@@ -78,16 +66,10 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	const char *targets_folder = "CMake";
-	const prop_t *configs	   = &sln->props[SLN_PROP_CONFIGS];
+	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 
 	path_t cmake_path = *path;
 	if (path_child(&cmake_path, CSTR("Makefile")) == NULL) {
-		return 1;
-	}
-
-	FILE *file = file_open(cmake_path.path, "w");
-	if (file == NULL) {
 		return 1;
 	}
 
@@ -95,75 +77,56 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	c_fprintf(file, "SLNDIR := $(CURDIR)\n"
-			"TLD := $(LD)\n"
-			"TCC := $(CC)\n"
-			"\n");
+	make_t make = { 0 };
+	make_init(&make, 16, 16, 16);
 
-	dict_foreach(&sln->projects, pair)
-	{
-		const proj_t *proj = pair->value;
+	const make_var_t curdir = make_add_act(&make, make_create_var_ext(&make, STR("CURDIR"), MAKE_VAR_INST));
+	const make_var_t ld	= make_add_act(&make, make_create_var_ext(&make, STR("LD"), MAKE_VAR_INST));
+	const make_var_t cc	= make_add_act(&make, make_create_var_ext(&make, STR("CC"), MAKE_VAR_INST));
 
-		char buf[P_MAX_PATH] = { 0 };
-		char out[P_MAX_PATH] = { 0 };
+	const make_var_t slndir = make_add_act(&make, make_create_var(&make, STR("SLNDIR"), MAKE_VAR_INST));
+	make_var_add_val(&make, slndir, MVAR(curdir));
+	const make_var_t tld = make_add_act(&make, make_create_var(&make, STR("TLD"), MAKE_VAR_INST));
+	make_var_add_val(&make, tld, MVAR(ld));
+	const make_var_t tcc = make_add_act(&make, make_create_var(&make, STR("TCC"), MAKE_VAR_INST));
+	make_var_add_val(&make, tcc, MVAR(cc));
 
-		size_t buf_len;
-		size_t out_len;
-
-		const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
-
-		out_len = resolve(outdir, CSTR(out), proj);
-
-		const prop_t *exports = &proj->props[PROJ_PROP_EXPORT];
-
-		if (!(exports->flags & PROP_SET)) {
-			continue;
-		}
-
-		for (uint i = 0; i < exports->arr.cnt; i++) {
-			const prop_str_t *export = arr_get(&exports->arr, i);
-
-			buf_len = export->len;
-			mem_cpy(CSTR(buf), export->data, export->len);
-			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), out, out_len, NULL);
-
-			c_fprintf(file, "%.*s\n", buf_len, buf);
-		}
-	}
-
-	c_fprintf(file, "\nexport\n\n");
+	make_add_act(&make, make_create_empty(&make));
+	make_add_act(&make, make_create_cmd(&make, MCMD(STR("export"))));
+	make_add_act(&make, make_create_empty(&make));
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		c_fprintf(file, "CONFIGS :=");
+		const make_var_t mconfigs = make_add_act(&make, make_create_var(&make, STR("CONFIGS"), MAKE_VAR_INST));
 
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
-			c_fprintf(file, " %.*s", config->len, config->data);
+			make_var_add_val(&make, mconfigs, MSTR(strc(config->data, config->len)));
 		}
 
-		prop_str_t *config = arr_get(&configs->arr, 0);
-		c_fprintf(file, "\nCONFIG := %.*s\n\n", config->len, config->data);
+		prop_str_t *config	 = arr_get(&configs->arr, 0);
+		const make_var_t mconfig = make_add_act(&make, make_create_var(&make, STR("CONFIG"), MAKE_VAR_INST));
+		make_var_add_val(&make, mconfig, MSTR(strc(config->data, config->len)));
 	}
 
-	c_fprintf(file, "SHOW := true\n\n");
+	make_add_act(&make, make_create_empty(&make));
 
-	c_fprintf(file, ".PHONY: all check clean\n\nall:");
+	const make_var_t show = make_add_act(&make, make_create_var(&make, STR("SHOW"), MAKE_VAR_INST));
+	make_var_add_val(&make, show, MSTR(STR("true")));
 
+	make_add_act(&make, make_create_empty(&make));
+
+	const make_rule_t all = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("all"))), 0));
 	dict_foreach(&sln->projects, pair)
 	{
 		const proj_t *proj = pair->value;
-		c_fprintf(file, " %.*s", proj->name->len, proj->name->data);
+		make_rule_add_depend(&make, all, MRULE(MSTR(strc(proj->name->data, proj->name->len))));
 	}
 
-	c_fprintf(file, "\n\ncheck:\n");
-
+	const make_rule_t check = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("check"))), 0));
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		c_fprintf(file, "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
-				"\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
-				"endif\n");
+		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(CONFIG),$(CONFIGS))")), MSTR(str_null())));
+		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
 	}
-
-	c_fprintf(file, "\n");
 
 	dict_foreach(&sln->projects, pair)
 	{
@@ -171,16 +134,17 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 
 		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
-		print_action(file, proj, 1, 0, NULL);
-		print_action(file, proj, 1, 0, "clean");
-		print_action(file, proj, 1, 0, "compile");
+		add_action(&make, proj, 1, 0, str_null());
+		add_action(&make, proj, 1, 0, STR("clean"));
+		add_action(&make, proj, 1, 0, STR("compile"));
 		if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-			print_action(file, proj, 0, 1, "run");
+			add_action(&make, proj, 0, 1, STR("run"));
 		}
-		print_action(file, proj, 1, 0, "coverage");
+		add_action(&make, proj, 1, 0, STR("coverage"));
 	}
 
-	c_fprintf(file, "clean: check\n");
+	const make_rule_t clean = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("clean"))), 0));
+	make_rule_add_depend(&make, clean, MRULE(MSTR(STR("check"))));
 
 	dict_foreach(&sln->projects, pair)
 	{
@@ -190,12 +154,20 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		size_t buf_len;
 
 		buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
-		c_fprintf(file, "\t@$(MAKE) -C %.*s clean", buf_len, buf);
-
-		c_fprintf(file, "\n");
+		make_rule_add_act(&make, clean, make_create_cmd(&make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), STR("clean"))));
 	}
 
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
+		return 1;
+	}
+
+	make_print(&make, file);
+
 	file_close(file);
+
+	make_free(&make);
+
 	if (ret == 0) {
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {

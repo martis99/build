@@ -132,6 +132,8 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		size_t act_len = file_read_t(file->path, CSTR(act));
 		if (act_len == -1) {
 			printf("Failed to read '%s' file\n", file->path);
+			ret = 1;
+			continue;
 		}
 
 		uint line = -1;
