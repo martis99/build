@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "make.h"
+
 static const var_pol_t vars = {
 	.old = {
 		[VAR_SLN_DIR] = "$(SLN_DIR)",
@@ -31,7 +33,7 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	return buf_len;
 }
 
-static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
+static inline void add_rel_path(make_t *make, make_var_t var, const proj_t *proj, const char *prefix, const char *path, size_t path_len)
 {
 	char path_b[P_MAX_PATH]	  = { 0 };
 	size_t path_b_len	  = convert_slash(CSTR(path_b), path, path_len);
@@ -39,13 +41,27 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 	size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
 
 	if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
-		c_fprintf(fp, "%.*s", path_b_len, path_b);
+		make_var_add_val(make, var, MSTR(strf("%s%.*s", prefix, path_b_len, path_b)));
 	} else {
-		c_fprintf(fp, "$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, path_b_len, path_b);
+		make_var_add_val(make, var, MSTR(strf("%s$(SLNDIR)/%.*s/%.*s", prefix, rel_path_len, rel_path, path_b_len, path_b)));
 	}
 }
 
-static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *fp)
+static inline void add_rel_path_depend(make_t *make, make_rule_t rule, const proj_t *proj, const char *prefix, const char *path, size_t path_len)
+{
+	char path_b[P_MAX_PATH]	  = { 0 };
+	size_t path_b_len	  = convert_slash(CSTR(path_b), path, path_len);
+	char rel_path[P_MAX_PATH] = { 0 };
+	size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
+
+	if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
+		make_rule_add_depend(make, rule, MRULE(MSTR(strf("%s%.*s", prefix, path_b_len, path_b))));
+	} else {
+		make_rule_add_depend(make, rule, MRULE(MSTR(strf("%s$(SLNDIR)/%.*s/%.*s", prefix, rel_path_len, rel_path, path_b_len, path_b))));
+	}
+}
+
+static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, make_t *make)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -66,36 +82,44 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	uint lang = langs->mask;
 
-	int deps_first = 1;
+	make_var_type_t deps_type = MAKE_VAR_INST;
 
 	int ret = 0;
 
 	if (intdir->flags & PROP_SET) {
-		buf_len = resolve(&intdir->value, CSTR(buf), proj);
-		c_fprintf(fp, "INTDIR := %.*s\n", buf_len, buf);
+		buf_len			 = resolve(&intdir->value, CSTR(buf), proj);
+		const make_var_t mintdir = make_add_act(make, make_create_var(make, STR("INTDIR"), MAKE_VAR_INST));
+		make_var_add_val(make, mintdir, MSTR(strn(buf, buf_len, buf_len + 1)));
 	}
 
-	c_fprintf(fp, "REPDIR := $(OUTDIR)coverage-report/\n");
+	const make_var_t mplatform = make_create_var_ext(make, STR("PLATFORM"), MAKE_VAR_INST);
+	const make_var_t mconfig   = make_create_var_ext(make, STR("CONFIG"), MAKE_VAR_INST);
+
+	const make_var_t repdir = make_add_act(make, make_create_var(make, STR("REPDIR"), MAKE_VAR_INST));
+	make_var_add_val(make, repdir, MSTR(STR("$(OUTDIR)coverage-report/")));
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
 		for (uint i = 0; i < includes->cnt; i++) {
-			prop_str_t *include = arr_get(includes, i);
+			const prop_str_t *include = arr_get(includes, i);
 
 			if (lang & (1 << LANG_ASM)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", include->len, include->data);
-				deps_first = 0;
+				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", include->len, include->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", include->len, include->data);
-				deps_first = 0;
+				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", include->len, include->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", include->len, include->data);
-				deps_first = 0;
+				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", include->len, include->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 		}
 	}
@@ -104,105 +128,135 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
 		for (uint i = 0; i < sources->cnt; i++) {
-			prop_str_t *source = arr_get(sources, i);
+			const prop_str_t *source = arr_get(sources, i);
 
 			if (lang & (1 << LANG_ASM)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.inc')\n", deps_first ? ":" : "+", source->len, source->data);
-				deps_first = 0;
+				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", source->len, source->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.h')\n", deps_first ? ":" : "+", source->len, source->data);
-				deps_first = 0;
+				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", source->len, source->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				c_fprintf(fp, "DEPS %s= $(shell find %.*s -name '*.hpp')\n", deps_first ? ":" : "+", source->len, source->data);
-				deps_first = 0;
+				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", source->len, source->data)));
+				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_ASM)) {
-				c_fprintf(fp, "SRC_ASM := $(shell find %.*s -name '*.asm')\n", source->len, source->data);
+				const make_var_t src_asm = make_add_act(make, make_create_var(make, STR("SRC_ASM"), MAKE_VAR_INST));
+				make_var_add_val(make, src_asm, MSTR(strf("$(shell find %.*s -name '*.asm')", source->len, source->data)));
 			}
 
 			if (lang & (1 << LANG_C)) {
-				c_fprintf(fp, "SRC_C := $(shell find %.*s -name '*.c')\n", source->len, source->data);
+				const make_var_t src_c = make_add_act(make, make_create_var(make, STR("SRC_C"), MAKE_VAR_INST));
+				make_var_add_val(make, src_c, MSTR(strf("$(shell find %.*s -name '*.c')", source->len, source->data)));
 			}
 
 			if (lang & (1 << LANG_CPP)) {
-				c_fprintf(fp, "SRC_CPP := $(shell find %.*s -name '*.cpp')\n", source->len, source->data);
+				const make_var_t src_cpp = make_add_act(make, make_create_var(make, STR("SRC_CPP"), MAKE_VAR_INST));
+				make_var_add_val(make, src_cpp, MSTR(strf("$(shell find %.*s -name '*.cpp')", source->len, source->data)));
 			}
 		}
 	}
 
+	make_var_t obj_asm = MAKE_END;
 	if (lang == (1 << LANG_ASM)) {
-		c_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.bin, $(SRC_ASM))\n");
+		obj_asm = make_add_act(make, make_create_var(make, STR("OBJ_ASM"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_asm, MSTR(STR("$(patsubst %.asm, $(INTDIR)%.bin, $(SRC_ASM))")));
 	} else if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, "OBJ_ASM := $(patsubst %%.asm, $(INTDIR)%%.o, $(SRC_ASM))\n");
+		obj_asm = make_add_act(make, make_create_var(make, STR("OBJ_ASM"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_asm, MSTR(STR("$(patsubst %.asm, $(INTDIR)%.o, $(SRC_ASM))")));
 	}
 
+	make_var_t obj_c = MAKE_END;
 	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, "OBJ_C := $(patsubst %%.c, $(INTDIR)%%.o, $(SRC_C))\n");
+		obj_c = make_add_act(make, make_create_var(make, STR("OBJ_C"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_c, MSTR(STR("$(patsubst %.c, $(INTDIR)%.o, $(SRC_C))")));
+	}
+
+	make_var_t obj_cpp = MAKE_END;
+	if (lang & (1 << LANG_CPP)) {
+		obj_cpp = make_add_act(make, make_create_var(make, STR("OBJ_CPP"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_cpp, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.o, $(SRC_CPP))")));
+	}
+
+	const make_var_t lcov = make_add_act(make, make_create_var(make, STR("LCOV"), MAKE_VAR_INST));
+	make_var_add_val(make, lcov, MSTR(STR("$(OUTDIR)lcov.info")));
+
+	bool cov_first		 = 1;
+	make_var_type_t cov_type = MAKE_VAR_INST;
+
+	if (lang & (1 << LANG_C)) {
+		make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))")));
+		cov_type = MAKE_VAR_APP;
+		cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))")));
+		cov_type = MAKE_VAR_APP;
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, "OBJ_CPP := $(patsubst %%.cpp, $(INTDIR)%%.o, $(SRC_CPP))\n");
+		make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcno, $(SRC_CPP))")));
+		cov_type = MAKE_VAR_APP;
+		cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcda, $(SRC_CPP))")));
+		cov_type = MAKE_VAR_APP;
 	}
 
-	c_fprintf(fp, "LCOV := $(OUTDIR)lcov.info\n");
+	const make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+	make_var_add_val(make, cov, MVAR(lcov));
+	make_var_add_val(make, cov, MVAR(repdir));
+	cov_type = MAKE_VAR_APP;
 
-	bool cov_first = 1;
-	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcno, $(SRC_C))\n", cov_first ? ":" : "+");
-		cov_first = 0;
-		c_fprintf(fp, "COV %s= $(patsubst %%.c, $(INTDIR)%%.gcda, $(SRC_C))\n", cov_first ? ":" : "+");
-	}
-
-	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcno, $(SRC_CPP))\n", cov_first ? ":" : "+");
-		cov_first = 0;
-		c_fprintf(fp, "COV %s= $(patsubst %%.cpp, $(INTDIR)%%.gcda, $(SRC_CPP))\n", cov_first ? ":" : "+");
-	}
-
-	c_fprintf(fp, "COV %s= $(LCOV) $(REPDIR)\n", cov_first ? ":" : "+");
+	const make_var_t target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
-		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", name->len, name->data)));
 		break;
 	case PROJ_TYPE_BIN:
-		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.bin\n\n", name->len, name->data);
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", name->len, name->data)));
 		break;
 	case PROJ_TYPE_FAT12:
-		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.img\n\n", name->len, name->data);
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", name->len, name->data)));
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
-		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s.a\n\n", name->len, name->data);
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", name->len, name->data)));
 		break;
 	default:
-		c_fprintf(fp, "TARGET := $(OUTDIR)%.*s\n\n", name->len, name->data);
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", name->len, name->data)));
 		break;
 	}
 
-	c_fprintf(fp, "ifeq ($(PLATFORM), x86_64)\n"
-		      "BITS := 64\n"
-		      "else\n"
-		      "BITS := 32\n"
-		      "endif\n"
-		      "\n");
+	make_add_act(make, make_create_empty(make));
 
-	c_fprintf(fp, "FLAGS :=");
+	const make_if_t if_platform = make_add_act(make, make_create_if(make, MVAR(mplatform), MSTR(STR("x86_64"))));
+	const make_var_t bits_64    = make_if_add_true_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
+	make_var_add_val(make, bits_64, MSTR(STR("64")));
+	const make_var_t bits_32 = make_if_add_false_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
+	make_var_add_val(make, bits_32, MSTR(STR("32")));
+
+	make_add_act(make, make_create_empty(make));
+
+	const make_var_t mflags = make_add_act(make, make_create_var(make, STR("FLAGS"), MAKE_VAR_INST));
 
 	//TODO: Remove
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
 		for (uint i = 0; i < sources->cnt; i++) {
-			prop_str_t *source = arr_get(sources, i);
+			const prop_str_t *source = arr_get(sources, i);
 
 			buf_len = resolve(source, CSTR(buf), proj);
-			c_fprintf(fp, " -I%.*s", buf_len, buf);
+			make_var_add_val(make, mflags, MSTR(strf("-I%.*s", buf_len, buf)));
 		}
 	}
 
@@ -210,10 +264,10 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
 		for (uint i = 0; i < includes->cnt; i++) {
-			prop_str_t *include = arr_get(includes, i);
+			const prop_str_t *include = arr_get(includes, i);
 
 			buf_len = resolve(include, CSTR(buf), proj);
-			c_fprintf(fp, " -I%.*s", buf_len, buf);
+			make_var_add_val(make, mflags, MSTR(strf("-I%.*s", buf_len, buf)));
 		}
 	}
 
@@ -224,21 +278,20 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
 
 			for (uint i = 0; i < includes->cnt; i++) {
-				prop_str_t *include = arr_get(includes, i);
+				const prop_str_t *include = arr_get(includes, i);
 
 				char rel_path[P_MAX_PATH] = { 0 };
 				size_t rel_path_len;
 
 				buf_len	     = resolve(include, CSTR(buf), iproj);
 				rel_path_len = convert_slash(CSTR(rel_path), iproj->rel_path.path, iproj->rel_path.len);
-				c_fprintf(fp, " -I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf);
+				make_var_add_val(make, mflags, MSTR(strf("-I$(SLNDIR)/%.*s/%.*s", rel_path_len, rel_path, buf_len, buf)));
 			}
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 			buf_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(buf), iproj);
-			c_fprintf(fp, " -I");
-			print_rel_path(fp, iproj, buf, buf_len);
+			add_rel_path(make, mflags, iproj, "-I", buf, buf_len);
 		}
 	}
 
@@ -246,57 +299,54 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
 
 		for (uint k = 0; k < defines->cnt; k++) {
-			prop_str_t *define = arr_get(defines, k);
+			const prop_str_t *define = arr_get(defines, k);
 
-			c_fprintf(fp, " -D%.*s", define->len, define->data);
+			make_var_add_val(make, mflags, MSTR(strf("-D%.*s", define->len, define->data)));
 		}
 	}
 
-	c_fprintf(fp, "\n");
-
 	if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, "ASMFLAGS += $(FLAGS)");
+		const make_var_t asmflags = make_add_act(make, make_create_var(make, STR("ASMFLAGS"), MAKE_VAR_APP));
+		make_var_add_val(make, asmflags, MVAR(mflags));
 
 		if (lang == (1 << LANG_ASM)) {
-			c_fprintf(fp, " -fbin");
+			make_var_add_val(make, asmflags, MSTR(STR("-fbin")));
 		} else {
-			c_fprintf(fp, " -felf$(BITS)");
+			make_var_add_val(make, asmflags, MSTR(STR("-felf$(BITS)")));
 		}
-
-		c_fprintf(fp, "\n");
 	}
 
 	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, "CFLAGS += $(FLAGS)");
+		const make_var_t mcflags = make_add_act(make, make_create_var(make, STR("CFLAGS"), MAKE_VAR_APP));
+		make_var_add_val(make, mcflags, MVAR(mflags));
 
 		if ((cflags->flags & PROP_SET)) {
 			if (cflags->mask & (1 << CFLAG_STD_C99)) {
-				c_fprintf(fp, " -std=c99");
+				make_var_add_val(make, mcflags, MSTR(STR("-std=c99")));
 			}
 			if (cflags->mask & (1 << CFLAG_FREESTANDING)) {
-				c_fprintf(fp, " -ffreestanding");
+				make_var_add_val(make, mcflags, MSTR(STR("-ffreestanding")));
 			}
 		}
 
 		if (ccflags->flags & PROP_SET) {
 			for (uint i = 0; i < ccflags->arr.cnt; i++) {
-				prop_str_t *ccflag = arr_get(&ccflags->arr, i);
-				c_fprintf(fp, " %.*s", ccflag->len, ccflag->data);
+				const prop_str_t *ccflag = arr_get(&ccflags->arr, i);
+				make_var_add_val(make, mcflags, MSTR(strc(ccflag->data, ccflag->len)));
 			}
 		}
-
-		c_fprintf(fp, "\n");
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, "CXXFLAGS += $(FLAGS)\n");
+		const make_var_t cxxflags = make_add_act(make, make_create_var(make, STR("CXXFLAGS"), MAKE_VAR_APP));
+		make_var_add_val(make, cxxflags, MVAR(mflags));
 	}
 
 	bool dep_bin = 1;
 
 	if (depends->flags & PROP_SET) {
 		for (uint i = 0; i < depends->arr.cnt; i++) {
-			prop_str_t *dpname = arr_get(&depends->arr, i);
+			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			proj_t *dproj = NULL;
 			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
@@ -314,16 +364,16 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
-		c_fprintf(fp, "LDFLAGS +=");
+		const make_var_t mldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_APP));
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
 
 		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE)) {
-				c_fprintf(fp, " -Wl,--whole-archive");
+				make_var_add_val(make, mldflags, MSTR(STR("-Wl,--whole-archive")));
 			}
 			if (ldflags->mask & (1 << LDFLAG_ALLOWMULTIPLEDEFINITION)) {
-				c_fprintf(fp, " -Wl,--allow-multiple-definition");
+				make_var_add_val(make, mldflags, MSTR(STR("-Wl,--allow-multiple-definition")));
 			}
 		}
 
@@ -335,24 +385,22 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 				if (doutdir->flags & PROP_SET) {
 					buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-					c_fprintf(fp, " -L");
-					print_rel_path(fp, dproj, buf, buf_len);
+					add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
 
-					c_fprintf(fp, " -l:%.*s.a", dproj->name->len, dproj->name->data);
+					make_var_add_val(make, mldflags, MSTR(strf("-l:%.*s.a", dproj->name->len, dproj->name->data)));
 				} else {
 					buf_len = convert_slash(CSTR(buf), dproj->rel_path.path, dproj->rel_path.len);
-					c_fprintf(fp, " -L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data);
+					make_var_add_val(make, mldflags, MSTR(strf("-L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data)));
 				}
 			}
 
 			if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
 				const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 				for (uint j = 0; j < libdirs->cnt; j++) {
-					prop_str_t *libdir = arr_get(libdirs, j);
+					const prop_str_t *libdir = arr_get(libdirs, j);
 					if (libdir->len > 0) {
 						buf_len = resolve(libdir, CSTR(buf), dproj);
-						c_fprintf(fp, " -L");
-						print_rel_path(fp, dproj, buf, buf_len);
+						add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
 					}
 				}
 			}
@@ -360,131 +408,130 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			if (dproj->props[PROJ_PROP_LINK].flags & PROP_SET) {
 				const arr_t *links = &dproj->props[PROJ_PROP_LINK].arr;
 				for (uint j = 0; j < links->cnt; j++) {
-					prop_str_t *link = arr_get(links, j);
+					const prop_str_t *link = arr_get(links, j);
 					if (link->len > 0) {
-						c_fprintf(fp, " -l:%.*s.a", link->len, link->data);
+						make_var_add_val(make, mldflags, MSTR(strf(" -l:%.*s.a", link->len, link->data)));
 					}
 				}
 			}
 		}
 
 		if ((ldflags->flags & PROP_SET) && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
-			c_fprintf(fp, " -Wl,--no-whole-archive");
+			make_var_add_val(make, mldflags, MSTR(STR("-Wl,--no-whole-archive")));
 		}
 
 		if (lang & (1 << LANG_CPP)) {
-			c_fprintf(fp, " -lstdc++");
+			make_var_add_val(make, mldflags, MSTR(STR("-lstdc++")));
 		}
 
 		if (ldflags->flags & PROP_SET) {
 			if (ldflags->mask & (1 << LDFLAG_MATH)) {
-				c_fprintf(fp, " -lm");
+				make_var_add_val(make, mldflags, MSTR(STR("-lm")));
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_X11)) {
-				c_fprintf(fp, " -lX11");
+				make_var_add_val(make, mldflags, MSTR(STR("-lX11")));
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_GL)) {
-				c_fprintf(fp, " -lGL");
+				make_var_add_val(make, mldflags, MSTR(STR("-lGL")));
 			}
 
 			if (ldflags->mask & (1 << LDFLAG_GLX)) {
-				c_fprintf(fp, " -lGLX");
+				make_var_add_val(make, mldflags, MSTR(STR("-lGLX")));
 			}
 		}
-
-		c_fprintf(fp, "\n");
 	}
 
-	c_fprintf(fp, "\nRM += -r\n");
+	make_add_act(make, make_create_empty(make));
 
-	c_fprintf(fp, "\nCONFIG_FLAGS :=\n\n");
+	const make_var_t rm = make_add_act(make, make_create_var(make, STR("RM"), MAKE_VAR_APP));
+	make_var_add_val(make, rm, MSTR(STR("-r")));
+
+	make_add_act(make, make_create_empty(make));
+	const make_var_t config_flags = make_add_act(make, make_create_var(make, STR("CONFIG_FLAGS"), MAKE_VAR_INST));
+
+	make_add_act(make, make_create_empty(make));
 
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		c_fprintf(fp, "ifeq ($(CONFIG), Debug)\n"
-			      "CONFIG_FLAGS += -ggdb3 -O0\n"
-			      "endif\n"
-			      "\n");
+		const make_if_t if_config	= make_add_act(make, make_create_if(make, MVAR(mconfig), MSTR(STR("Debug"))));
+		const make_var_t config_flags_a = make_if_add_true_act(make, if_config, make_create_var(make, STR("CONFIG_FLAGS"), MAKE_VAR_APP));
+		make_var_add_val(make, config_flags_a, MSTR(STR("-ggdb3 -O0")));
+
+		make_add_act(make, make_create_empty(make));
 	}
+
+	make_var_t show = MAKE_END;
 
 	if (type == PROJ_TYPE_EXE) {
-		c_fprintf(fp, "SHOW := true\n\n");
+		show = make_add_act(make, make_create_var(make, STR("SHOW"), MAKE_VAR_INST));
+		make_var_add_val(make, show, MSTR(STR("true")));
+
+		make_add_act(make, make_create_empty(make));
 	}
 
-	c_fprintf(fp, ".PHONY: all check check_coverage %.*s compile", name->len, name->data);
+	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
+	make_rule_add_depend(make, all, MRULE(MSTR(strc(name->data, name->len))));
 
-	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-		c_fprintf(fp, " run");
-	}
-
-	c_fprintf(fp,
-		  " coverage clean\n\n"
-		  "all: %.*s\n\ncheck:\n",
-		  name->len, name->data);
+	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
 
 	if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, "ifeq (, $(shell which nasm))\n"
-			      "\tsudo apt install nasm\n"
-			      "endif\n");
+		const make_if_t if_nasm = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which nasm)"))));
+		make_if_add_true_act(make, if_nasm, make_create_cmd(make, MCMD(STR("sudo apt install nasm"))));
 	}
 
 	if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, "ifeq (, $(shell which gcc))\n"
-			      "\tsudo apt install gcc\n"
-			      "endif\n");
+		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which gcc)"))));
+		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt install gcc"))));
 	}
 
 	if (type == PROJ_TYPE_FAT12) {
-		c_fprintf(fp, "ifeq (, $(shell which mcopy))\n"
-			      "\tsudo apt install mtools\n"
-			      "endif\n");
+		const make_if_t if_mcopy = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which mcopy)"))));
+		make_if_add_true_act(make, if_mcopy, make_create_cmd(make, MCMD(STR("sudo apt install mtools"))));
 	}
 
 	if (requires->flags & PROP_SET) {
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			c_fprintf(fp,
-				  "ifeq (, $(shell dpkg -l %.*s))\n"
-				  "\tsudo apt install %.*s\n"
-				  "endif\n",
-				  require->len, require->data, require->len, require->data);
+			const make_if_t if_dpkg =
+				make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
+			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s", require->len, require->data))));
 		}
 	}
 
-	c_fprintf(fp,
-		  "\ncheck_coverage: check\n"
-		  "\t$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
-		  "ifeq (, $(shell which lcov))\n"
-		  "\tsudo apt install lcov\n"
-		  "endif\n"
-		  "\n%.*s: clean compile\n"
-		  "\ncompile: check",
-		  name->len, name->data);
+	const make_rule_t check_coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check_coverage"))), 0));
+	make_rule_add_depend(make, check_coverage, MRULE(MSTR(STR("check"))));
+	make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
+	const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
+	make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov"))));
+
+	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strc(name->data, name->len))), 0));
+	make_rule_add_depend(make, mname, MRULE(MSTR(STR("clean"))));
+	make_rule_add_depend(make, mname, MRULE(MSTR(STR("compile"))));
+
+	const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
+	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
+	make_rule_add_depend(make, compile, MRULE(MVAR(target)));
 
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		c_fprintf(fp, " $(TARGET) $(TARGET).elf");
-	} else {
-		c_fprintf(fp, " $(TARGET)");
+		make_rule_add_depend(make, compile, MRULE(MSTR(STR("$(TARGET).elf"))));
 	}
 
-	c_fprintf(fp, "\n\ncoverage: clean check_coverage $(TARGET)\n");
+	const make_rule_t coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
+	make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
+	make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
+	make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
 
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-		c_fprintf(fp, "\t@$(TARGET) $(ARGS)\n"
-			      "\t@lcov -q -c -d $(SLNDIR) -o $(LCOV)\n"
-			      "ifeq ($(SHOW), true)\n"
-			      "\t@genhtml -q $(LCOV) -o $(REPDIR)\n"
-			      "\t@open $(REPDIR)index.html\n"
-			      "endif\n");
+		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
+		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@lcov -q -c -d $(SLNDIR) -o $(LCOV)"))));
+		const make_if_t if_show = make_rule_add_act(make, coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
+		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@genhtml -q $(LCOV) -o $(REPDIR)"))));
+		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@open $(REPDIR)index.html"))));
 	}
 
-	if (type == PROJ_TYPE_BIN && lang != (1 << LANG_ASM)) {
-		c_fprintf(fp, "\n$(TARGET):");
-	} else {
-		c_fprintf(fp, "\n$(TARGET):");
-	}
+	const make_rule_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target)), 1));
 
 	if (dep_bin) {
 		for (uint i = 0; i < depends->arr.cnt; i++) {
@@ -499,147 +546,143 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
 
 			buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-			c_fprintf(fp, " ");
-			print_rel_path(fp, dproj, buf, buf_len);
+			add_rel_path_depend(make, rtarget, dproj, "", buf, buf_len);
 
-			c_fprintf(fp, "%.*s.bin", dproj->name->len, dproj->name->data);
+			make_rule_add_depend(make, rtarget, MRULE(MSTR(strf("%.*s.bin", dproj->name->len, dproj->name->data))));
 		}
 	}
 
 	if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, " $(OBJ_ASM)");
+		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_asm)));
 	}
 
 	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, " $(OBJ_C)");
+		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_c)));
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, " $(OBJ_CPP)");
+		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_cpp)));
 	}
 
-	c_fprintf(fp, "\n\t@mkdir -p $(@D)\n");
+	make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
-		c_fprintf(fp, "\t@ar rcs $@ $^\n");
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@ar rcs $@ $^"))));
 		break;
 	case PROJ_TYPE_BIN:
 		if (lang == (1 << LANG_ASM) || dep_bin) {
-			c_fprintf(fp, "\t@cat $^ > $@\n");
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
 		} else {
-			c_fprintf(fp, "\t@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)\n");
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)"))));
 		}
 		break;
 	case PROJ_TYPE_EXE:
-		c_fprintf(fp, "\t@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)\n");
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)"))));
 		break;
 	case PROJ_TYPE_FAT12:
-		c_fprintf(fp, "# create empty 1.44MB image (block size = 512, block count = 2880)\n"
-			      "\tdd if=/dev/zero of=$@ bs=512 count=2880\n"
-			      "# create file system\n"
-			      "\tmkfs.fat -F12 -n \"NBOS\" $@\n"
-			      "# put first binary to the first sector of the disk\n"
-			      "\tdd if=$< of=$@ conv=notrunc\n"
-			      "# copy files to the image\n"
-			      "\tmcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\"\n"
-			      "\n");
+		//create empty 1.44MB image (block size = 512, block count = 2880)
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("dd if=/dev/zero of=$@ bs=512 count=2880"))));
+		//create file system
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("mkfs.fat -F12 -n \"NBOS\" $@"))));
+		//put first binary to the first sector of the disk
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("dd if=$< of=$@ conv=notrunc"))));
+		//copy files to the image
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
 		break;
 	}
 
-	c_fprintf(fp, "\n");
-
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		c_fprintf(fp, "$(TARGET).elf:");
+		const make_rule_t target_elf = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(TARGET).elf"))), 1));
 
 		if (lang & (1 << LANG_ASM)) {
-			c_fprintf(fp, " $(OBJ_ASM)");
+			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_asm)));
 		}
 
 		if (lang & (1 << LANG_C)) {
-			c_fprintf(fp, " $(OBJ_C)");
+			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_c)));
 		}
 
 		if (lang & (1 << LANG_CPP)) {
-			c_fprintf(fp, " $(OBJ_CPP)");
+			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_cpp)));
 		}
 
-		c_fprintf(fp, "\n\t@mkdir -p $(@D)\n"
-			      "\t@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)\n"
-			      "\n");
+		make_rule_add_act(make, target_elf, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, target_elf, make_create_cmd(make, MCMD(STR("@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)"))));
 	}
 
 	if (lang == (1 << LANG_ASM)) {
-		c_fprintf(fp, "$(INTDIR)%%.bin: %%.asm\n"
-			      "\t@mkdir -p $(@D)\n"
-			      "\t@nasm $< $(ASMFLAGS) -o $@\n\n");
+		const make_rule_t int_bin = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.bin"))), 1));
+		make_rule_add_depend(make, int_bin, MRULE(MSTR(STR("%.asm"))));
+		make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
 	} else if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, "$(INTDIR)%%.o: %%.asm\n"
-			      "\t@mkdir -p $(@D)\n"
-			      "\t@nasm $< $(ASMFLAGS) -o $@\n\n");
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
 	}
 
 	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, "$(INTDIR)%%.o: %%.c\n"
-			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n\n");
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<"))));
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, "$(INTDIR)%%.o: %%.cpp\n"
-			      "\t@mkdir -p $(@D)\n"
-			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n\n");
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<"))));
 	}
 
 	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
-		c_fprintf(fp, "run: $(TARGET)\n");
+		const make_rule_t mrun = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
+		make_rule_add_depend(make, mrun, MRULE(MVAR(target)));
 
 		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
-			c_fprintf(fp,
-				  "ifeq ($(CONFIG), Debug)\n"
-				  "\t%.*s\n"
-				  "else\n"
-				  "\t%.*s\n"
-				  "endif\n",
-				  drun->value.len, drun->value.data, run->value.len, run->value.data);
-		} else if (run->flags & PROP_SET) {
-			c_fprintf(fp, "\t%.*s\n", run->value.len, run->value.data);
-		}
+			const make_if_t if_config = make_rule_add_act(make, mrun, make_create_if(make, MVAR(mconfig), MSTR(STR("Debug"))));
+			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(strc(drun->value.data, drun->value.len))));
+			make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(strc(run->value.data, run->value.len))));
 
-		c_fprintf(fp, "\n");
+		} else if (run->flags & PROP_SET) {
+			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(strc(run->value.data, run->value.len))));
+		}
 	}
 
-	c_fprintf(fp, "clean:\n"
-		      "\t@$(RM)");
+	str_t cleans = strn(CSTR("@$(RM)"), 128);
+
+	const make_rule_t clean = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
 
 	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		c_fprintf(fp, " $(TARGET) $(TARGET).elf");
+		str_catc(&cleans, CSTR(" $(TARGET) $(TARGET).elf"));
 	} else {
-		c_fprintf(fp, " $(TARGET)");
+		str_catc(&cleans, CSTR(" $(TARGET)"));
 	}
 
 	if (lang & (1 << LANG_ASM)) {
-		c_fprintf(fp, " $(OBJ_ASM)");
+		str_catc(&cleans, CSTR(" $(OBJ_ASM)"));
 	}
 
 	if (lang & (1 << LANG_C)) {
-		c_fprintf(fp, " $(OBJ_C)");
+		str_catc(&cleans, CSTR(" $(OBJ_C)"));
 	}
 
 	if (lang & (1 << LANG_CPP)) {
-		c_fprintf(fp, " $(OBJ_CPP)");
+		str_catc(&cleans, CSTR(" $(OBJ_CPP)"));
 	}
 
 	if (lang & (((1 << LANG_C) | (1 << LANG_CPP)))) {
-		c_fprintf(fp, " $(COV)");
+		str_catc(&cleans, CSTR(" $(COV)"));
 	}
 
-	c_fprintf(fp, "\n");
+	make_rule_add_act(make, clean, make_create_cmd(make, MCMD(cleans)));
 
 	return 0;
 }
 
-static int gen_url(const proj_t *proj, FILE *fp)
+static int gen_url(const proj_t *proj, make_t *make)
 {
 	const prop_str_t *name	 = proj->name;
 	const prop_str_t *url	 = &proj->props[PROJ_PROP_URL].value;
@@ -648,59 +691,76 @@ static int gen_url(const proj_t *proj, FILE *fp)
 	const prop_str_t *target = &proj->props[PROJ_PROP_TARGET].value;
 	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
 
-	c_fprintf(fp,
-		  "URL = %.*s\n"
-		  "NAME = %.*s\n"
-		  "FORMAT = %.*s\n"
-		  "FILE = $(NAME).$(FORMAT)\n"
-		  "DLDIR = $(SLNDIR)/dl/$(FILE)\n"
-		  "SRCDIR = $(SLNDIR)/staging/$(NAME)\n"
-		  "BUILDDIR = $(SLNDIR)/build/$(PLATFORM)/$(NAME)\n"
-		  "LOGDIR = $(SLNDIR)/logs/$(PLATFORM)/$(NAME)\n"
-		  "\n"
-		  ".PHONY: all check compile clean\n"
-		  "\n"
-		  "check:\n"
-		  "ifeq (, $(shell which curl))\n"
-		  "\tsudo apt install curl\n"
-		  "endif\n",
-		  url->len, url->data, name->len, name->data, format->len, format->data);
+	const make_var_t murl = make_add_act(make, make_create_var(make, STR("URL"), MAKE_VAR_INST));
+	make_var_add_val(make, murl, MSTR(strc(url->data, url->len)));
+
+	const make_var_t mname = make_add_act(make, make_create_var(make, STR("NAME"), MAKE_VAR_INST));
+	make_var_add_val(make, mname, MSTR(strc(name->data, name->len)));
+
+	const make_var_t mformat = make_add_act(make, make_create_var(make, STR("FORMAT"), MAKE_VAR_INST));
+	make_var_add_val(make, mformat, MSTR(strc(format->data, format->len)));
+
+	const make_var_t mfile = make_add_act(make, make_create_var(make, STR("FILE"), MAKE_VAR_INST));
+	make_var_add_val(make, mfile, MSTR(STR("$(NAME).$(FORMAT)")));
+
+	const make_var_t dldir = make_add_act(make, make_create_var(make, STR("DLDIR"), MAKE_VAR_INST));
+	make_var_add_val(make, dldir, MSTR(STR("$(SLNDIR)/dl/$(FILE)")));
+
+	const make_var_t srcdir = make_add_act(make, make_create_var(make, STR("SRCDIR"), MAKE_VAR_INST));
+	make_var_add_val(make, srcdir, MSTR(STR("$(SLNDIR)/staging/$(NAME)")));
+
+	const make_var_t biulddir = make_add_act(make, make_create_var(make, STR("BUILDDIR"), MAKE_VAR_INST));
+	make_var_add_val(make, biulddir, MSTR(STR("$(SLNDIR)/build/$(PLATFORM)/$(NAME)")));
+
+	const make_var_t logdir = make_add_act(make, make_create_var(make, STR("BUILDDIR"), MAKE_VAR_INST));
+	make_var_add_val(make, logdir, MSTR(STR("$(SLNDIR)/logs/$(PLATFORM)/$(NAME)")));
+
+	make_add_act(make, make_create_empty(make));
+
+	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
+
+	const make_if_t if_curl = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which curl)"))));
+	make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(STR("sudo apt install curl"))));
 
 	if (requires->flags & PROP_SET) {
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			c_fprintf(fp,
-				  "ifeq (, $(shell dpkg -l %.*s))\n"
-				  "\tsudo apt install %.*s\n"
-				  "endif\n",
-				  require->len, require->data, require->len, require->data);
+			make_if_t if_dpkg =
+				make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
+			make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(strf("sudo apt install %.*s", require->len, require->data))));
 		}
 	}
 
-	c_fprintf(fp,
-		  "\n"
-		  "all: compile\n"
-		  "\n"
-		  "$(DLDIR):\n"
-		  "	@mkdir -p $(@D)\n"
-		  "	@cd $(@D) && curl -O $(URL)$(FILE)\n"
-		  "\n"
-		  "$(SRCDIR)/done: $(DLDIR)\n"
-		  "	@mkdir -p $(SLNDIR)/staging\n"
-		  "	@tar xf $(DLDIR) -C $(SLNDIR)/staging\n"
-		  "	@touch $(SRCDIR)/done\n"
-		  "\n"
-		  "$(OUTDIR)/$(NAME): $(SRCDIR)/done\n"
-		  "	@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)\n"
-		  "	@cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)/configure.log\n"
-		  "	@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)/make.log\n"
-		  "	@touch $(OUTDIR)/$(NAME)\n"
-		  "\n"
-		  "compile: check $(OUTDIR)/$(NAME)\n"
-		  "\n"
-		  "clean:\n",
-		  config->len, config->data, target->len, target->data);
+	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
+	make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
+
+	const make_rule_t rdldir = make_add_act(make, make_create_rule(make, MRULE(MVAR(dldir)), 0));
+	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@cd $(@D) && curl -O $(URL)$(FILE)"))));
+
+	const make_rule_t rsrcdir = make_add_act(make, make_create_rule(make, MRULEACT(MVAR(srcdir), STR("done")), 0));
+	make_rule_add_depend(make, rsrcdir, MRULE(MVAR(dldir)));
+	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(SLNDIR)/staging"))));
+	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@tar xf $(DLDIR) -C $(SLNDIR)/staging"))));
+	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@touch $(SRCDIR)/done"))));
+
+	const make_rule_t routdir = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")), 0));
+	make_rule_add_depend(make, routdir, MRULEACT(MVAR(srcdir), STR("done")));
+	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)"))));
+	make_rule_add_act(
+		make, routdir,
+		make_create_cmd(make,
+				MCMD(strf("cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)/configure.log",
+					  config->len, config->data))));
+	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)/make.log", target->len, target->data))));
+	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@touch $(OUTDIR)/$(NAME)"))));
+
+	const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
+	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
+	make_rule_add_depend(make, compile, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")));
+
+	make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
 
 	return 0;
 }
@@ -735,25 +795,36 @@ int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 		return 1;
 	}
 
-	FILE *fp = file_open(cmake_path.path, "w");
-	if (fp == NULL) {
-		return 1;
-	}
-
 	MSG("generating project: %s", cmake_path.path);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	make_var_t moutdir = MAKE_END;
 
 	if (outdir->flags & PROP_SET) {
 		buf_len = resolve(&outdir->value, CSTR(buf), proj);
-		c_fprintf(fp, "OUTDIR := %.*s\n", buf_len, buf);
+		moutdir = make_add_act(&make, make_create_var(&make, STR("OUTDIR"), MAKE_VAR_INST));
+		make_var_add_val(&make, moutdir, MSTR(strn(buf, buf_len, buf_len + 1)));
 	}
 
 	if (url->flags & PROP_SET) {
-		gen_url(proj, fp);
+		gen_url(proj, &make);
 	} else {
-		gen_source(proj, projects, sln_props, fp);
+		gen_source(proj, projects, sln_props, &make);
 	}
 
-	file_close(fp);
+	FILE *file = file_open(cmake_path.path, "w");
+	if (file == NULL) {
+		return 1;
+	}
+
+	ret |= make_print(&make, file);
+
+	make_free(&make);
+
+	file_close(file);
+
 	if (ret == 0) {
 		SUC("generating project: %s success", cmake_path.path);
 	} else {
