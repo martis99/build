@@ -35,5 +35,5 @@ int main(int argc, char **argv)
 
 	mem_print(stdout);
 
-	return 0;
+	return ret;
 }

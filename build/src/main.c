@@ -104,14 +104,14 @@ int main(int argc, const char **argv)
 		{ .name = "Generators", .modes = gen_modes, .len = __GEN_MAX },
 	};
 
-	gen_fn gen_fns[] = {
+	gen_fn gen_fns[__GEN_MAX] = {
 		[GEN_CMAKE] = cm_sln_gen,
 		[GEN_MAKE]  = mk_sln_gen,
 		[GEN_VS]    = vs_sln_gen,
 		[GEN_VC]    = vc_sln_gen,
 	};
 
-	free_fn free_fns[] = {
+	free_fn free_fns[__GEN_MAX] = {
 		[GEN_MAKE] = mk_sln_free,
 	};
 
