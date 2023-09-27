@@ -59,7 +59,7 @@ static void add_action(make_t *make, const proj_t *proj, bool add_depends, bool 
 	make_rule_add_act(make, maction, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), action)));
 }
 
-int mk_sln_gen(const sln_t *sln, const path_t *path)
+int mk_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);
@@ -90,6 +90,44 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	make_var_add_val(&make, tld, MVAR(ld));
 	const make_var_t tcc = make_add_act(&make, make_create_var(&make, STR("TCC"), MAKE_VAR_INST));
 	make_var_add_val(&make, tcc, MVAR(cc));
+
+	int first = 1;
+
+	dict_foreach(&sln->projects, pair)
+	{
+		const proj_t *proj = pair->value;
+
+		char buf[P_MAX_PATH] = { 0 };
+		char out[P_MAX_PATH] = { 0 };
+
+		size_t buf_len;
+		size_t out_len;
+
+		const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
+
+		out_len = resolve(outdir, CSTR(out), proj);
+
+		const prop_t *exports = &proj->props[PROJ_PROP_EXPORT];
+
+		if (!(exports->flags & PROP_SET)) {
+			continue;
+		}
+
+		for (uint i = 0; i < exports->arr.cnt; i++) {
+			const prop_str_t *export = arr_get(&exports->arr, i);
+
+			buf_len = export->len;
+			mem_cpy(CSTR(buf), export->data, export->len);
+			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), out, out_len, NULL);
+
+			if (first) {
+				make_add_act(&make, make_create_empty(&make));
+				first = 0;
+			}
+
+			make_add_act(&make, make_create_cmd(&make, MCMD(strn(buf, buf_len, buf_len + 1))));
+		}
+	}
 
 	make_add_act(&make, make_create_empty(&make));
 	make_add_act(&make, make_create_cmd(&make, MCMD(STR("export"))));
@@ -135,12 +173,12 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
 		add_action(&make, proj, 1, 0, str_null());
-		add_action(&make, proj, 1, 0, STR("clean"));
+		add_action(&make, proj, 0, 0, STR("clean"));
 		add_action(&make, proj, 1, 0, STR("compile"));
-		if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
+		if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
 			add_action(&make, proj, 0, 1, STR("run"));
 		}
-		add_action(&make, proj, 1, 0, STR("coverage"));
+		add_action(&make, proj, 0, 0, STR("coverage"));
 	}
 
 	const make_rule_t clean = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("clean"))), 0));
@@ -180,4 +218,12 @@ int mk_sln_gen(const sln_t *sln, const path_t *path)
 	}
 
 	return ret;
+}
+
+void mk_sln_free(sln_t *sln)
+{
+	dict_foreach(&sln->projects, pair)
+	{
+		mk_proj_free(pair->value);
+	}
 }

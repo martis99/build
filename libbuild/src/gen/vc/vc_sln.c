@@ -10,7 +10,7 @@
 
 #include <errno.h>
 
-int vc_sln_gen(const sln_t *sln, const path_t *path)
+int vc_sln_gen(sln_t *sln, const path_t *path)
 {
 	mk_sln_gen(sln, path);
 
@@ -94,11 +94,11 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		const proj_t *proj = pair->value;
+		proj_t *proj = pair->value;
 
 		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
-		if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
+		if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_FAT12) {
 			continue;
 		}
 
@@ -112,6 +112,9 @@ int vc_sln_gen(const sln_t *sln, const path_t *path)
 			"}");
 
 	file_close(file);
+
+	mk_sln_free(sln);
+
 	if (ret == 0) {
 		SUC("generating tasks: %s success", launch_path.path);
 	} else {

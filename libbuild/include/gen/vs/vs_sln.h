@@ -3,6 +3,6 @@
 
 #include "gen/sln.h"
 
-int vs_sln_gen(const sln_t *sln, const path_t *path);
+int vs_sln_gen(sln_t *sln, const path_t *path);
 
 #endif

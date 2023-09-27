@@ -6,6 +6,7 @@
 #include "arr.h"
 #include "cstr.h"
 #include "dict.h"
+#include "make.h"
 #include "path.h"
 #include "str.h"
 
@@ -147,6 +148,7 @@ typedef struct proj_s {
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;
+	make_t make;
 } proj_t;
 
 int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);

@@ -6,7 +6,7 @@
 
 #include "common.h"
 
-int vs_sln_gen(const sln_t *sln, const path_t *path)
+int vs_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);

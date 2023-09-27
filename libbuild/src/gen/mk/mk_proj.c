@@ -47,21 +47,7 @@ static inline void add_rel_path(make_t *make, make_var_t var, const proj_t *proj
 	}
 }
 
-static inline void add_rel_path_depend(make_t *make, make_rule_t rule, const proj_t *proj, const char *prefix, const char *path, size_t path_len)
-{
-	char path_b[P_MAX_PATH]	  = { 0 };
-	size_t path_b_len	  = convert_slash(CSTR(path_b), path, path_len);
-	char rel_path[P_MAX_PATH] = { 0 };
-	size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
-
-	if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
-		make_rule_add_depend(make, rule, MRULE(MSTR(strf("%s%.*s", prefix, path_b_len, path_b))));
-	} else {
-		make_rule_add_depend(make, rule, MRULE(MSTR(strf("%s$(SLNDIR)/%.*s/%.*s", prefix, rel_path_len, rel_path, path_b_len, path_b))));
-	}
-}
-
-static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, make_t *make)
+static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, make_t *make, make_var_t mplatform, make_var_t mconfig)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -91,9 +77,6 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		const make_var_t mintdir = make_add_act(make, make_create_var(make, STR("INTDIR"), MAKE_VAR_INST));
 		make_var_add_val(make, mintdir, MSTR(strn(buf, buf_len, buf_len + 1)));
 	}
-
-	const make_var_t mplatform = make_create_var_ext(make, STR("PLATFORM"), MAKE_VAR_INST);
-	const make_var_t mconfig   = make_create_var_ext(make, STR("CONFIG"), MAKE_VAR_INST);
 
 	const make_var_t repdir = make_add_act(make, make_create_var(make, STR("REPDIR"), MAKE_VAR_INST));
 	make_var_add_val(make, repdir, MSTR(STR("$(OUTDIR)coverage-report/")));
@@ -545,10 +528,19 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 			const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
 
-			buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-			add_rel_path_depend(make, rtarget, dproj, "", buf, buf_len);
+			buf_len			  = resolve(&doutdir->value, CSTR(buf), dproj);
+			char path_b[P_MAX_PATH]	  = { 0 };
+			size_t path_b_len	  = convert_slash(CSTR(path_b), buf, buf_len);
+			char rel_path[P_MAX_PATH] = { 0 };
+			size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
 
-			make_rule_add_depend(make, rtarget, MRULE(MSTR(strf("%.*s.bin", dproj->name->len, dproj->name->data))));
+			if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
+				make_rule_add_depend(make, rtarget, MRULE(MSTR(strf("%.*s%.*s.bin", path_b_len, path_b, dproj->name->len, dproj->name->data))));
+			} else {
+				make_rule_add_depend(make, rtarget,
+						     MRULE(MSTR(strf("$(SLNDIR)/%.*s/%.*s%.*s.bin", rel_path_len, rel_path, path_b_len, path_b, dproj->name->len,
+								     dproj->name->data))));
+			}
 		}
 	}
 
@@ -578,7 +570,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 		break;
 	case PROJ_TYPE_EXE:
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)"))));
+		if (dep_bin) {
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
+		} else {
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) -o $@ $^ $(LDFLAGS)"))));
+		}
 		break;
 	case PROJ_TYPE_FAT12:
 		//create empty 1.44MB image (block size = 512, block count = 2880)
@@ -637,7 +633,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<"))));
 	}
 
-	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
 		const make_rule_t mrun = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
 		make_rule_add_depend(make, mrun, MRULE(MVAR(target)));
 
@@ -712,7 +708,7 @@ static int gen_url(const proj_t *proj, make_t *make)
 	const make_var_t biulddir = make_add_act(make, make_create_var(make, STR("BUILDDIR"), MAKE_VAR_INST));
 	make_var_add_val(make, biulddir, MSTR(STR("$(SLNDIR)/build/$(PLATFORM)/$(NAME)")));
 
-	const make_var_t logdir = make_add_act(make, make_create_var(make, STR("BUILDDIR"), MAKE_VAR_INST));
+	const make_var_t logdir = make_add_act(make, make_create_var(make, STR("LOGDIR"), MAKE_VAR_INST));
 	make_var_add_val(make, logdir, MSTR(STR("$(SLNDIR)/logs/$(PLATFORM)/$(NAME)")));
 
 	make_add_act(make, make_create_empty(make));
@@ -728,30 +724,30 @@ static int gen_url(const proj_t *proj, make_t *make)
 
 			make_if_t if_dpkg =
 				make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
-			make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(strf("sudo apt install %.*s", require->len, require->data))));
+			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s", require->len, require->data))));
 		}
 	}
 
 	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
 	make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
 
-	const make_rule_t rdldir = make_add_act(make, make_create_rule(make, MRULE(MVAR(dldir)), 0));
+	const make_rule_t rdldir = make_add_act(make, make_create_rule(make, MRULE(MVAR(dldir)), 1));
 	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@cd $(@D) && curl -O $(URL)$(FILE)"))));
 
-	const make_rule_t rsrcdir = make_add_act(make, make_create_rule(make, MRULEACT(MVAR(srcdir), STR("done")), 0));
+	const make_rule_t rsrcdir = make_add_act(make, make_create_rule(make, MRULEACT(MVAR(srcdir), STR("done")), 1));
 	make_rule_add_depend(make, rsrcdir, MRULE(MVAR(dldir)));
 	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(SLNDIR)/staging"))));
 	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@tar xf $(DLDIR) -C $(SLNDIR)/staging"))));
 	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@touch $(SRCDIR)/done"))));
 
-	const make_rule_t routdir = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")), 0));
+	const make_rule_t routdir = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")), 1));
 	make_rule_add_depend(make, routdir, MRULEACT(MVAR(srcdir), STR("done")));
 	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)"))));
 	make_rule_add_act(
 		make, routdir,
 		make_create_cmd(make,
-				MCMD(strf("cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)/configure.log",
+				MCMD(strf("@cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)/configure.log",
 					  config->len, config->data))));
 	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)/make.log", target->len, target->data))));
 	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@touch $(OUTDIR)/$(NAME)"))));
@@ -765,7 +761,7 @@ static int gen_url(const proj_t *proj, make_t *make)
 	return 0;
 }
 
-int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props)
+int mk_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -797,21 +793,24 @@ int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 	MSG("generating project: %s", cmake_path.path);
 
-	make_t make = { 0 };
-	make_init(&make, 8, 8, 8);
+	make_init(&proj->make, 8, 8, 8);
+
+	make_create_var_ext(&proj->make, STR("SLNDIR"), MAKE_VAR_INST);
+	const make_var_t mplatform = make_create_var_ext(&proj->make, STR("PLATFORM"), MAKE_VAR_INST);
+	const make_var_t mconfig   = make_create_var_ext(&proj->make, STR("CONFIG"), MAKE_VAR_INST);
 
 	make_var_t moutdir = MAKE_END;
 
 	if (outdir->flags & PROP_SET) {
 		buf_len = resolve(&outdir->value, CSTR(buf), proj);
-		moutdir = make_add_act(&make, make_create_var(&make, STR("OUTDIR"), MAKE_VAR_INST));
-		make_var_add_val(&make, moutdir, MSTR(strn(buf, buf_len, buf_len + 1)));
+		moutdir = make_add_act(&proj->make, make_create_var(&proj->make, STR("OUTDIR"), MAKE_VAR_INST));
+		make_var_add_val(&proj->make, moutdir, MSTR(strn(buf, buf_len, buf_len + 1)));
 	}
 
 	if (url->flags & PROP_SET) {
-		gen_url(proj, &make);
+		gen_url(proj, &proj->make);
 	} else {
-		gen_source(proj, projects, sln_props, &make);
+		gen_source(proj, projects, sln_props, &proj->make, mplatform, mconfig);
 	}
 
 	FILE *file = file_open(cmake_path.path, "w");
@@ -819,9 +818,7 @@ int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 		return 1;
 	}
 
-	ret |= make_print(&make, file);
-
-	make_free(&make);
+	ret |= make_print(&proj->make, file);
 
 	file_close(file);
 
@@ -832,4 +829,9 @@ int mk_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 	}
 
 	return ret;
+}
+
+void mk_proj_free(proj_t *proj)
+{
+	make_free(&proj->make);
 }

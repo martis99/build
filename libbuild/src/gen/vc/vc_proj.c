@@ -157,7 +157,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 
 	add_tasks(proj, sln_props, "Build", "compile", f);
 
-	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12) {
+	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
 		c_fprintf(f, ",\n");
 		add_tasks(proj, sln_props, "Run", "run", f);
 	}
@@ -165,7 +165,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 	return 0;
 }
 
-static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+static int cppdbg(proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 
@@ -204,7 +204,12 @@ static int cppdbg(const proj_t *proj, const prop_str_t *config, const prop_str_t
 		buf_len = resolve(&elf->value, CSTR(buf), proj, config, platform, out, out_len);
 		c_fprintf(f, "                        \"program\": \"%.*s\",\n", buf_len, buf);
 	} else {
-		c_fprintf(f, "                        \"program\": \"%.*s%.*s\",\n", out_len, out, name->len, name->data);
+		make_ext_set_val(&proj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}")));
+		make_ext_set_val(&proj->make, STR("CONFIG"), MSTR(strc(config->data, config->len)));
+		make_ext_set_val(&proj->make, STR("PLATFORM"), MSTR(strc(platform->data, platform->len)));
+		make_expand(&proj->make);
+		str_t mtarget = make_var_get_expanded(&proj->make, STR("TARGET"));
+		c_fprintf(f, "                        \"program\": \"%.*s\",\n", mtarget.len, mtarget.data);
 	}
 
 	c_fprintf(f, "                        \"args\": [");
@@ -289,7 +294,7 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 	return 0;
 }
 
-static int add_launch(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+static int add_launch(proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	if (config && cstr_eq(config->data, config->len, CSTR("Release"))) {
 		return f5anything(proj, config, platform, f);
@@ -298,12 +303,12 @@ static int add_launch(const proj_t *proj, const prop_str_t *config, const prop_s
 	}
 }
 
-int vc_proj_gen_launch(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *f)
+int vc_proj_gen_launch(proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_BIN && type != PROJ_TYPE_FAT12) {
+	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_FAT12) {
 		return 0;
 	}
 

@@ -192,7 +192,7 @@ TEST(c_small)
 		}
 	};
 
-	const int ret = test_gen(vs_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	const int ret = test_gen(vs_sln_gen, NULL, c_small_in, sizeof(c_small_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -233,7 +233,7 @@ TEST(c_args)
 		}
 	};
 
-	const int ret = test_gen(vs_sln_gen, c_args_in, sizeof(c_args_in), out, sizeof(out));
+	const int ret = test_gen(vs_sln_gen, NULL, c_args_in, sizeof(c_args_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -278,7 +278,7 @@ TEST(c_include)
 		}
 	};
 
-	const int ret = test_gen(vs_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out));
+	const int ret = test_gen(vs_sln_gen, NULL, c_include_in, sizeof(c_include_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -348,7 +348,7 @@ TEST(c_depends)
 		},
 	};
 
-	const int ret = test_gen(vs_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
+	const int ret = test_gen(vs_sln_gen, NULL, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -389,7 +389,7 @@ TEST(cpp_small)
 		}
 	};
 
-	const int ret = test_gen(vs_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	const int ret = test_gen(vs_sln_gen, NULL, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;

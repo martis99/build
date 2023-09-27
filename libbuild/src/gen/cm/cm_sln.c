@@ -12,7 +12,7 @@
 #define CMAKE_VERSION_MAJOR 3
 #define CMAKE_VERSION_MINOR 16
 
-int cm_sln_gen(const sln_t *sln, const path_t *path)
+int cm_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);

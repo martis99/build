@@ -5,7 +5,8 @@
 
 #define MAX_DATA_CNT 16
 
-typedef int (*test_gen_fn)(const sln_t *sln, const path_t *path);
+typedef int (*test_gen_fn)(sln_t *sln, const path_t *path);
+typedef void (*test_free_fn)(sln_t *sln);
 
 typedef struct test_gen_data_s {
 	const char *data;
@@ -16,7 +17,7 @@ typedef struct test_gen_file_s {
 	test_gen_data_t data[MAX_DATA_CNT];
 } test_gen_file_t;
 
-int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size);
+int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size);
 
 static test_gen_file_t c_small_in[] = {
 	{
@@ -171,6 +172,66 @@ static test_gen_file_t c_include_in[] = {
 			"#define UTILS_H\n"
 			"int utils_print();\n"
 			"#endif\n",
+	},
+};
+
+static test_gen_file_t os_in[] = {
+	{
+		.path = "tmp/Solution.txt",
+		.data = "NAME: OS\n"
+			"DIRS: os, toolchain\n"
+			"PLATFORMS: x86_64, i386\n"
+			"CONFIGS: Debug, Release\n",
+	},
+	{
+		.path = "tmp/toolchain/gcc/Project.txt",
+		.data = "NAME: gcc-13.1.0\n"
+			"URL: http://ftp.gnu.org/gnu/gcc/gcc-13.1.0/\n"
+			"FORMAT: tar.gz\n"
+			"CONFIG: --disable-nls --disable-libssp --enable-languages=c --without-headers\n"
+			"TARGET: all-gcc all-target-libgcc install-gcc install-target-libgcc \n"
+			"OUTDIR: $(SLN_DIR)/bin/toolchain/$(PLATFORM)/gcc\n"
+			"REQUIRE: g++, libgmp-dev, libmpfr-dev, libmpc-dev, texinfo\n"
+			"EXPORT: TCC = $(OUTDIR)/bin/$(PLATFORM)-elf-gcc\n",
+	},
+	{
+		.path = "tmp/os/boot/Project.txt",
+		.data = "NAME: boot\n"
+			"TYPE: BIN\n"
+			"LANGS: ASM\n"
+			"SOURCE: src\n"
+			"DEFINES: ARCH=$(PLATFORM)\n",
+	},
+	{
+		.path = "tmp/os/boot/src/boot.asm",
+		.data = "[org 0x7c00]\n",
+	},
+	{
+		.path = "tmp/os/kernel/Project.txt",
+		.data = "NAME: kernel\n"
+			"TYPE: BIN\n"
+			"LANGS: ASM, C\n"
+			"SOURCE: src\n"
+			"CFLAGS: FREESTANDING\n"
+			"CCFLAGS: -m$(BITS)\n"
+			"DEPENDS: binutils-2.40, gcc-13.1.0, gdb-13.2\n"
+			"DEFINES: ARCH=$(PLATFORM)\n",
+	},
+	{
+		.path = "tmp/os/kernel/src/main.c",
+		.data = "void _start()\n"
+			"{\n"
+			"}\n",
+	},
+	{
+		.path = "tmp/os/image/Project.txt",
+		.data = "NAME: image\n"
+			"TYPE: EXE\n"
+			"DEPENDS: boot, kernel\n"
+			"REQUIRE: qemu-system-x86\n"
+			"RUN: qemu-system-$(PLATFORM) $(TARGET)\n"
+			"DRUN: qemu-system-$(PLATFORM) -s -S $(TARGET)\n"
+			"ELF: $(SLN_DIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/kernel.elf\n",
 	},
 };
 

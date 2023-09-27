@@ -3,45 +3,8 @@
 #include "gen/mk/mk_sln.h"
 
 #include "common.h"
+#include "mk_vc.h"
 #include "test.h"
-
-static const char *SLN_TEST = "SLNDIR := $(CURDIR)\n"
-			      "TLD := $(LD)\n"
-			      "TCC := $(CC)\n"
-			      "\n"
-			      "export\n"
-			      "\n"
-			      "CONFIGS := Debug\n"
-			      "CONFIG := Debug\n"
-			      "\n"
-			      "SHOW := true\n"
-			      "\n"
-			      ".PHONY: all check test test/clean test/compile test/run test/coverage clean\n"
-			      "\n"
-			      "all: test\n"
-			      "\n"
-			      "check:\n"
-			      "ifeq ($(filter $(CONFIG),$(CONFIGS)),)\n"
-			      "\t$(error Config '$(CONFIG)' not found. Configs: $(CONFIGS))\n"
-			      "endif\n"
-			      "\n"
-			      "test: check\n"
-			      "\t@$(MAKE) -C test\n"
-			      "\n"
-			      "test/clean: check\n"
-			      "\t@$(MAKE) -C test clean\n"
-			      "\n"
-			      "test/compile: check\n"
-			      "\t@$(MAKE) -C test compile\n"
-			      "\n"
-			      "test/run: check test/compile\n"
-			      "\t@$(MAKE) -C test run\n"
-			      "\n"
-			      "test/coverage: check\n"
-			      "\t@$(MAKE) -C test coverage\n"
-			      "\n"
-			      "clean: check\n"
-			      "	@$(MAKE) -C test clean\n";
 
 static const char *SLN_LIBTEST = "SLNDIR := $(CURDIR)\n"
 				 "TLD := $(LD)\n"
@@ -78,7 +41,7 @@ static const char *SLN_LIBTEST = "SLNDIR := $(CURDIR)\n"
 				 "test: check libtest\n"
 				 "\t@$(MAKE) -C test\n"
 				 "\n"
-				 "test/clean: check libtest/clean\n"
+				 "test/clean: check\n"
 				 "\t@$(MAKE) -C test clean\n"
 				 "\n"
 				 "test/compile: check libtest/compile\n"
@@ -87,7 +50,7 @@ static const char *SLN_LIBTEST = "SLNDIR := $(CURDIR)\n"
 				 "test/run: check test/compile\n"
 				 "\t@$(MAKE) -C test run\n"
 				 "\n"
-				 "test/coverage: check libtest/coverage\n"
+				 "test/coverage: check\n"
 				 "\t@$(MAKE) -C test coverage\n"
 				 "\n"
 				 "clean: check\n"
@@ -274,7 +237,7 @@ TEST(c_small)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_small_in, sizeof(c_small_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -320,7 +283,7 @@ TEST(c_args)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_small_in, sizeof(c_small_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -366,7 +329,7 @@ TEST(c_include)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, c_include_in, sizeof(c_include_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_include_in, sizeof(c_include_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -438,7 +401,7 @@ TEST(c_depends)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_depends_in, sizeof(c_depends_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -484,7 +447,41 @@ TEST(cpp_small)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, cpp_small_in, sizeof(cpp_small_in), out, sizeof(out));
+	EXPECT_EQ(ret, 0);
+
+	END;
+}
+
+TEST(os)
+{
+	START;
+
+	test_gen_file_t out[] = {
+		{
+			.path = "tmp/Makefile",
+			.data = OS_SLN,
+		},
+		{
+			.path = "tmp/toolchain/gcc/Makefile",
+			.data = OS_PROJ_GCC,
+		},
+		{
+			.path = "tmp/os/boot/Makefile",
+			.data = OS_PROJ_BOOT,
+		},
+		{
+			.path = "tmp/os/kernel/Makefile",
+			.data = OS_PROJ_KERNEL,
+		},
+		{
+			.path = "tmp/os/image/Makefile",
+			.data = OS_PROJ_IMAGE,
+		},
+
+	};
+
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, os_in, sizeof(os_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -498,5 +495,6 @@ STEST(mk)
 	RUN(c_include);
 	RUN(c_depends);
 	RUN(cpp_small);
+	RUN(os);
 	SEND;
 }

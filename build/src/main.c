@@ -66,7 +66,8 @@ typedef enum arg_enum_e {
 	ARG_H,
 } arg_enum_t;
 
-typedef int (*gen_fn)(const sln_t *sln, const path_t *path);
+typedef int (*gen_fn)(sln_t *sln, const path_t *path);
+typedef void (*free_fn)(sln_t *sln);
 
 int main(int argc, const char **argv)
 {
@@ -108,6 +109,10 @@ int main(int argc, const char **argv)
 		[GEN_MAKE]  = mk_sln_gen,
 		[GEN_VS]    = vs_sln_gen,
 		[GEN_VC]    = vc_sln_gen,
+	};
+
+	free_fn free_fns[] = {
+		[GEN_MAKE] = mk_sln_free,
 	};
 
 	char *solution = ".";
@@ -159,6 +164,10 @@ int main(int argc, const char **argv)
 
 	if (gen_fns[gen]) {
 		ret += gen_fns[gen](&sln, &build_dir);
+	}
+
+	if (free_fns[gen]) {
+		free_fns[gen](&sln);
 	}
 
 	sln_free(&sln);

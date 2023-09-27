@@ -73,7 +73,7 @@ static void print(const char *str)
 	}
 }
 
-int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size)
+int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in, size_t in_size, const test_gen_file_t *out, size_t out_size)
 {
 	const size_t in_cnt  = in_size / sizeof(test_gen_file_t);
 	const size_t out_cnt = out_size / sizeof(test_gen_file_t);
@@ -116,21 +116,25 @@ int test_gen(test_gen_fn fn, const test_gen_file_t *in, size_t in_size, const te
 		return 1;
 	}
 
-	if (fn(&sln, &build_dir)) {
+	if (gen_fn(&sln, &build_dir)) {
 		return 1;
+	}
+
+	if (free_fn) {
+		free_fn(&sln);
 	}
 
 	sln_free(&sln);
 
 	int ret = 0;
 
-	char act[1024 * 8] = { 0 };
+	char act[1024 * 32] = { 0 };
 
 	for (size_t i = 0; i < out_cnt; i++) {
 		const test_gen_file_t *file = &out[i];
 
 		size_t act_len = file_read_t(file->path, CSTR(act));
-		if (act_len == -1) {
+		if (act_len <= 0) {
 			printf("Failed to read '%s' file\n", file->path);
 			ret = 1;
 			continue;
