@@ -750,6 +750,9 @@ static int gen_url(const proj_t *proj, make_t *make)
 
 	make_add_act(make, make_create_empty(make));
 
+	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
+	make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
+
 	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
 
 	const make_if_t if_curl = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which curl)"))));
@@ -764,9 +767,6 @@ static int gen_url(const proj_t *proj, make_t *make)
 			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s", require->len, require->data))));
 		}
 	}
-
-	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
-	make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
 
 	const make_rule_t rdldir = make_add_act(make, make_create_rule(make, MRULE(MVAR(dldir)), 1));
 	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
