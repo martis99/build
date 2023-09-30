@@ -5,7 +5,7 @@
 
 #include "args.h"
 #include "cstr.h"
-#include "mem.h"
+#include "cutils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,8 +71,8 @@ typedef void (*free_fn)(sln_t *sln);
 
 int main(int argc, const char **argv)
 {
-	mem_stats_t mem_stats = { 0 };
-	mem_init(&mem_stats);
+	cutils_t cutils = { 0 };
+	c_init(&cutils);
 
 	const char *name	= "build";
 	const char *description = "Build solution";
@@ -172,6 +172,6 @@ int main(int argc, const char **argv)
 
 	sln_free(&sln);
 
-	mem_print(stdout);
+	c_free(&cutils, stdout);
 	return ret;
 }

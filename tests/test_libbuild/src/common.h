@@ -195,26 +195,40 @@ static test_gen_file_t os_in[] = {
 			"EXPORT: TCC = $(OUTDIR)/bin/$(PLATFORM)-elf-gcc\n",
 	},
 	{
-		.path = "tmp/os/boot/Project.txt",
-		.data = "NAME: boot\n"
+		.path = "tmp/os/boot/bin/Project.txt",
+		.data = "NAME: boot-bin\n"
 			"TYPE: BIN\n"
 			"LANGS: ASM\n"
-			"SOURCE: src\n"
-			"DEFINES: ARCH=$(PLATFORM)\n",
+			"SOURCE: ../src\n"
+			"FILENAME: boot\n"
+			"DEFINES: ARCH=$(PLATFORM), FORMAT=BIN\n",
 	},
 	{
 		.path = "tmp/os/boot/src/boot.asm",
 		.data = "[org 0x7c00]\n",
 	},
 	{
-		.path = "tmp/os/kernel/Project.txt",
-		.data = "NAME: kernel\n"
+		.path = "tmp/os/kernel/bin/Project.txt",
+		.data = "NAME: kernel-bin\n"
 			"TYPE: BIN\n"
 			"LANGS: ASM, C\n"
-			"SOURCE: src\n"
+			"SOURCE: ../src\n"
+			"FILENAME: kernel\n"
 			"CFLAGS: FREESTANDING\n"
 			"CCFLAGS: -m$(BITS)\n"
-			"DEPENDS: binutils-2.40, gcc-13.1.0, gdb-13.2\n"
+			"DEPENDS: gcc-13.1.0\n"
+			"DEFINES: ARCH=$(PLATFORM)\n",
+	},
+	{
+		.path = "tmp/os/kernel/elf/Project.txt",
+		.data = "NAME: kernel-elf\n"
+			"TYPE: ELF\n"
+			"LANGS: ASM, C\n"
+			"SOURCE: ../src\n"
+			"FILENAME: kernel\n"
+			"CFLAGS: FREESTANDING\n"
+			"CCFLAGS: -m$(BITS)\n"
+			"DEPENDS: gcc-13.1.0\n"
 			"DEFINES: ARCH=$(PLATFORM)\n",
 	},
 	{
@@ -224,14 +238,28 @@ static test_gen_file_t os_in[] = {
 			"}\n",
 	},
 	{
-		.path = "tmp/os/image/Project.txt",
-		.data = "NAME: image\n"
-			"TYPE: EXE\n"
-			"DEPENDS: boot, kernel\n"
+		.path = "tmp/os/image/disk/Project.txt",
+		.data = "NAME: image-disk\n"
+			"TYPE: BIN\n"
+			"DEPENDS: boot-bin, kernel-bin, kernel-elf\n"
+			"FILES: boot-bin, kernel-bin\n"
+			"FILENAME: disk\n"
 			"REQUIRE: qemu-system-x86\n"
-			"RUN: qemu-system-$(PLATFORM) $(TARGET)\n"
-			"DRUN: qemu-system-$(PLATFORM) -s -S $(TARGET)\n"
-			"ELF: $(SLN_DIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/kernel.elf\n",
+			"RUN: qemu-system-$(PLATFORM) -hda $(TARGET)\n"
+			"DRUN: qemu-system-$(PLATFORM) -s -S -hda $(TARGET)\n"
+			"PROGRAM: kernel-elf\n",
+	},
+	{
+		.path = "tmp/os/image/floppy/Project.txt",
+		.data = "NAME: image-floppy\n"
+			"TYPE: FAT12\n"
+			"DEPENDS: boot-bin, kernel-bin, kernel-elf\n"
+			"FILES: boot-bin, kernel-bin\n"
+			"FILENAME: floppy\n"
+			"REQUIRE: qemu-system-x86\n"
+			"RUN: qemu-system-$(PLATFORM) -fda $(TARGET)\n"
+			"DRUN: qemu-system-$(PLATFORM) -s -S -fda $(TARGET)\n"
+			"PROGRAM: kernel-elf\n",
 	},
 };
 

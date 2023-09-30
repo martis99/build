@@ -38,7 +38,10 @@ typedef enum proj_prop_e {
 	PROJ_PROP_TARGET,
 	PROJ_PROP_RUN,
 	PROJ_PROP_DRUN,
-	PROJ_PROP_ELF,
+	PROJ_PROP_PROGRAM,
+	PROJ_PROP_FILES,
+	PROJ_PROP_SIZE,
+	PROJ_PROP_FILENAME,
 	PROJ_PROP_ARGS,
 
 	__PROJ_PROP_MAX,
@@ -50,6 +53,7 @@ typedef enum proj_type_e {
 	PROJ_TYPE_EXE,
 	PROJ_TYPE_EXT,
 	PROJ_TYPE_BIN,
+	PROJ_TYPE_ELF,
 	PROJ_TYPE_FAT12,
 
 	__PROJ_TYPE_MAX,
@@ -62,6 +66,7 @@ static const str_t s_proj_types[] = {
 	[PROJ_TYPE_EXE]	    = STRS("EXE"),
 	[PROJ_TYPE_EXT]	    = STRS("EXT"),
 	[PROJ_TYPE_BIN]	    = STRS("BIN"),
+	[PROJ_TYPE_ELF]	    = STRS("ELF"),
 	[PROJ_TYPE_FAT12]   = STRS("FAT12"),
 };
 // clang-format on
@@ -153,6 +158,8 @@ typedef struct proj_s {
 
 int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
 void proj_print(proj_t *proj);
+
+int proj_runnable(const proj_t *proj);
 
 void proj_free(proj_t *proj);
 

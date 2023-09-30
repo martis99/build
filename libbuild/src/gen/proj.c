@@ -36,7 +36,10 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_TARGET]   = { .name = STRS("TARGET") },
 	[PROJ_PROP_RUN]	     = { .name = STRS("RUN") },
 	[PROJ_PROP_DRUN]     = { .name = STRS("DRUN") },
-	[PROJ_PROP_ELF]	     = { .name = STRS("ELF") },
+	[PROJ_PROP_PROGRAM]  = { .name = STRS("PROGRAM") },
+	[PROJ_PROP_FILES]    = { .name = STRS("FILES"), .arr = 1 },
+	[PROJ_PROP_SIZE]     = { .name = STRS("SIZE") },
+	[PROJ_PROP_FILENAME] = { .name = STRS("FILENAME") },
 	[PROJ_PROP_ARGS]     = { .name = STRS("ARGS") },
 };
 
@@ -175,6 +178,11 @@ void proj_print(proj_t *proj)
 	}
 
 	INFF();
+}
+
+int proj_runnable(const proj_t *proj)
+{
+	return proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE || proj->props[PROJ_PROP_RUN].flags & PROP_SET;
 }
 
 void proj_free(proj_t *proj)

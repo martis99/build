@@ -17,7 +17,7 @@ static const char *SLN_LIBTEST = "SLNDIR := $(CURDIR)\n"
 				 "\n"
 				 "SHOW := true\n"
 				 "\n"
-				 ".PHONY: all check libtest libtest/clean libtest/compile libtest/coverage test test/clean test/compile test/run test/coverage clean\n"
+				 ".PHONY: all check libtest libtest/clean libtest/compile test test/clean test/compile test/run test/coverage clean\n"
 				 "\n"
 				 "all: libtest test\n"
 				 "\n"
@@ -34,9 +34,6 @@ static const char *SLN_LIBTEST = "SLNDIR := $(CURDIR)\n"
 				 "\n"
 				 "libtest/compile: check\n"
 				 "\t@$(MAKE) -C libtest compile\n"
-				 "\n"
-				 "libtest/coverage: check\n"
-				 "\t@$(MAKE) -C libtest coverage\n"
 				 "\n"
 				 "test: check libtest\n"
 				 "\t@$(MAKE) -C test\n"
@@ -115,7 +112,7 @@ static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "CONFIG_FLAGS += -ggdb3 -O0\n"
 					  "endif\n"
 					  "\n"
-					  ".PHONY: all check check_coverage libtest compile coverage clean\n"
+					  ".PHONY: all check libtest compile clean\n"
 					  "\n"
 					  "all: libtest\n"
 					  "\n"
@@ -124,17 +121,9 @@ static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "\tsudo apt install gcc\n"
 					  "endif\n"
 					  "\n"
-					  "check_coverage: check\n"
-					  "\t$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)\n"
-					  "ifeq (, $(shell which lcov))\n"
-					  "\tsudo apt install lcov\n"
-					  "endif\n"
-					  "\n"
 					  "libtest: clean compile\n"
 					  "\n"
 					  "compile: check $(TARGET)\n"
-					  "\n"
-					  "coverage: clean check_coverage $(TARGET)\n"
 					  "\n"
 					  "$(TARGET): $(OBJ_C)\n"
 					  "\t@mkdir -p $(@D)\n"
@@ -349,14 +338,9 @@ TEST(c_depends)
 			.data = {
 				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/\n"
 				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/int/\n"
-				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
-				"LCOV := $(OUTDIR)lcov.info\n"
-				"COV := $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
-				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
-				"COV += $(LCOV) $(REPDIR)\n"
 				"TARGET := $(OUTDIR)libtest.a\n"
 				"\n"
 				"ifeq ($(PLATFORM), x86_64)\n"
@@ -463,20 +447,28 @@ TEST(os)
 			.data = OS_SLN,
 		},
 		{
+			.path = "tmp/os/boot/bin/Makefile",
+			.data = OS_PROJ_BOOT_BIN,
+		},
+		{
 			.path = "tmp/toolchain/gcc/Makefile",
 			.data = OS_PROJ_GCC,
 		},
 		{
-			.path = "tmp/os/boot/Makefile",
-			.data = OS_PROJ_BOOT,
+			.path = "tmp/os/kernel/bin/Makefile",
+			.data = OS_PROJ_KERNEL_BIN,
 		},
 		{
-			.path = "tmp/os/kernel/Makefile",
-			.data = OS_PROJ_KERNEL,
+			.path = "tmp/os/kernel/elf/Makefile",
+			.data = OS_PROJ_KERNEL_ELF,
 		},
 		{
-			.path = "tmp/os/image/Makefile",
-			.data = OS_PROJ_IMAGE,
+			.path = "tmp/os/image/disk/Makefile",
+			.data = OS_PROJ_IMAGE_DISK,
+		},
+		{
+			.path = "tmp/os/image/floppy/Makefile",
+			.data = OS_PROJ_IMAGE_FLOPPY,
 		},
 
 	};

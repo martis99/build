@@ -48,14 +48,13 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 
 	int first = 1;
 
-	dict_foreach(&sln->projects, pair)
+	const proj_t **pproj;
+	arr_foreach(&sln->build_order, pproj)
 	{
-		const proj_t *proj = pair->value;
-
 		c_fprintf(file, "%.*s\n", !first, ",");
 		first = 0;
 
-		vc_proj_gen_build(proj, sln->props, file);
+		vc_proj_gen_build(*pproj, sln->props, file);
 	}
 
 	c_fprintf(file, "\n        ]\n"
@@ -96,9 +95,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj = pair->value;
 
-		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
-
-		if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_FAT12) {
+		if (!proj_runnable(proj)) {
 			continue;
 		}
 

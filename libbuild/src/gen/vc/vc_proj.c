@@ -153,11 +153,9 @@ static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *pr
 
 int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 {
-	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
-
 	add_tasks(proj, sln_props, "Build", "compile", f);
 
-	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
+	if (proj_runnable(proj)) {
 		c_fprintf(f, ",\n");
 		add_tasks(proj, sln_props, "Run", "run", f);
 	}
@@ -165,16 +163,16 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, FILE *f)
 	return 0;
 }
 
-static int cppdbg(proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	const prop_str_t *name = proj->name;
 
 	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
 
-	const prop_t *run  = &proj->props[PROJ_PROP_RUN];
-	const prop_t *wdir = &proj->props[PROJ_PROP_WDIR];
-	const prop_t *args = &proj->props[PROJ_PROP_ARGS];
-	const prop_t *elf  = &proj->props[PROJ_PROP_ELF];
+	const prop_t *run     = &proj->props[PROJ_PROP_RUN];
+	const prop_t *wdir    = &proj->props[PROJ_PROP_WDIR];
+	const prop_t *args    = &proj->props[PROJ_PROP_ARGS];
+	const prop_t *program = &proj->props[PROJ_PROP_PROGRAM];
 
 	prop_str_t rel_path = {
 		.cdata = proj->rel_path.path,
@@ -199,18 +197,22 @@ static int cppdbg(proj_t *proj, const prop_str_t *config, const prop_str_t *plat
 		  "                        \"request\": \"launch\",\n",
 		  NAME(config, platform));
 
-	//TODO: automatically detect elf file based on dependencies
-	if (elf->flags & PROP_SET) {
-		buf_len = resolve(&elf->value, CSTR(buf), proj, config, platform, out, out_len);
-		c_fprintf(f, "                        \"program\": \"%.*s\",\n", buf_len, buf);
-	} else {
-		make_ext_set_val(&proj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}")));
-		make_ext_set_val(&proj->make, STR("CONFIG"), MSTR(strc(config->data, config->len)));
-		make_ext_set_val(&proj->make, STR("PLATFORM"), MSTR(strc(platform->data, platform->len)));
-		make_expand(&proj->make);
-		str_t mtarget = make_var_get_expanded(&proj->make, STR("TARGET"));
-		c_fprintf(f, "                        \"program\": \"%.*s\",\n", mtarget.len, mtarget.data);
+	proj_t *pproj = proj;
+
+	if (program->flags & PROP_SET) {
+		const prop_str_t *pname = &program->value;
+		if (dict_get(projects, pname->data, pname->len, (void **)&pproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)pname->len, pname->data);
+			return 1;
+		}
 	}
+
+	make_ext_set_val(&pproj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}")));
+	make_ext_set_val(&pproj->make, STR("CONFIG"), MSTR(strc(config->data, config->len)));
+	make_ext_set_val(&pproj->make, STR("PLATFORM"), MSTR(strc(platform->data, platform->len)));
+	make_expand(&pproj->make);
+	str_t mtarget = make_var_get_resolved(&pproj->make, STR("TARGET"));
+	c_fprintf(f, "                        \"program\": \"%.*s\",\n", mtarget.len, mtarget.data);
 
 	c_fprintf(f, "                        \"args\": [");
 
@@ -294,34 +296,29 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 	return 0;
 }
 
-static int add_launch(proj_t *proj, const prop_str_t *config, const prop_str_t *platform, FILE *f)
+static int add_launch(proj_t *proj, const dict_t *projects, const prop_str_t *config, const prop_str_t *platform, FILE *f)
 {
 	if (config && cstr_eq(config->data, config->len, CSTR("Release"))) {
 		return f5anything(proj, config, platform, f);
 	} else {
-		return cppdbg(proj, config, platform, f);
+		return cppdbg(proj, projects, config, platform, f);
 	}
 }
 
 int vc_proj_gen_launch(proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *f)
 {
 	const prop_str_t *name = proj->name;
-	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
-
-	if (type != PROJ_TYPE_EXE && type != PROJ_TYPE_FAT12) {
-		return 0;
-	}
 
 	const prop_t *configs	= &sln_props[SLN_PROP_CONFIGS];
 	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
 
 	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
-		add_launch(proj, NULL, NULL, f);
+		add_launch(proj, projects, NULL, NULL, f);
 	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			add_launch(proj, config, NULL, f);
+			add_launch(proj, projects, config, NULL, f);
 
 			if (i < configs->arr.cnt - 1) {
 				c_fprintf(f, ",\n");
@@ -331,7 +328,7 @@ int vc_proj_gen_launch(proj_t *proj, const dict_t *projects, const prop_t *sln_p
 		for (uint i = 0; i < platforms->arr.cnt; i++) {
 			const prop_str_t *platform = arr_get(&platforms->arr, i);
 
-			add_launch(proj, NULL, platform, f);
+			add_launch(proj, projects, NULL, platform, f);
 
 			if (i < platforms->arr.cnt - 1) {
 				c_fprintf(f, ",\n");
@@ -344,7 +341,7 @@ int vc_proj_gen_launch(proj_t *proj, const dict_t *projects, const prop_t *sln_p
 			for (uint j = 0; j < platforms->arr.cnt; j++) {
 				const prop_str_t *platform = arr_get(&platforms->arr, j);
 
-				add_launch(proj, config, platform, f);
+				add_launch(proj, projects, config, platform, f);
 
 				if (i < configs->arr.cnt - 1 || j < platforms->arr.cnt - 1) {
 					c_fprintf(f, ",\n");

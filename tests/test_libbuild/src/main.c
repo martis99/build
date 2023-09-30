@@ -5,7 +5,7 @@
 
 #include "test.h"
 
-#include "mem.h"
+#include "cutils.h"
 
 int G_DBG = 0;
 int G_SUC = 0;
@@ -26,14 +26,14 @@ TEST(tests)
 
 int main(int argc, char **argv)
 {
-	mem_stats_t mem_stats = { 0 };
-	mem_init(&mem_stats);
+	cutils_t cutils = { 0 };
+	c_init(&cutils);
 
 	t_init(80);
 	tests();
 	const int ret = t_finish();
 
-	mem_print(stdout);
+	c_free(&cutils, stdout);
 
 	return ret;
 }

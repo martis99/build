@@ -52,16 +52,24 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	const prop_t *configs  = &sln_props[SLN_PROP_CONFIGS];
-	const prop_t *langs    = &proj->props[PROJ_PROP_LANGS];
-	const prop_t *cflags   = &proj->props[PROJ_PROP_CFLAGS];
-	const prop_t *ccflags  = &proj->props[PROJ_PROP_CCFLAGS];
-	const prop_t *outdir   = &proj->props[PROJ_PROP_OUTDIR];
-	const prop_t *intdir   = &proj->props[PROJ_PROP_INTDIR];
-	const prop_t *depends  = &proj->props[PROJ_PROP_DEPENDS];
-	const prop_t *requires = &proj->props[PROJ_PROP_REQUIRE];
-	const prop_t *run      = &proj->props[PROJ_PROP_RUN];
-	const prop_t *drun     = &proj->props[PROJ_PROP_DRUN];
+	const prop_t *configs	 = &sln_props[SLN_PROP_CONFIGS];
+	const prop_t *langs	 = &proj->props[PROJ_PROP_LANGS];
+	const prop_t *cflags	 = &proj->props[PROJ_PROP_CFLAGS];
+	const prop_t *ccflags	 = &proj->props[PROJ_PROP_CCFLAGS];
+	const prop_t *outdir	 = &proj->props[PROJ_PROP_OUTDIR];
+	const prop_t *intdir	 = &proj->props[PROJ_PROP_INTDIR];
+	const prop_t *depends	 = &proj->props[PROJ_PROP_DEPENDS];
+	const prop_t *files	 = &proj->props[PROJ_PROP_FILES];
+	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
+	const prop_t *run	 = &proj->props[PROJ_PROP_RUN];
+	const prop_t *drun	 = &proj->props[PROJ_PROP_DRUN];
+	const prop_t *size	 = &proj->props[PROJ_PROP_SIZE];
+	const prop_t *p_filename = &proj->props[PROJ_PROP_FILENAME];
+
+	const prop_str_t *filename = name;
+	if (p_filename->flags & PROP_SET) {
+		filename = &p_filename->value;
+	}
 
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
@@ -78,8 +86,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_var_add_val(make, mintdir, MSTR(strn(buf, buf_len, buf_len + 1)));
 	}
 
-	const make_var_t repdir = make_add_act(make, make_create_var(make, STR("REPDIR"), MAKE_VAR_INST));
-	make_var_add_val(make, repdir, MSTR(STR("$(OUTDIR)coverage-report/")));
+	make_var_t repdir = MAKE_END;
+	if (type == PROJ_TYPE_EXE) {
+		repdir = make_add_act(make, make_create_var(make, STR("REPDIR"), MAKE_VAR_INST));
+		make_var_add_val(make, repdir, MSTR(STR("$(OUTDIR)coverage-report/")));
+	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
@@ -169,53 +180,55 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_var_add_val(make, obj_cpp, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.o, $(SRC_CPP))")));
 	}
 
-	const make_var_t lcov = make_add_act(make, make_create_var(make, STR("LCOV"), MAKE_VAR_INST));
-	make_var_add_val(make, lcov, MSTR(STR("$(OUTDIR)lcov.info")));
+	if (type == PROJ_TYPE_EXE) {
+		const make_var_t lcov = make_add_act(make, make_create_var(make, STR("LCOV"), MAKE_VAR_INST));
+		make_var_add_val(make, lcov, MSTR(STR("$(OUTDIR)lcov.info")));
 
-	bool cov_first		 = 1;
-	make_var_type_t cov_type = MAKE_VAR_INST;
+		bool cov_first		 = 1;
+		make_var_type_t cov_type = MAKE_VAR_INST;
 
-	if (lang & (1 << LANG_C)) {
-		make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
-		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))")));
-		cov_type = MAKE_VAR_APP;
-		cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
-		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))")));
+		if (lang & (1 << LANG_C)) {
+			make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))")));
+			cov_type = MAKE_VAR_APP;
+			cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))")));
+			cov_type = MAKE_VAR_APP;
+		}
+
+		if (lang & (1 << LANG_CPP)) {
+			make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcno, $(SRC_CPP))")));
+			cov_type = MAKE_VAR_APP;
+			cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcda, $(SRC_CPP))")));
+			cov_type = MAKE_VAR_APP;
+		}
+
+		const make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		make_var_add_val(make, cov, MVAR(lcov));
+		make_var_add_val(make, cov, MVAR(repdir));
 		cov_type = MAKE_VAR_APP;
 	}
-
-	if (lang & (1 << LANG_CPP)) {
-		make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
-		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcno, $(SRC_CPP))")));
-		cov_type = MAKE_VAR_APP;
-		cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
-		make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcda, $(SRC_CPP))")));
-		cov_type = MAKE_VAR_APP;
-	}
-
-	const make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
-	make_var_add_val(make, cov, MVAR(lcov));
-	make_var_add_val(make, cov, MVAR(repdir));
-	cov_type = MAKE_VAR_APP;
 
 	const make_var_t target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", name->len, name->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", filename->len, filename->data)));
 		break;
 	case PROJ_TYPE_BIN:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", name->len, name->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", filename->len, filename->data)));
+		break;
+	case PROJ_TYPE_ELF:
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.elf", filename->len, filename->data)));
 		break;
 	case PROJ_TYPE_FAT12:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", name->len, name->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", filename->len, filename->data)));
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", name->len, name->data)));
-		break;
-	default:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", name->len, name->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", filename->len, filename->data)));
 		break;
 	}
 
@@ -331,7 +344,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		for (uint i = 0; i < depends->arr.cnt; i++) {
 			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
-			proj_t *dproj = NULL;
+			const proj_t *dproj = NULL;
 			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
 				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 				continue;
@@ -346,7 +359,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		dep_bin = 0;
 	}
 
-	if (!dep_bin && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
+	if (!dep_bin && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_ELF)) {
 		const make_var_t mldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_APP));
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
@@ -483,11 +496,13 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	const make_rule_t check_coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check_coverage"))), 0));
-	make_rule_add_depend(make, check_coverage, MRULE(MSTR(STR("check"))));
-	make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
-	const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
-	make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov"))));
+	if (type == PROJ_TYPE_EXE) {
+		const make_rule_t check_coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check_coverage"))), 0));
+		make_rule_add_depend(make, check_coverage, MRULE(MSTR(STR("check"))));
+		make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
+		const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
+		make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov"))));
+	}
 
 	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strc(name->data, name->len))), 0));
 	make_rule_add_depend(make, mname, MRULE(MSTR(STR("clean"))));
@@ -497,16 +512,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
 	make_rule_add_depend(make, compile, MRULE(MVAR(target)));
 
-	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		make_rule_add_depend(make, compile, MRULE(MSTR(STR("$(TARGET).elf"))));
-	}
-
-	const make_rule_t coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
-	make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
-	make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
-	make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
-
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+		const make_rule_t coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
+		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
+		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
+		make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
+
 		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@lcov -q -c -d $(SLNDIR) -o $(LCOV)"))));
 		const make_if_t if_show = make_rule_add_act(make, coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
@@ -520,7 +531,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		for (uint i = 0; i < depends->arr.cnt; i++) {
 			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
-			proj_t *dproj = NULL;
+			const proj_t *dproj = NULL;
 			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
 				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
 				continue;
@@ -563,11 +574,46 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@ar rcs $@ $^"))));
 		break;
 	case PROJ_TYPE_BIN:
-		if (lang == (1 << LANG_ASM) || dep_bin) {
+		if (files->flags & PROP_SET) {
+			for (uint i = 0; i < files->arr.cnt; i++) {
+				const prop_str_t *fname = arr_get(&files->arr, i);
+
+				proj_t *fproj = NULL;
+				if (dict_get(projects, fname->data, fname->len, (void **)&fproj)) {
+					ERR("project doesn't exists: '%.*s'", (int)fname->len, fname->data);
+					continue;
+				}
+
+				make_expand(&fproj->make);
+				str_t mtarget = make_var_get_expanded(&fproj->make, STR("TARGET"));
+
+				switch (fproj->props[PROJ_PROP_TYPE].mask) {
+				case PROJ_TYPE_BIN:
+					make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@dd if=%.*s >> $@", mtarget.len, mtarget.data))));
+					break;
+
+				case PROJ_TYPE_ELF:
+					make_rule_add_act(make, rtarget,
+							  make_create_cmd(make, MCMD(strf("@objcopy -O binary -j .text %.*s %.*s.bin", mtarget.len, mtarget.data,
+											  mtarget.len, mtarget.data))));
+					make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@dd if=%.*s.bin >> $@", mtarget.len, mtarget.data))));
+					break;
+				}
+			}
+
+			if (size->flags & PROP_SET) {
+				make_rule_add_act(make, rtarget,
+						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s >> $@", size->value.len, size->value.data))));
+			}
+		} else if (lang == (1 << LANG_ASM) || dep_bin) {
 			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
 		} else {
 			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -o $@ -Tlinker.ld $^ --oformat binary $(LDFLAGS)"))));
 		}
+
+		break;
+	case PROJ_TYPE_ELF:
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)"))));
 		break;
 	case PROJ_TYPE_EXE:
 		if (dep_bin) {
@@ -577,6 +623,20 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 		break;
 	case PROJ_TYPE_FAT12:
+		for (uint i = 0; i < files->arr.cnt; i++) {
+			const prop_str_t *fname = arr_get(&files->arr, i);
+
+			proj_t *fproj = NULL;
+			if (dict_get(projects, fname->data, fname->len, (void **)&fproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)fname->len, fname->data);
+				continue;
+			}
+
+			make_expand(&fproj->make);
+			str_t mtarget = make_var_get_expanded(&fproj->make, STR("TARGET"));
+
+			make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(mtarget))));
+		}
 		//create empty 1.44MB image (block size = 512, block count = 2880)
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("dd if=/dev/zero of=$@ bs=512 count=2880"))));
 		//create file system
@@ -586,25 +646,6 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		//copy files to the image
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
 		break;
-	}
-
-	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		const make_rule_t target_elf = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(TARGET).elf"))), 1));
-
-		if (lang & (1 << LANG_ASM)) {
-			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_asm)));
-		}
-
-		if (lang & (1 << LANG_C)) {
-			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_c)));
-		}
-
-		if (lang & (1 << LANG_CPP)) {
-			make_rule_add_depend(make, target_elf, MRULE(MVAR(obj_cpp)));
-		}
-
-		make_rule_add_act(make, target_elf, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, target_elf, make_create_cmd(make, MCMD(STR("@$(TLD) -o $@ -Tlinker.ld $^ $(LDFLAGS)"))));
 	}
 
 	if (lang == (1 << LANG_ASM)) {
@@ -633,7 +674,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<"))));
 	}
 
-	if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
+	if (proj_runnable(proj)) {
 		const make_rule_t mrun = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
 		make_rule_add_depend(make, mrun, MRULE(MVAR(target)));
 
@@ -651,11 +692,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	const make_rule_t clean = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
 
-	if (type == PROJ_TYPE_BIN && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP))) {
-		str_catc(&cleans, CSTR(" $(TARGET) $(TARGET).elf"));
-	} else {
-		str_catc(&cleans, CSTR(" $(TARGET)"));
-	}
+	str_catc(&cleans, CSTR(" $(TARGET)"));
 
 	if (lang & (1 << LANG_ASM)) {
 		str_catc(&cleans, CSTR(" $(OBJ_ASM)"));

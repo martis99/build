@@ -30,6 +30,7 @@ typedef struct sln_s {
 	char guid[37];
 	dict_t projects;
 	dict_t dirs;
+	arr_t build_order;
 } sln_t;
 
 int sln_read(sln_t *sln, const path_t *path);

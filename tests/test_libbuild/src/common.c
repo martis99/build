@@ -128,7 +128,7 @@ int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in
 
 	int ret = 0;
 
-	char act[1024 * 32] = { 0 };
+	char act[1024 * 64] = { 0 };
 
 	for (size_t i = 0; i < out_cnt; i++) {
 		const test_gen_file_t *file = &out[i];

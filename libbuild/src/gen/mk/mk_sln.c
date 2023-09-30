@@ -33,7 +33,7 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	return buf_len;
 }
 
-static void add_action(make_t *make, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
+static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
 {
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
@@ -47,12 +47,25 @@ static void add_action(make_t *make, const proj_t *proj, bool add_depends, bool 
 		make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), STR("compile")));
 	}
 
-	const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+	if (add_depends) {
+		if (proj_runnable(proj)) {
+			for (uint i = 0; i < proj->all_depends.cnt; i++) {
+				const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
+				make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
+			}
+		} else {
+			const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+			for (uint i = 0; i < depends->cnt; i++) {
+				const prop_str_t *dname = arr_get(depends, i);
 
-	if (add_depends && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_FAT12)) {
-		for (uint i = 0; i < proj->all_depends.cnt; i++) {
-			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
-			make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
+				const proj_t *dproj = NULL;
+				if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
+					ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
+					continue;
+				}
+
+				make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
+			}
 		}
 	}
 
@@ -154,10 +167,12 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	make_add_act(&make, make_create_empty(&make));
 
 	const make_rule_t all = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("all"))), 0));
-	dict_foreach(&sln->projects, pair)
 	{
-		const proj_t *proj = pair->value;
-		make_rule_add_depend(&make, all, MRULE(MSTR(strc(proj->name->data, proj->name->len))));
+		const proj_t **proj;
+		arr_foreach(&sln->build_order, proj)
+		{
+			make_rule_add_depend(&make, all, MRULE(MSTR(strc((*proj)->name->data, (*proj)->name->len))));
+		}
 	}
 
 	const make_rule_t check = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("check"))), 0));
@@ -166,19 +181,23 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
 	}
 
-	dict_foreach(&sln->projects, pair)
 	{
-		const proj_t *proj = pair->value;
+		const proj_t **pproj;
+		arr_foreach(&sln->build_order, pproj)
+		{
+			const proj_t *proj = *pproj;
 
-		const proj_type_t type = proj->props[PROJ_PROP_TYPE].mask;
+			add_action(&make, &sln->projects, proj, 1, 0, str_null());
+			add_action(&make, &sln->projects, proj, 0, 0, STR("clean"));
+			add_action(&make, &sln->projects, proj, 1, 0, STR("compile"));
+			if (proj_runnable(proj)) {
+				add_action(&make, &sln->projects, proj, 0, 1, STR("run"));
+			}
 
-		add_action(&make, proj, 1, 0, str_null());
-		add_action(&make, proj, 0, 0, STR("clean"));
-		add_action(&make, proj, 1, 0, STR("compile"));
-		if (type == PROJ_TYPE_EXE || type == PROJ_TYPE_FAT12) {
-			add_action(&make, proj, 0, 1, STR("run"));
+			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+				add_action(&make, &sln->projects, proj, 0, 0, STR("coverage"));
+			}
 		}
-		add_action(&make, proj, 0, 0, STR("coverage"));
 	}
 
 	const make_rule_t clean = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("clean"))), 0));
@@ -212,9 +231,12 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		ERR("generating solution: %s failed", cmake_path.path);
 	}
 
-	dict_foreach(&sln->projects, pair)
 	{
-		mk_proj_gen(pair->value, &sln->projects, path, sln->props);
+		proj_t **pproj;
+		arr_foreach(&sln->build_order, pproj)
+		{
+			mk_proj_gen(*pproj, &sln->projects, path, sln->props);
+		}
 	}
 
 	return ret;
