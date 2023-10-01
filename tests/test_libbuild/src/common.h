@@ -247,7 +247,8 @@ static test_gen_file_t os_in[] = {
 			"REQUIRE: qemu-system-x86\n"
 			"RUN: qemu-system-$(PLATFORM) -hda $(TARGET)\n"
 			"DRUN: qemu-system-$(PLATFORM) -s -S -hda $(TARGET)\n"
-			"PROGRAM: kernel-elf\n",
+			"PROGRAM: kernel-elf\n"
+			"ARTIFACT: disk-$(PLATFORM)-$(CONFIG).bin\n",
 	},
 	{
 		.path = "tmp/os/image/floppy/Project.txt",
@@ -259,7 +260,8 @@ static test_gen_file_t os_in[] = {
 			"REQUIRE: qemu-system-x86\n"
 			"RUN: qemu-system-$(PLATFORM) -fda $(TARGET)\n"
 			"DRUN: qemu-system-$(PLATFORM) -s -S -fda $(TARGET)\n"
-			"PROGRAM: kernel-elf\n",
+			"PROGRAM: kernel-elf\n"
+			"ARTIFACT: floppy-$(PLATFORM)-$(CONFIG).img",
 	},
 };
 

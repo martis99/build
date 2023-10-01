@@ -43,6 +43,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_SIZE,
 	PROJ_PROP_FILENAME,
 	PROJ_PROP_ARGS,
+	PROJ_PROP_ARTIFACT,
 
 	__PROJ_PROP_MAX,
 } proj_prop_t;

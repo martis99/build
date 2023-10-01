@@ -73,7 +73,7 @@ static const char *PROJ_C = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/
 			    "\t@mkdir -p $(@D)\n"
 			    "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
 			    "\n"
-			    "run: $(TARGET)\n"
+			    "run: check $(TARGET)\n"
 			    "\n"
 			    "clean:\n"
 			    "\t@$(RM) $(TARGET) $(OBJ_C) $(COV)\n";
@@ -146,7 +146,7 @@ static const char *PROJ_CPP = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/tes
 			      "\t@mkdir -p $(@D)\n"
 			      "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n"
 			      "\n"
-			      "run: $(TARGET)\n"
+			      "run: check $(TARGET)\n"
 			      "\n"
 			      "clean:\n"
 			      "\t@$(RM) $(TARGET) $(OBJ_CPP) $(COV)\n";

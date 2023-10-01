@@ -33,13 +33,17 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	return buf_len;
 }
 
-static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
+static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, str_t target)
 {
 	char buf[P_MAX_PATH] = { 0 };
 	size_t buf_len;
 
 	buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
+	make_rule_add_act(make, rule, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), target)));
+}
 
+static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
+{
 	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), action), 0));
 	make_rule_add_depend(make, maction, MRULE(MSTR(STR("check"))));
 
@@ -69,7 +73,7 @@ static void add_action(make_t *make, const dict_t *projects, const proj_t *proj,
 		}
 	}
 
-	make_rule_add_act(make, maction, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), action)));
+	add_child_cmd(make, maction, proj, action);
 }
 
 int mk_sln_gen(sln_t *sln, const path_t *path)
@@ -181,6 +185,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
 	}
 
+	int artifacts = 0;
 	{
 		const proj_t **pproj;
 		arr_foreach(&sln->build_order, pproj)
@@ -197,6 +202,24 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 				add_action(&make, &sln->projects, proj, 0, 0, STR("coverage"));
 			}
+
+			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
+				add_action(&make, &sln->projects, proj, 0, 1, STR("artifact"));
+				artifacts++;
+			}
+		}
+	}
+
+	if (artifacts > 0) {
+		const make_rule_t rartifact = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("artifact"))), 0));
+		const proj_t **pproj;
+		arr_foreach(&sln->build_order, pproj)
+		{
+			const proj_t *proj = *pproj;
+
+			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
+				make_rule_add_depend(&make, rartifact, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), STR("artifact")));
+			}
 		}
 	}
 
@@ -205,13 +228,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		const proj_t *proj = pair->value;
-
-		char buf[P_MAX_PATH] = { 0 };
-		size_t buf_len;
-
-		buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
-		make_rule_add_act(&make, clean, make_create_cmd(&make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), STR("clean"))));
+		add_child_cmd(&make, clean, pair->value, STR("clean"));
 	}
 
 	FILE *file = file_open(cmake_path.path, "w");

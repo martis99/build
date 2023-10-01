@@ -52,23 +52,24 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
 
-	const prop_t *configs	 = &sln_props[SLN_PROP_CONFIGS];
-	const prop_t *langs	 = &proj->props[PROJ_PROP_LANGS];
-	const prop_t *cflags	 = &proj->props[PROJ_PROP_CFLAGS];
-	const prop_t *ccflags	 = &proj->props[PROJ_PROP_CCFLAGS];
-	const prop_t *outdir	 = &proj->props[PROJ_PROP_OUTDIR];
-	const prop_t *intdir	 = &proj->props[PROJ_PROP_INTDIR];
-	const prop_t *depends	 = &proj->props[PROJ_PROP_DEPENDS];
-	const prop_t *files	 = &proj->props[PROJ_PROP_FILES];
-	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
-	const prop_t *run	 = &proj->props[PROJ_PROP_RUN];
-	const prop_t *drun	 = &proj->props[PROJ_PROP_DRUN];
-	const prop_t *size	 = &proj->props[PROJ_PROP_SIZE];
-	const prop_t *p_filename = &proj->props[PROJ_PROP_FILENAME];
+	const prop_t *configs	= &sln_props[SLN_PROP_CONFIGS];
+	const prop_t *langs	= &proj->props[PROJ_PROP_LANGS];
+	const prop_t *cflags	= &proj->props[PROJ_PROP_CFLAGS];
+	const prop_t *ccflags	= &proj->props[PROJ_PROP_CCFLAGS];
+	const prop_t *outdir	= &proj->props[PROJ_PROP_OUTDIR];
+	const prop_t *intdir	= &proj->props[PROJ_PROP_INTDIR];
+	const prop_t *depends	= &proj->props[PROJ_PROP_DEPENDS];
+	const prop_t *files	= &proj->props[PROJ_PROP_FILES];
+	const prop_t *requires	= &proj->props[PROJ_PROP_REQUIRE];
+	const prop_t *run	= &proj->props[PROJ_PROP_RUN];
+	const prop_t *drun	= &proj->props[PROJ_PROP_DRUN];
+	const prop_t *size	= &proj->props[PROJ_PROP_SIZE];
+	const prop_t *pfilename = &proj->props[PROJ_PROP_FILENAME];
+	const prop_t *partifact = &proj->props[PROJ_PROP_ARTIFACT];
 
 	const prop_str_t *filename = name;
-	if (p_filename->flags & PROP_SET) {
-		filename = &p_filename->value;
+	if (pfilename->flags & PROP_SET) {
+		filename = &pfilename->value;
 	}
 
 	char buf[P_MAX_PATH] = { 0 };
@@ -230,6 +231,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	case PROJ_TYPE_EXT:
 		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", filename->len, filename->data)));
 		break;
+	}
+
+	make_var_t martifact = MAKE_END;
+	if (partifact->flags & PROP_SET) {
+		const make_var_t martifactdir = make_add_act(make, make_create_var(make, STR("ARTIFACTDIR"), MAKE_VAR_INST));
+		make_var_add_val(make, martifactdir, MSTR(STR("$(SLNDIR)/tmp/artifact/")));
+		martifact = make_add_act(make, make_create_var(make, STR("ARTIFACT"), MAKE_VAR_INST));
+		make_var_add_val(make, martifact, MSTR(strf("$(ARTIFACTDIR)%.*s", partifact->value.len, partifact->value.data)));
 	}
 
 	make_add_act(make, make_create_empty(make));
@@ -589,21 +598,23 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 				switch (fproj->props[PROJ_PROP_TYPE].mask) {
 				case PROJ_TYPE_BIN:
-					make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@dd if=%.*s >> $@", mtarget.len, mtarget.data))));
+					make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@dd if=%.*s status=none >> $@", mtarget.len, mtarget.data))));
 					break;
 
 				case PROJ_TYPE_ELF:
 					make_rule_add_act(make, rtarget,
 							  make_create_cmd(make, MCMD(strf("@objcopy -O binary -j .text %.*s %.*s.bin", mtarget.len, mtarget.data,
 											  mtarget.len, mtarget.data))));
-					make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@dd if=%.*s.bin >> $@", mtarget.len, mtarget.data))));
+					make_rule_add_act(make, rtarget,
+							  make_create_cmd(make, MCMD(strf("@dd if=%.*s.bin status=none >> $@", mtarget.len, mtarget.data))));
 					break;
 				}
 			}
 
 			if (size->flags & PROP_SET) {
 				make_rule_add_act(make, rtarget,
-						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s >> $@", size->value.len, size->value.data))));
+						  make_create_cmd(make,
+								  MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", size->value.len, size->value.data))));
 			}
 		} else if (lang == (1 << LANG_ASM) || dep_bin) {
 			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
@@ -638,13 +649,13 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(mtarget))));
 		}
 		//create empty 1.44MB image (block size = 512, block count = 2880)
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("dd if=/dev/zero of=$@ bs=512 count=2880"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@dd if=/dev/zero of=$@ bs=512 count=2880 status=none"))));
 		//create file system
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("mkfs.fat -F12 -n \"NBOS\" $@"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
 		//put first binary to the first sector of the disk
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("dd if=$< of=$@ conv=notrunc"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@dd if=$< of=$@ conv=notrunc status=none"))));
 		//copy files to the image
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
 		break;
 	}
 
@@ -676,6 +687,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	if (proj_runnable(proj)) {
 		const make_rule_t mrun = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
+		make_rule_add_depend(make, mrun, MRULE(MSTR(STR("check"))));
 		make_rule_add_depend(make, mrun, MRULE(MVAR(target)));
 
 		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
@@ -688,11 +700,23 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
+	if (partifact->flags & PROP_SET) {
+		const make_rule_t rartifact = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("artifact"))), 0));
+		make_rule_add_depend(make, rartifact, MRULE(MSTR(STR("check"))));
+		make_rule_add_depend(make, rartifact, MRULE(MVAR(target)));
+		make_rule_add_act(make, rartifact, make_create_cmd(make, MCMD(STR("@mkdir -p $(ARTIFACTDIR)"))));
+		make_rule_add_act(make, rartifact, make_create_cmd(make, MCMD(strf("@cp $(TARGET) $(ARTIFACT)"))));
+	}
+
 	str_t cleans = strn(CSTR("@$(RM)"), 128);
 
 	const make_rule_t clean = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
 
 	str_catc(&cleans, CSTR(" $(TARGET)"));
+
+	if (martifact != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(ARTIFACT)"));
+	}
 
 	if (lang & (1 << LANG_ASM)) {
 		str_catc(&cleans, CSTR(" $(OBJ_ASM)"));

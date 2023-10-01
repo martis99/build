@@ -41,6 +41,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_SIZE]     = { .name = STRS("SIZE") },
 	[PROJ_PROP_FILENAME] = { .name = STRS("FILENAME") },
 	[PROJ_PROP_ARGS]     = { .name = STRS("ARGS") },
+	[PROJ_PROP_ARTIFACT] = { .name = STRS("ARTIFACT") },
 };
 
 static void replace_prop(prop_t *proj_prop, const prop_t *sln_prop)
