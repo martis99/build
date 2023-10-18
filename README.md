@@ -1,9 +1,12 @@
 # build
 
-build - cross-platform build system generator 
+cross-platform build system generator 
 
-***
 [![codecov](https://codecov.io/github/martis99/build/branch/main/graph/badge.svg?token=YBT0AA2GPG)](https://codecov.io/github/martis99/build)
+[![Coverage Status](https://coveralls.io/repos/github/martis99/build/badge.svg)](https://coveralls.io/github/martis99/build)
+
+## Features
+
 | Support | Linux <br> [![build](https://github.com/martis99/build/actions/workflows/build-linux.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/build-linux.yml) | Windows <br> [![build](https://github.com/martis99/build/actions/workflows/build-windows.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/build-windows.yml) |
 | ----- | :-: | :-: |
 MSBuild |     | [![test](https://github.com/martis99/build/actions/workflows/test-windows-msbuild.yml/badge.svg)](https://github.com/martis99/build/actions/workflows/test-windows-msbuild.yml) |
