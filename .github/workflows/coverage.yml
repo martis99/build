@@ -6,11 +6,13 @@ on:
     branches: [ "main" ]
     paths-ignore:
       - '.github/**'
+      - '**.md'
 
   pull_request:
     branches: [ "main" ]
     paths-ignore:
       - '.github/**'
+      - '**.md'
 
   workflow_dispatch:
 
@@ -26,18 +28,21 @@ jobs:
       - name: Prepare
         run: sudo apt install lcov
 
-      - name: Generate
+      - name: Build
         run: ./build-linux
 
-      - name: Run
+      - name: Make
         run: make test_libbuild/coverage CONFIG=Debug PLATFORM=x64 SHOW=false
 
-      - name: Upload
+      - name: Codecov
         uses: codecov/codecov-action@v3
         with:
           files: ./bin/Debug-x64/tests/test_libbuild/lcov.info
 
-      - name: Save
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: lcov.info
