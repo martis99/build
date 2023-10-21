@@ -30,6 +30,9 @@ int main(int argc, char **argv)
 	c_init(&cutils);
 
 	t_init(80);
+
+	log_set_level(LOG_FATAL);
+
 	tests();
 	const int ret = t_finish();
 

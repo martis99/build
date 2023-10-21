@@ -697,6 +697,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		} else if (run->flags & PROP_SET) {
 			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(strc(run->value.data, run->value.len))));
+		} else {
+			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 		}
 	}
 

@@ -33,38 +33,39 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 
 	int ret = 0;
 
-	FILE *file = file_open(tasks_path.path, "w");
-	if (file == NULL) {
-		ERR("failed to create file: %s, errno: %d\n", tasks_path.path, errno);
-		return 1;
-	}
-
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 	const prop_t *outdir  = &sln->props[SLN_PROP_OUTDIR];
 
-	c_fprintf(file, "{\n"
-			"        \"version\": \"2.0.0\",\n"
-			"        \"tasks\": [");
-
-	int first = 1;
-
-	const proj_t **pproj;
-	arr_foreach(&sln->build_order, pproj)
 	{
-		c_fprintf(file, "%.*s\n", !first, ",");
-		first = 0;
+		json_t json = { 0 };
+		json_init(&json, 400);
 
-		vc_proj_gen_build(*pproj, sln->props, file);
-	}
+		const json_val_t root = json_add_val(&json, JSON_END, str_null(), JSON_OBJ());
+		json_add_val(&json, root, STR("version"), JSON_STR(STR("2.0.0")));
+		const json_val_t tasks = json_add_val(&json, root, STR("tasks"), JSON_ARR());
 
-	c_fprintf(file, "\n        ]\n"
-			"}");
+		const proj_t **pproj;
+		arr_foreach(&sln->build_order, pproj)
+		{
+			vc_proj_gen_build(*pproj, sln->props, &json, tasks);
+		}
 
-	file_close(file);
-	if (ret == 0) {
-		SUC("generating tasks: %s success", tasks_path.path);
-	} else {
-		ERR("generating tasks: %s failed", tasks_path.path);
+		FILE *file = file_open(tasks_path.path, "w");
+		if (file == NULL) {
+			return 1;
+		}
+
+		ret |= json_print(&json, root, "        ", file);
+
+		file_close(file);
+
+		json_free(&json);
+
+		if (ret == 0) {
+			SUC("generating tasks: %s success", tasks_path.path);
+		} else {
+			ERR("generating tasks: %s failed", tasks_path.path);
+		}
 	}
 
 	if (!(outdir->flags & PROP_SET)) {
@@ -79,44 +80,44 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	file = file_open(launch_path.path, "w");
-	if (file == NULL) {
-		printf("Failed to create file: %s, errno: %d\n", launch_path.path, errno);
-		return 1;
-	}
-
-	c_fprintf(file, "{\n"
-			"        \"version\": \"0.2.0\",\n"
-			"        \"configurations\": [");
-
-	first = 1;
-
-	dict_foreach(&sln->projects, pair)
 	{
-		proj_t *proj = pair->value;
+		json_t json = { 0 };
+		json_init(&json, 400);
 
-		if (!proj_runnable(proj)) {
-			continue;
+		const json_val_t root = json_add_val(&json, JSON_END, str_null(), JSON_OBJ());
+		json_add_val(&json, root, STR("version"), JSON_STR(STR("0.2.0")));
+		const json_val_t confs = json_add_val(&json, root, STR("configurations"), JSON_ARR());
+
+		dict_foreach(&sln->projects, pair)
+		{
+			proj_t *proj = pair->value;
+
+			if (!proj_runnable(proj)) {
+				continue;
+			}
+
+			vc_proj_gen_launch(proj, &sln->projects, sln->props, &json, confs);
 		}
 
-		c_fprintf(file, "%.*s\n", !first, ",");
-		first = 0;
+		FILE *file = file_open(launch_path.path, "w");
+		if (file == NULL) {
+			return 1;
+		}
 
-		vc_proj_gen_launch(proj, &sln->projects, sln->props, file);
+		ret |= json_print(&json, root, "        ", file);
+
+		file_close(file);
+
+		json_free(&json);
+
+		if (ret == 0) {
+			SUC("generating tasks: %s success", launch_path.path);
+		} else {
+			ERR("generating tasks: %s failed", launch_path.path);
+		}
 	}
-
-	c_fprintf(file, "\n        ]\n"
-			"}");
-
-	file_close(file);
 
 	mk_sln_free(sln);
-
-	if (ret == 0) {
-		SUC("generating tasks: %s success", launch_path.path);
-	} else {
-		ERR("generating tasks: %s failed", launch_path.path);
-	}
 
 	return 0;
 }
