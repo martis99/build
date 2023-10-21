@@ -161,6 +161,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 void proj_print(proj_t *proj);
 
 int proj_runnable(const proj_t *proj);
+int proj_coverable(const proj_t *proj);
 
 void proj_free(proj_t *proj);
 

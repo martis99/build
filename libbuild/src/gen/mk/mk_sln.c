@@ -42,7 +42,7 @@ static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, st
 	make_rule_add_act(make, rule, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len, buf_len + 1), target)));
 }
 
-static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action)
+static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action, int coverable)
 {
 	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), action), 0));
 	make_rule_add_depend(make, maction, MRULE(MSTR(STR("check"))));
@@ -52,22 +52,17 @@ static void add_action(make_t *make, const dict_t *projects, const proj_t *proj,
 	}
 
 	if (add_depends) {
-		if (proj_runnable(proj)) {
-			for (uint i = 0; i < proj->all_depends.cnt; i++) {
-				const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
-				make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
+		const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+		for (uint i = 0; i < depends->cnt; i++) {
+			const prop_str_t *dname = arr_get(depends, i);
+
+			const proj_t *dproj = NULL;
+			if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
+				continue;
 			}
-		} else {
-			const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-			for (uint i = 0; i < depends->cnt; i++) {
-				const prop_str_t *dname = arr_get(depends, i);
 
-				const proj_t *dproj = NULL;
-				if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
-					ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
-					continue;
-				}
-
+			if (coverable == 0 || proj_coverable(dproj)) {
 				make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
 			}
 		}
@@ -192,19 +187,19 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		{
 			const proj_t *proj = *pproj;
 
-			add_action(&make, &sln->projects, proj, 1, 0, str_null());
-			add_action(&make, &sln->projects, proj, 0, 0, STR("clean"));
-			add_action(&make, &sln->projects, proj, 1, 0, STR("compile"));
+			add_action(&make, &sln->projects, proj, 1, 0, str_null(), 0);
+			add_action(&make, &sln->projects, proj, 0, 0, STR("clean"), 0);
+			add_action(&make, &sln->projects, proj, 1, 0, STR("compile"), 0);
 			if (proj_runnable(proj)) {
-				add_action(&make, &sln->projects, proj, 0, 1, STR("run"));
+				add_action(&make, &sln->projects, proj, 0, 1, STR("run"), 0);
 			}
 
-			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
-				add_action(&make, &sln->projects, proj, 0, 0, STR("coverage"));
+			if (proj_coverable(proj)) {
+				add_action(&make, &sln->projects, proj, 1, 1, STR("coverage"), 1);
 			}
 
 			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
-				add_action(&make, &sln->projects, proj, 0, 1, STR("artifact"));
+				add_action(&make, &sln->projects, proj, 0, 1, STR("artifact"), 0);
 				artifacts++;
 			}
 		}

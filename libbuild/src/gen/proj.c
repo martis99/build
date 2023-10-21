@@ -186,6 +186,12 @@ int proj_runnable(const proj_t *proj)
 	return proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE || proj->props[PROJ_PROP_RUN].flags & PROP_SET;
 }
 
+int proj_coverable(const proj_t *proj)
+{
+	const prop_t *langs = &proj->props[PROJ_PROP_LANGS];
+	return (langs->flags & PROP_SET) && (langs->mask & ((1 << LANG_C) | (1 << LANG_CPP)));
+}
+
 void proj_free(proj_t *proj)
 {
 	props_free(proj->props, s_proj_props, sizeof(s_proj_props));

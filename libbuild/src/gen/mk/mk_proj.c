@@ -505,12 +505,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (type == PROJ_TYPE_EXE) {
+	if (proj_coverable(proj)) {
 		const make_rule_t check_coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check_coverage"))), 0));
 		make_rule_add_depend(make, check_coverage, MRULE(MSTR(STR("check"))));
 		make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
-		const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
-		make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov"))));
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+			const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
+			make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov"))));
+		}
 	}
 
 	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strc(name->data, name->len))), 0));
@@ -521,17 +523,19 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
 	make_rule_add_depend(make, compile, MRULE(MVAR(target)));
 
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+	if (proj_coverable(proj)) {
 		const make_rule_t coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
 		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
 		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
 		make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
 
-		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
-		make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@lcov -q -c -d $(SLNDIR) -o $(LCOV)"))));
-		const make_if_t if_show = make_rule_add_act(make, coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
-		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@genhtml -q $(LCOV) -o $(REPDIR)"))));
-		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@open $(REPDIR)index.html"))));
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+			make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
+			make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@lcov -q -c -d $(SLNDIR) -o $(LCOV)"))));
+			const make_if_t if_show = make_rule_add_act(make, coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
+			make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@genhtml -q $(LCOV) -o $(REPDIR)"))));
+			make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@open $(REPDIR)index.html"))));
+		}
 	}
 
 	const make_rule_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target)), 1));
