@@ -151,6 +151,10 @@ static void get_all_includes(arr_t *arr, const proj_t *proj, dict_t *projects)
 
 static void calculate_includes(proj_t *proj, sln_t *sln)
 {
+	if (!(proj->props[PROJ_PROP_INCLUDES].flags & PROP_SET)) {
+		return;
+	}
+
 	arr_t *includes = &proj->props[PROJ_PROP_INCLUDES].arr;
 	arr_init(&proj->includes, includes->cap * 2, sizeof(proj_t *));
 	get_all_includes(&proj->includes, proj, &sln->projects);
