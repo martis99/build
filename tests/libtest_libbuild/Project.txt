@@ -1,0 +1,6 @@
+NAME: libtest_libbuild
+TYPE: LIB
+SOURCE: src
+INCLUDE: include
+DEPENDS: libbuild, libtest_cutils
+INCLUDES: libbuild, libtest_cutils
