@@ -3,7 +3,7 @@
 cross-platform build system generator 
 
 [![codecov](https://codecov.io/github/martis99/build/branch/main/graph/badge.svg?token=YBT0AA2GPG)](https://codecov.io/github/martis99/build)
-[![Coverage Status](https://coveralls.io/repos/github/martis99/build/badge.svg)](https://coveralls.io/github/martis99/build)
+[![Coverage Status](https://coveralls.io/repos/github/martis99/build/badge.svg?branch=main)](https://coveralls.io/github/martis99/build?branch=main)
 
 ## Features
 
