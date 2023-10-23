@@ -181,7 +181,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_var_add_val(make, obj_cpp, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.o, $(SRC_CPP))")));
 	}
 
-	if (type == PROJ_TYPE_EXE) {
+	if (proj_coverable(proj)) {
 		const make_var_t lcov = make_add_act(make, make_create_var(make, STR("LCOV"), MAKE_VAR_INST));
 		make_var_add_val(make, lcov, MSTR(STR("$(OUTDIR)lcov.info")));
 
@@ -208,7 +208,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		const make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
 		make_var_add_val(make, cov, MVAR(lcov));
-		make_var_add_val(make, cov, MVAR(repdir));
+		if (repdir != MAKE_END) {
+			make_var_add_val(make, cov, MVAR(repdir));
+		}
 		cov_type = MAKE_VAR_APP;
 	}
 

@@ -195,7 +195,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 			}
 
 			if (proj_coverable(proj)) {
-				add_action(&make, &sln->projects, proj, 1, 1, STR("coverage"), 1);
+				add_action(&make, &sln->projects, proj, 1, 0, STR("coverage"), 1);
 			}
 
 			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
