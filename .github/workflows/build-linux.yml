@@ -37,7 +37,7 @@ jobs:
         run: cp ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build-linux-${{matrix.platform}}-${{matrix.configuration}}
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-linux-${{matrix.platform}}-${{matrix.configuration}}
           path: ./bin/${{matrix.configuration}}-${{matrix.platform}}/build/build-linux-${{matrix.platform}}-${{matrix.configuration}}

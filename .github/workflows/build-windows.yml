@@ -40,7 +40,7 @@ jobs:
         run: cp .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build.exe .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build-win-${{matrix.platform}}-${{matrix.configuration}}.exe
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-win-${{matrix.platform}}-${{matrix.configuration}}
           path: .\bin\${{matrix.configuration}}-${{matrix.platform}}\build\build-win-${{matrix.platform}}-${{matrix.configuration}}.exe
