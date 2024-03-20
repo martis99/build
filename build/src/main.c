@@ -139,7 +139,7 @@ int main(int argc, const char **argv)
 	};
 	// clang-format on
 
-	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params, stdout)) {
+	if (args_handle(name, description, args, sizeof(args), modes, sizeof(modes), argc, argv, params, PRINT_DST_STD())) {
 		return 1;
 	}
 
@@ -172,6 +172,6 @@ int main(int argc, const char **argv)
 
 	sln_free(&sln);
 
-	c_free(&cutils, stdout);
+	c_free(&cutils, PRINT_DST_STD());
 	return ret;
 }

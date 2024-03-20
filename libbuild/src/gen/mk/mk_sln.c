@@ -231,7 +231,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	make_print(&make, file);
+	make_print(&make, PRINT_DST_FILE(file));
 
 	file_close(file);
 

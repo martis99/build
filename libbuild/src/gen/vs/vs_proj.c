@@ -655,7 +655,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	MSG("generating project: %s", cmake_path.path);
 
-	xml_print(&xml, xml_proj, file);
+	xml_print(&xml, xml_proj, PRINT_DST_FILE(file));
 	file_close(file);
 	xml_free(&xml);
 
@@ -712,7 +712,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		return 1;
 	}
 
-	xml_print(&xml_user, xml_proj_user, file);
+	xml_print(&xml_user, xml_proj_user, PRINT_DST_FILE(file));
 	file_close(file);
 	xml_free(&xml_user);
 

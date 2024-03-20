@@ -55,7 +55,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 			return 1;
 		}
 
-		ret |= json_print(&json, root, "        ", file);
+		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ");
 
 		file_close(file);
 
@@ -104,7 +104,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 			return 1;
 		}
 
-		ret |= json_print(&json, root, "        ", file);
+		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ");
 
 		file_close(file);
 
