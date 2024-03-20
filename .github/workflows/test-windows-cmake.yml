@@ -8,7 +8,7 @@ on:
         required: false
 
 jobs:
-  Test-VS17:
+  Windows-CMake-VS17:
     runs-on: windows-latest
     strategy:
       matrix:

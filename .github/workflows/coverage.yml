@@ -35,8 +35,10 @@ jobs:
         run: make test_libbuild/coverage CONFIG=Debug PLATFORM=x64 SHOW=false
 
       - name: Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4.1.0
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: martis99/build
           files: ./bin/Debug-x64/tests/test_libbuild/lcov.info
 
       - name: Coveralls

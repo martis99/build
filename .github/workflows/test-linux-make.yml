@@ -8,7 +8,7 @@ on:
         required: false
 
 jobs:
-  Test:
+  Linux-Make:
     runs-on: ubuntu-latest
     strategy:
       matrix:

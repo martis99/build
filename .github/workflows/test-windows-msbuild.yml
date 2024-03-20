@@ -8,7 +8,7 @@ on:
         required: false
 
 jobs:
-  Test:
+  Windows-MSBuild:
     runs-on: windows-latest
     strategy:
       matrix:
