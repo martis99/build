@@ -1,0 +1,14 @@
+name: Dependabot Merge
+
+on:
+  pull_request:
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Merge
+        uses: martis99/dependabot-merge@main
+        with:
+          token: ${{ secrets.PAT }}
