@@ -25,7 +25,7 @@ static const char *PROJ_C = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/
 			    "endif\n"
 			    "\n"
 			    "FLAGS := -Isrc\n"
-			    "CFLAGS += $(FLAGS)\n"
+			    "CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 			    "LDFLAGS +=\n"
 			    "\n"
 			    "RM += -r\n"

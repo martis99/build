@@ -227,7 +227,7 @@ TEST(c_small)
 				"endif\n"
 				"\n"
 				"FLAGS := -Isrc\n"
-				"CFLAGS += $(FLAGS)\n"
+				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -273,7 +273,7 @@ TEST(c_args)
 				"endif\n"
 				"\n"
 				"FLAGS := -Isrc\n"
-				"CFLAGS += $(FLAGS)\n"
+				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -320,7 +320,7 @@ TEST(c_include)
 				"endif\n"
 				"\n"
 				"FLAGS := -Isrc -Iinclude\n"
-				"CFLAGS += $(FLAGS)\n"
+				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -364,7 +364,7 @@ TEST(c_depends)
 				"endif\n"
 				"\n"
 				"FLAGS := -Isrc\n"
-				"CFLAGS += $(FLAGS)\n"
+				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"\n",
 				PROJ_LIBTEST_COMPILE,
 			},
@@ -391,7 +391,7 @@ TEST(c_depends)
 				"endif\n"
 				"\n"
 				"FLAGS := -Isrc\n"
-				"CFLAGS += $(FLAGS)\n"
+				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"LDFLAGS += -L$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/ -l:libtest.a\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,

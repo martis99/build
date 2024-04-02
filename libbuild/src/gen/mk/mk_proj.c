@@ -326,6 +326,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	if (lang & (1 << LANG_C)) {
 		const make_var_t mcflags = make_add_act(make, make_create_var(make, STR("CFLAGS"), MAKE_VAR_APP));
 		make_var_add_val(make, mcflags, MVAR(mflags));
+		make_var_add_val(make, mcflags, MSTR(STR("-Wall -Wextra -Werror -pedantic")));
 
 		if ((cflags->flags & PROP_SET)) {
 			if (cflags->mask & (1 << CFLAG_STD_C99)) {
