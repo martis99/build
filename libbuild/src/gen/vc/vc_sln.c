@@ -12,7 +12,9 @@
 
 int vc_sln_gen(sln_t *sln, const path_t *path)
 {
-	mk_sln_gen(sln, path);
+	int ret = 0;
+
+	ret |= mk_sln_gen(sln, path);
 
 	MSG("%s", "generating tasks");
 
@@ -30,8 +32,6 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 	if (path_child(&tasks_path, CSTR("tasks.json")) == NULL) {
 		return 1;
 	}
-
-	int ret = 0;
 
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
 	const prop_t *outdir  = &sln->props[SLN_PROP_OUTDIR];
@@ -55,7 +55,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 			return 1;
 		}
 
-		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ");
+		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ") == 0;
 
 		file_close(file);
 
@@ -69,12 +69,10 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	if (!(outdir->flags & PROP_SET)) {
-		return 0;
+		return ret;
 	}
 
 	MSG("%s", "generating launch");
-
-	ret = 0;
 
 	if (path_child(&launch_path, CSTR("launch.json")) == NULL) {
 		return 1;
@@ -104,7 +102,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 			return 1;
 		}
 
-		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ");
+		ret |= json_print(&json, root, PRINT_DST_FILE(file), "        ") == 0;
 
 		file_close(file);
 
@@ -119,5 +117,5 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 
 	mk_sln_free(sln);
 
-	return 0;
+	return ret;
 }

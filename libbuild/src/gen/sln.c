@@ -101,6 +101,10 @@ static void calculate_depends(proj_t *proj, sln_t *sln)
 	}
 
 	arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
+	if (depends->cap == 0) {
+		return;
+	}
+
 	arr_init(&proj->all_depends, depends->cap * 2, sizeof(proj_t *));
 	get_all_depends(&proj->all_depends, proj, &sln->projects);
 

@@ -231,7 +231,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	make_print(&make, PRINT_DST_FILE(file));
+	ret |= make_print(&make, PRINT_DST_FILE(file)) == 0;
 
 	file_close(file);
 
@@ -247,7 +247,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		proj_t **pproj;
 		arr_foreach(&sln->build_order, pproj)
 		{
-			mk_proj_gen(*pproj, &sln->projects, path, sln->props);
+			ret |= mk_proj_gen(*pproj, &sln->projects, path, sln->props);
 		}
 	}
 

@@ -108,12 +108,12 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->dirs, pair)
 	{
-		cm_dir_gen(pair->value, path);
+		ret |= cm_dir_gen(pair->value, path);
 	}
 
 	dict_foreach(&sln->projects, pair)
 	{
-		cm_proj_gen(pair->value, &sln->projects, path, sln->props);
+		ret |= cm_proj_gen(pair->value, &sln->projects, path, sln->props);
 	}
 
 	return ret;

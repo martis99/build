@@ -142,8 +142,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		vs_proj_gen(pair->value, &sln->projects, path, sln->props);
+		ret |= vs_proj_gen(pair->value, &sln->projects, path, sln->props);
 	}
 
-	return 0;
+	return ret;
 }

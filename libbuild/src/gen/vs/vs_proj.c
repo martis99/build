@@ -484,14 +484,14 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			    (proj->props[PROJ_PROP_INCLUDES].flags & PROP_SET)) {
 				size_t inc_len = print_includes(NULL, 0, proj, projects) + 1;
 				str_t inc_data = strz(inc_len);
-				inc_data.len = print_includes((char *)inc_data.data, inc_data.size, proj, projects);
+				inc_data.len   = print_includes((char *)inc_data.data, inc_data.size, proj, projects);
 				xml_add_tag_val(&xml, xml_comp, STR("AdditionalIncludeDirectories"), inc_data);
 			}
 
 			if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
 				size_t def_len = print_defines(NULL, 0, proj, projects) + 1;
 				str_t def_data = strz(def_len);
-				def_data.len = print_defines((char *)def_data.data, def_data.size, proj, projects);
+				def_data.len   = print_defines((char *)def_data.data, def_data.size, proj, projects);
 				xml_add_tag_val(&xml, xml_comp, STR("PreprocessorDefinitions"), def_data);
 			}
 
@@ -509,7 +509,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 				size_t ldf_len = print_ldflags(NULL, 0, proj, projects) + 1;
 				if (ldf_len > 1) {
 					str_t ldf_data = strz(ldf_len);
-					ldf_data.len = print_ldflags((char *)ldf_data.data, ldf_data.size, proj, projects);
+					ldf_data.len   = print_ldflags((char *)ldf_data.data, ldf_data.size, proj, projects);
 					xml_add_tag_val(&xml, xml_link, STR("AdditionalOptions"), ldf_data);
 				}
 
@@ -522,7 +522,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 				size_t libs_len = print_libs(NULL, 0, proj, projects) + 1;
 				if (libs_len > 1) {
 					str_t libs_data = strz(libs_len);
-					libs_data.len = print_libs((char *)libs_data.data, libs_data.size, proj, projects);
+					libs_data.len	= print_libs((char *)libs_data.data, libs_data.size, proj, projects);
 					xml_add_tag_val(&xml, xml_link, STR("AdditionalLibraryDirectories"), libs_data);
 				}
 			}
@@ -712,7 +712,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		return 1;
 	}
 
-	xml_print(&xml_user, xml_proj_user, PRINT_DST_FILE(file));
+	ret |= xml_print(&xml_user, xml_proj_user, PRINT_DST_FILE(file)) == 0;
+
 	file_close(file);
 	xml_free(&xml_user);
 

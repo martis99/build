@@ -887,7 +887,7 @@ int mk_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		return 1;
 	}
 
-	ret |= make_print(&proj->make, PRINT_DST_FILE(file));
+	ret |= make_print(&proj->make, PRINT_DST_FILE(file)) == 0;
 
 	file_close(file);
 
