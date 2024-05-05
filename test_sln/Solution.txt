@@ -1,7 +1,7 @@
-NAME: test
-LANGS: C, CPP
-DIRS: app, libs
-STARTUP: app
-CONFIGS: Debug, Release
-PLATFORMS: x64, x86
-CHARSET: Unicode
+NAME = test
+LANGS = C, CPP
+DIRS = app, libs
+STARTUP = app
+CONFIGS = Debug, Release
+PLATFORMS = x64, x86
+CHARSET = Unicode

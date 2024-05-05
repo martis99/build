@@ -1,6 +1,6 @@
-NAME: lib2
-TYPE: LIB
-SOURCE: src
-INCLUDE: inc
-DEPENDS: lib3
-INCLUDES: lib3
+NAME = lib2
+TYPE = LIB
+SOURCE = src
+INCLUDE = inc
+DEPENDS = lib3
+INCLUDES = lib3

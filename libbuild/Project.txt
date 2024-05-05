@@ -2,5 +2,5 @@ NAME: libbuild
 TYPE: LIB
 SOURCE: src
 INCLUDE: include
-DEPENDS: cutils, make
-INCLUDES: cutils, make
+DEPENDS: cutils, ini, make
+INCLUDES: cutils, ini, make

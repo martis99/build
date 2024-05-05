@@ -2,6 +2,7 @@
 
 #include "cstr.h"
 #include "defines.h"
+#include "ini_parse.h"
 #include "mem.h"
 #include "platform.h"
 #include "str.h"
@@ -12,117 +13,85 @@
 	#define PLATFORM "linux"
 #endif
 
-static uint val_to_mask(const prop_str_t *val, const str_t *table, size_t table_len)
+static size_t get_prop_pol(const prop_pol_t *props_pol, size_t props_pol_size, str_t name)
+{
+	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
+	for (size_t i = 0; i < props_pol_len; i++) {
+		if (str_eq(name, props_pol[i].name)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static uint val_to_mask(str_t val, const str_t *table, size_t table_len)
 {
 	for (size_t i = 0; i < table_len; i++) {
-		if (cstr_eq(table[i].data, table[i].len, val->data, val->len)) {
+		if (cstr_eq(table[i].data, table[i].len, val.data, val.len)) {
 			return (uint)i;
 		}
 	}
 
-	ERR_LOGICS("unknown value: '%.*s'", val->path, val->line, val->col, (int)val->len, val->data);
 	return 0;
 }
 
-static int parse_value(prop_str_t *data, prop_t *prop, str_t *value, const str_t *table, size_t table_len, const str_t *line, int arr)
+static void parse_value(prop_str_t *data, prop_t *prop, str_t val, const str_t *table, size_t table_len, int arr)
 {
-	str_t platform = { 0 };
-	;
-	if (!cstr_eqn(value->data, value->len, CSTR("http"), 4) && !str_chr(*value, &platform, value, ':') && !str_eqc(platform, CSTR(PLATFORM))) {
-		return 1;
-	}
-
-	data->cdata = value->data;
-	data->len   = value->len;
-	data->col   = (uint)(value->data - line->data);
+	str_t copy  = str_cpy(val);
+	data->cdata = copy.data;
+	data->len   = copy.len;
 
 	if (table) {
 		if (arr) {
-			prop->mask |= 1 << val_to_mask(data, table, table_len);
+			prop->mask |= 1 << val_to_mask(val, table, table_len);
 		} else {
-			prop->mask = val_to_mask(data, table, table_len);
+			prop->mask = val_to_mask(val, table, table_len);
 		}
 	}
-
-	return 0;
 }
 
-static int parse_arr(prop_str_t data, prop_t *prop, const str_t *arr, const str_t *table, size_t table_len, const str_t *line)
+static void parse_arr(ini_t *ini, ini_pair_data_t *pair, prop_t *prop, const str_t *table, size_t table_len)
 {
 	arr_init(&prop->arr, 8, sizeof(prop_str_t));
 	prop->flags |= PROP_ARR;
 	prop->mask = 0;
 
-	str_t value = *arr;
-	str_t next  = { 0 };
-	int end	    = 0;
-
-	while (!end) {
-		if (str_cstr(value, &value, &next, CSTR(", "))) {
-			value.len = (size_t)(arr->data + arr->len - value.data);
-			end	  = 1;
-		}
-
-		if (!parse_value(&data, prop, &value, table, table_len, line, 1)) {
-			arr_app(&prop->arr, &data);
-		}
-
-		value = next;
+	str_t *val;
+	ini_val_foreach(&ini->vals, pair->vals, val)
+	{
+		prop_str_t data = { 0 };
+		parse_value(&data, prop, *val, table, table_len, 1);
+		arr_app(&prop->arr, &data);
 	}
-
-	return 0;
 }
 
-static int parse_prop(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size, const str_t *line)
+static void parse_props(ini_t *ini, ini_sec_data_t *sec, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 {
-	if (line->len == 0) {
-		return 0;
-	}
+	ini_pair_data_t *pair;
+	ini_pair_foreach(&ini->pairs, sec->pairs, pair)
+	{
+		if (pair->key.data == NULL) {
+			continue;
+		}
 
-	str_t name  = { 0 };
-	str_t value = { 0 };
+		size_t i = get_prop_pol(props_pol, props_pol_size, pair->key);
+		if (i == (size_t)-1) {
+			continue;
+		}
 
-	if (str_cstr(*line, &name, &value, CSTR(": "))) {
-		ERR_SYNTAX("missing ': '", data.path, data.line, 0);
-		return 1;
-	}
+		props[i].flags |= PROP_SET;
 
-	if (name.len <= 0) {
-		ERR_STRUCT("name missing", data.path, data.line, 0);
-		return 1;
-	}
-
-	if (value.len <= 0) {
-		ERR_STRUCT("value of property '%.*s' is missing", data.path, data.line, (int)(value.data - line->data), (int)name.len, name.data);
-		return 1;
-	}
-
-	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
-	for (size_t i = 0; i < props_pol_len; i++) {
-		const prop_pol_t *pol = &props_pol[i];
-		if (str_eq(name, pol->name)) {
-			if (props[i].flags & PROP_SET) {
-				ERR_LOGICS("property redefinition", data.path, data.line, 0);
-				return 1;
+		if (props_pol[i].arr) {
+			parse_arr(ini, pair, &props[i], props_pol[i].str_table, props_pol[i].str_table_len);
+		} else {
+			str_t *val;
+			ini_val_foreach(&ini->vals, pair->vals, val)
+			{
+				parse_value(&props[i].value, &props[i], *val, props_pol[i].str_table, props_pol[i].str_table_len, 0);
+				break;
 			}
-			props[i].flags |= PROP_SET;
-
-			if (props_pol[i].arr) {
-				return parse_arr(data, &props[i], &value, props_pol[i].str_table, props_pol[i].str_table_len, line);
-			}
-
-			if (parse_value(&data, &props[i], &value, props_pol[i].str_table, props_pol[i].str_table_len, line, 0)) {
-				props[i].flags &= ~PROP_SET;
-			} else {
-				props[i].value = data;
-			}
-
-			return 0;
 		}
 	}
-
-	ERR_LOGICS("unknown property '%.*s'", data.path, data.line, 0, (int)name.len, name.data);
-	return 1;
 }
 
 int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
@@ -131,26 +100,25 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 
 	mem_set(props, 0, props_pol_size / sizeof(prop_pol_t) * sizeof(prop_t));
 
-	data.line = 0;
+	ini_t ini = { 0 };
+	ini_init(&ini, 4, 16, 8);
 
-	str_t line = {
-		.data = data.data,
-		.len  = data.len,
-	};
-	str_t next = { 0 };
-	int end	   = 0;
+	ini_prs_t ini_prs;
+	ini_prs_init(&ini_prs);
 
-	while (!end) {
-		if (str_chr(line, &line, &next, '\n')) {
-			str_chr(line, &line, &next, '\0');
-			end = 1;
+	str_t str = strc(data.data, data.len);
+	ini_prs_parse(&ini_prs, str, &ini);
+
+	ini_sec_data_t *sec;
+	ini_sec_foreach(&ini.secs, sec)
+	{
+		if (sec->name.data == NULL || str_eq(sec->name, STR(PLATFORM))) {
+			parse_props(&ini, sec, props, props_pol, props_pol_size);
 		}
-
-		ret += parse_prop(data, props, props_pol, props_pol_size, &line);
-
-		line = next;
-		data.line++;
 	}
+
+	ini_prs_free(&ini_prs);
+	ini_free(&ini);
 
 	return ret;
 }

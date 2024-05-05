@@ -22,17 +22,17 @@ int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in
 static test_gen_file_t c_small_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: test\n"
-			"LANGS: C\n"
-			"DIRS: test\n"
-			"CONFIGS: Debug\n"
-			"PLATFORMS: x64\n",
+		.data = "NAME = test\n"
+			"LANGS = C\n"
+			"DIRS = test\n"
+			"CONFIGS = Debug\n"
+			"PLATFORMS = x64\n",
 	},
 	{
 		.path = "tmp/test/Project.txt",
-		.data = "NAME: test\n"
-			"TYPE: EXE\n"
-			"SOURCE: src\n",
+		.data = "NAME = test\n"
+			"TYPE = EXE\n"
+			"SOURCE = src\n",
 	},
 	{
 		.path = "tmp/test/src/main.c",
@@ -47,18 +47,18 @@ static test_gen_file_t c_small_in[] = {
 static test_gen_file_t c_args_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: test\n"
-			"LANGS: C\n"
-			"DIRS: test\n"
-			"CONFIGS: Debug\n"
-			"PLATFORMS: x64\n",
+		.data = "NAME = test\n"
+			"LANGS = C\n"
+			"DIRS = test\n"
+			"CONFIGS = Debug\n"
+			"PLATFORMS = x64\n",
 	},
 	{
 		.path = "tmp/test/Project.txt",
-		.data = "NAME: test\n"
-			"TYPE: EXE\n"
-			"SOURCE: src\n"
-			"ARGS: -D\n",
+		.data = "NAME = test\n"
+			"TYPE = EXE\n"
+			"SOURCE = src\n"
+			"ARGS = -D\n",
 	},
 	{
 		.path = "tmp/test/src/main.c",
@@ -73,17 +73,17 @@ static test_gen_file_t c_args_in[] = {
 static test_gen_file_t cpp_small_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: test\n"
-			"LANGS: CPP\n"
-			"DIRS: test\n"
-			"CONFIGS: Debug\n"
-			"PLATFORMS: x64\n",
+		.data = "NAME = test\n"
+			"LANGS = CPP\n"
+			"DIRS = test\n"
+			"CONFIGS = Debug\n"
+			"PLATFORMS = x64\n",
 	},
 	{
 		.path = "tmp/test/Project.txt",
-		.data = "NAME: test\n"
-			"TYPE: EXE\n"
-			"SOURCE: src\n",
+		.data = "NAME = test\n"
+			"TYPE = EXE\n"
+			"SOURCE = src\n",
 	},
 	{
 		.path = "tmp/test/src/main.cpp",
@@ -99,17 +99,17 @@ static test_gen_file_t cpp_small_in[] = {
 static test_gen_file_t c_depends_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: test\n"
-			"LANGS: C\n"
-			"DIRS: libtest, test\n"
-			"CONFIGS: Debug\n"
-			"PLATFORMS: x64\n",
+		.data = "NAME = test\n"
+			"LANGS = C\n"
+			"DIRS = libtest, test\n"
+			"CONFIGS = Debug\n"
+			"PLATFORMS = x64\n",
 	},
 	{
 		.path = "tmp/libtest/Project.txt",
-		.data = "NAME: libtest\n"
-			"TYPE: LIB\n"
-			"SOURCE: src\n",
+		.data = "NAME = libtest\n"
+			"TYPE = LIB\n"
+			"SOURCE = src\n",
 	},
 	{
 		.path = "tmp/libtest/src/main.c",
@@ -121,10 +121,10 @@ static test_gen_file_t c_depends_in[] = {
 	},
 	{
 		.path = "tmp/test/Project.txt",
-		.data = "NAME: test\n"
-			"TYPE: EXE\n"
-			"SOURCE: src\n"
-			"DEPENDS: libtest\n",
+		.data = "NAME = test\n"
+			"TYPE = EXE\n"
+			"SOURCE = src\n"
+			"DEPENDS = libtest\n",
 	},
 	{
 		.path = "tmp/test/src/main.c",
@@ -138,18 +138,18 @@ static test_gen_file_t c_depends_in[] = {
 static test_gen_file_t c_include_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: test\n"
-			"LANGS: C\n"
-			"DIRS: test\n"
-			"CONFIGS: Debug\n"
-			"PLATFORMS: x64\n",
+		.data = "NAME = test\n"
+			"LANGS = C\n"
+			"DIRS = test\n"
+			"CONFIGS = Debug\n"
+			"PLATFORMS = x64\n",
 	},
 	{
 		.path = "tmp/test/Project.txt",
-		.data = "NAME: test\n"
-			"TYPE: EXE\n"
-			"SOURCE: src\n"
-			"INCLUDE: include\n",
+		.data = "NAME = test\n"
+			"TYPE = EXE\n"
+			"SOURCE = src\n"
+			"INCLUDE = include\n",
 	},
 	{
 		.path = "tmp/test/src/main.c",
@@ -178,30 +178,30 @@ static test_gen_file_t c_include_in[] = {
 static test_gen_file_t os_in[] = {
 	{
 		.path = "tmp/Solution.txt",
-		.data = "NAME: OS\n"
-			"DIRS: os, toolchain\n"
-			"PLATFORMS: x86_64, i386\n"
-			"CONFIGS: Debug, Release\n",
+		.data = "NAME = OS\n"
+			"DIRS = os, toolchain\n"
+			"PLATFORMS = x86_64, i386\n"
+			"CONFIGS = Debug, Release\n",
 	},
 	{
 		.path = "tmp/toolchain/gcc/Project.txt",
-		.data = "NAME: gcc-13.1.0\n"
-			"URL: http://ftp.gnu.org/gnu/gcc/gcc-13.1.0/\n"
-			"FORMAT: tar.gz\n"
-			"CONFIG: --disable-nls --disable-libssp --enable-languages=c --without-headers\n"
-			"TARGET: all-gcc all-target-libgcc install-gcc install-target-libgcc \n"
-			"OUTDIR: $(SLN_DIR)/bin/toolchain/$(PLATFORM)/gcc\n"
-			"REQUIRE: g++, libgmp-dev, libmpfr-dev, libmpc-dev, texinfo\n"
-			"EXPORT: TCC = $(OUTDIR)/bin/$(PLATFORM)-elf-gcc\n",
+		.data = "NAME = gcc-13.1.0\n"
+			"URL = http://ftp.gnu.org/gnu/gcc/gcc-13.1.0/\n"
+			"FORMAT = tar.gz\n"
+			"CONFIG = --disable-nls --disable-libssp --enable-languages=c --without-headers\n"
+			"TARGET = all-gcc all-target-libgcc install-gcc install-target-libgcc \n"
+			"OUTDIR = $(SLN_DIR)/bin/toolchain/$(PLATFORM)/gcc\n"
+			"REQUIRE = g++, libgmp-dev, libmpfr-dev, libmpc-dev, texinfo\n"
+			"EXPORT = TCC = $(OUTDIR)/bin/$(PLATFORM)-elf-gcc\n",
 	},
 	{
 		.path = "tmp/os/boot/bin/Project.txt",
-		.data = "NAME: boot-bin\n"
-			"TYPE: BIN\n"
-			"LANGS: ASM\n"
-			"SOURCE: ../src\n"
-			"FILENAME: boot\n"
-			"DEFINES: ARCH=$(PLATFORM), FORMAT=BIN\n",
+		.data = "NAME = boot-bin\n"
+			"TYPE = BIN\n"
+			"LANGS = ASM\n"
+			"SOURCE = ../src\n"
+			"FILENAME = boot\n"
+			"DEFINES = ARCH=$(PLATFORM), FORMAT=BIN\n",
 	},
 	{
 		.path = "tmp/os/boot/src/boot.asm",
@@ -209,27 +209,27 @@ static test_gen_file_t os_in[] = {
 	},
 	{
 		.path = "tmp/os/kernel/bin/Project.txt",
-		.data = "NAME: kernel-bin\n"
-			"TYPE: BIN\n"
-			"LANGS: ASM, C\n"
-			"SOURCE: ../src\n"
-			"FILENAME: kernel\n"
-			"CFLAGS: FREESTANDING\n"
-			"CCFLAGS: -m$(BITS)\n"
-			"DEPENDS: gcc-13.1.0\n"
-			"DEFINES: ARCH=$(PLATFORM)\n",
+		.data = "NAME = kernel-bin\n"
+			"TYPE = BIN\n"
+			"LANGS = ASM, C\n"
+			"SOURCE = ../src\n"
+			"FILENAME = kernel\n"
+			"CFLAGS = FREESTANDING\n"
+			"CCFLAGS = -m$(BITS)\n"
+			"DEPENDS = gcc-13.1.0\n"
+			"DEFINES = ARCH=$(PLATFORM)\n",
 	},
 	{
 		.path = "tmp/os/kernel/elf/Project.txt",
-		.data = "NAME: kernel-elf\n"
-			"TYPE: ELF\n"
-			"LANGS: ASM, C\n"
-			"SOURCE: ../src\n"
-			"FILENAME: kernel\n"
-			"CFLAGS: FREESTANDING\n"
-			"CCFLAGS: -m$(BITS)\n"
-			"DEPENDS: gcc-13.1.0\n"
-			"DEFINES: ARCH=$(PLATFORM)\n",
+		.data = "NAME = kernel-elf\n"
+			"TYPE = ELF\n"
+			"LANGS = ASM, C\n"
+			"SOURCE = ../src\n"
+			"FILENAME = kernel\n"
+			"CFLAGS = FREESTANDING\n"
+			"CCFLAGS = -m$(BITS)\n"
+			"DEPENDS = gcc-13.1.0\n"
+			"DEFINES = ARCH=$(PLATFORM)\n",
 	},
 	{
 		.path = "tmp/os/kernel/src/main.c",
@@ -239,29 +239,29 @@ static test_gen_file_t os_in[] = {
 	},
 	{
 		.path = "tmp/os/image/disk/Project.txt",
-		.data = "NAME: image-disk\n"
-			"TYPE: BIN\n"
-			"DEPENDS: boot-bin, kernel-bin, kernel-elf\n"
-			"FILES: boot-bin, kernel-bin\n"
-			"FILENAME: disk\n"
-			"REQUIRE: qemu-system-x86\n"
-			"RUN: qemu-system-$(PLATFORM) -hda $(TARGET)\n"
-			"DRUN: qemu-system-$(PLATFORM) -s -S -hda $(TARGET)\n"
-			"PROGRAM: kernel-elf\n"
-			"ARTIFACT: disk-$(PLATFORM)-$(CONFIG).bin\n",
+		.data = "NAME = image-disk\n"
+			"TYPE = BIN\n"
+			"DEPENDS = boot-bin, kernel-bin, kernel-elf\n"
+			"FILES = boot-bin, kernel-bin\n"
+			"FILENAME = disk\n"
+			"REQUIRE = qemu-system-x86\n"
+			"RUN = qemu-system-$(PLATFORM) -hda $(TARGET)\n"
+			"DRUN = qemu-system-$(PLATFORM) -s -S -hda $(TARGET)\n"
+			"PROGRAM = kernel-elf\n"
+			"ARTIFACT = disk-$(PLATFORM)-$(CONFIG).bin\n",
 	},
 	{
 		.path = "tmp/os/image/floppy/Project.txt",
-		.data = "NAME: image-floppy\n"
-			"TYPE: FAT12\n"
-			"DEPENDS: boot-bin, kernel-bin, kernel-elf\n"
-			"FILES: boot-bin, kernel-bin\n"
-			"FILENAME: floppy\n"
-			"REQUIRE: qemu-system-x86\n"
-			"RUN: qemu-system-$(PLATFORM) -fda $(TARGET)\n"
-			"DRUN: qemu-system-$(PLATFORM) -s -S -fda $(TARGET)\n"
-			"PROGRAM: kernel-elf\n"
-			"ARTIFACT: floppy-$(PLATFORM)-$(CONFIG).img",
+		.data = "NAME = image-floppy\n"
+			"TYPE = FAT12\n"
+			"DEPENDS = boot-bin, kernel-bin, kernel-elf\n"
+			"FILES = boot-bin, kernel-bin\n"
+			"FILENAME = floppy\n"
+			"REQUIRE = qemu-system-x86\n"
+			"RUN = qemu-system-$(PLATFORM) -fda $(TARGET)\n"
+			"DRUN = qemu-system-$(PLATFORM) -s -S -fda $(TARGET)\n"
+			"PROGRAM = kernel-elf\n"
+			"ARTIFACT = floppy-$(PLATFORM)-$(CONFIG).img\n",
 	},
 };
 
