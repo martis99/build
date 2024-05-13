@@ -41,8 +41,8 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 		proj_t *proj = mem_calloc(1, sizeof(proj_t));
 		ret += proj_read(proj, &data->sln->path, path, data->parent, data->sln->props);
 		const prop_str_t *name = proj->name;
-		if (dict_get(&data->sln->projects, name->data, name->len, NULL)) {
-			dict_set(&data->sln->projects, name->data, name->len, proj);
+		if (dict_get(&data->sln->projects, name->val.data, name->val.len, NULL)) {
+			dict_set(&data->sln->projects, name->val.data, name->val.len, proj);
 		} else {
 			proj_free(proj);
 			mem_free(proj, sizeof(proj_t));
@@ -81,8 +81,8 @@ static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
 		const prop_str_t *dname = arr_get(depends, i);
 
 		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
+		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
 			continue;
 		}
 
@@ -121,8 +121,8 @@ static void calculate_depends(proj_t *proj, sln_t *sln)
 			const prop_str_t *dpname = arr_get(depend, i);
 
 			const proj_t *dpproj = NULL;
-			if (dict_get(&sln->projects, dpname->data, dpname->len, (void **)&dpproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
+			if (dict_get(&sln->projects, dpname->val.data, dpname->val.len, (void **)&dpproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dpname->val.len, dpname->val.data);
 				continue;
 			}
 
@@ -140,8 +140,8 @@ static void get_all_includes(arr_t *arr, const proj_t *proj, dict_t *projects)
 		const prop_str_t *iname = arr_get(includes, i);
 
 		const proj_t *iproj = NULL;
-		if (dict_get(projects, iname->data, iname->len, (void **)&iproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)iname->len, iname->data);
+		if (dict_get(projects, iname->val.data, iname->val.len, (void **)&iproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)iname->val.len, iname->val.data);
 			continue;
 		}
 
@@ -171,8 +171,8 @@ static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projec
 		const prop_str_t *dname = arr_get(depends, i);
 
 		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
+		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
 			continue;
 		}
 
@@ -202,17 +202,17 @@ int sln_read(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	if ((sln->data.len = file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
+	if ((sln->data.val.len = file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 
 	sln->data.path = sln->file_path.path;
-	sln->data.data = sln->file;
+	sln->data.val  = strb(sln->file, sizeof(sln->file), sln->data.val.len);
 
 	int ret = props_parse_file(sln->data, sln->props, s_sln_props, sizeof(s_sln_props));
 
 	path_t name = { 0 };
-	path_init(&name, sln->props[SLN_PROP_NAME].value.data, sln->props[SLN_PROP_NAME].value.len);
+	path_init(&name, sln->props[SLN_PROP_NAME].value.val.data, sln->props[SLN_PROP_NAME].value.val.len);
 	path_child_s(&name, CSTR("sln"), '.');
 
 	byte buf[256] = { 0 };
@@ -234,16 +234,16 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	for (uint i = 0; i < dirs->cnt; i++) {
 		prop_str_t *dir = arr_get(dirs, i);
-		path_child(&child_path, dir->data, dir->len);
+		path_child(&child_path, dir->val.data, dir->val.len);
 		if (folder_exists(child_path.path)) {
-			const int r = read_dir(&child_path, dir->data, &read_dir_data);
+			const int r = read_dir(&child_path, dir->val.data, &read_dir_data);
 			if (r == -1) {
-				dir->data = NULL;
+				dir->val.data = NULL;
 			} else {
 				ret += r;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->val.len, dir->val.data);
 			ret += 1;
 		}
 		child_path.len = child_path_len;
@@ -284,7 +284,7 @@ void sln_print(sln_t *sln)
 	arr_foreach(&sln->build_order, pproj)
 	{
 		proj_t *proj = *pproj;
-		INFP("    %.*s", (int)proj->name->len, proj->name->data);
+		INFP("    %.*s", (int)proj->name->val.len, proj->name->val.data);
 	}
 
 	dict_foreach(&sln->dirs, pair)

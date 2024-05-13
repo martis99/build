@@ -7,11 +7,7 @@
 
 typedef struct prop_str_s {
 	const char *path;
-	union {
-		char *data;
-		const char *cdata;
-	};
-	size_t len;
+	str_t val;
 	uint line;
 	uint col;
 } prop_str_t;
@@ -28,6 +24,7 @@ typedef struct prop_s {
 		prop_str_t value;
 	};
 	uint mask;
+	int ref;
 } prop_t;
 
 typedef int (*prop_parse_fn)(prop_str_t *data, prop_t *prop);
@@ -61,6 +58,6 @@ size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_
 size_t invert_slash(char *str, size_t str_len);
 
 // clang-format off
-#define PSTR(_str) { .data = _str, .len = sizeof(_str) - 1 }
+#define PSTR(_str) { .val = STR(_str) }
 // clang-format on
 #endif

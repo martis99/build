@@ -16,11 +16,9 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 
 	prop_str_t dir = {
 		.path = NULL,
-		.data = mem_calloc(folder_len + 1, sizeof(char)),
-		.len  = folder_len,
+		.val  = strn(folder, folder_len, folder_len + 1),
 	};
 
-	mem_cpy(dir.data, dir.len, folder, folder_len);
 	arr_app(priv, &dir);
 	return 0;
 }
@@ -46,18 +44,18 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 	int ret = 0;
 
 	if (file_exists(dir->file_path.path)) {
-		if ((dir->data.len = file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
+		if ((dir->data.val.len = file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
 			return 1;
 		}
 
 		dir->data.path = dir->file_path.path;
-		dir->data.data = dir->file;
+		dir->data.val  = strb(dir->file, sizeof(dir->file), dir->data.val.len);
 
 		ret += props_parse_file(dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
 
 	} else {
 		arr_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
-		dir->props[DIR_PROP_DIRS].flags |= PROP_ARR;
+		dir->props[DIR_PROP_DIRS].flags |= PROP_SET | PROP_ARR;
 		ret += files_foreach(path, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
 	}
 
@@ -80,19 +78,18 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	for (uint i = 0; i < subdirs->cnt; i++) {
 		prop_str_t *dir = arr_get(subdirs, i);
-		path_child(&child_path, dir->data, dir->len);
+		path_child(&child_path, dir->val.data, dir->val.len);
 		if (folder_exists(child_path.path)) {
-			int r = on_dir(&child_path, dir->data, &read_dir_data);
+			int r = on_dir(&child_path, dir->val.data, &read_dir_data);
 			if (r == -1) {
-				mem_free(dir->data, dir->len + 1);
-				dir->data = NULL;
+				str_free(&dir->val);
 			} else if (r) {
 				ret	       = 1;
 				child_path.len = child_path_len;
 				continue;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->len, dir->data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->val.len, dir->val.data);
 			ret = 1;
 		}
 		child_path.len = child_path_len;
@@ -126,11 +123,11 @@ void dir_free(dir_t *dir)
 		prop_str_t *prop = NULL;
 		arr_foreach(&dir->props[DIR_PROP_DIRS].arr, prop)
 		{
-			if (prop->data == NULL) {
+			if (prop->val.data == NULL) {
 				continue;
 			}
 
-			mem_free(prop->data, prop->len + 1);
+			str_free(&prop->val);
 		}
 	}
 	props_free(dir->props, s_dir_props, sizeof(s_dir_props));

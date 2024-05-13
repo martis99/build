@@ -32,11 +32,11 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 
 	for (uint i = 0; i < dirs->cnt; i++) {
 		prop_str_t *dir = arr_get(dirs, i);
-		if (dir->data == NULL) {
+		if (dir->val.data == NULL) {
 			continue;
 		}
 
-		c_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->len, dir->data);
+		c_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->val.len, dir->val.data);
 	}
 
 	file_close(file);

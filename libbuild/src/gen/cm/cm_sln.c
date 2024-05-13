@@ -38,7 +38,7 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	MSG("generating solution: %s", cmake_path.path);
 
-	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->len, name->data);
+	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->val.len, name->val.data);
 
 	// clang-format off
 	const char *langs[] = {
@@ -63,7 +63,7 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 		int first	     = 0;
 		for (uint i = 0; i < configs->cnt; i++) {
 			prop_str_t *config = arr_get(configs, i);
-			c_fprintf(file, "%.*s%.*s", first, ";", config->len, config->data);
+			c_fprintf(file, "%.*s%.*s", first, ";", config->val.len, config->val.data);
 			first = 1;
 		}
 
@@ -83,19 +83,19 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	for (uint i = 0; i < dirs->cnt; i++) {
 		prop_str_t *dir = arr_get(dirs, i);
-		if (dir->data == NULL) {
+		if (dir->val.data == NULL) {
 			continue;
 		}
 
-		c_fprintf(file, "add_subdirectory(%.*s)\n", dir->len, dir->data);
+		c_fprintf(file, "add_subdirectory(%.*s)\n", dir->val.len, dir->val.data);
 	}
 
 	if (sln->props[SLN_PROP_STARTUP].flags & PROP_SET) {
-		if (dict_get(&sln->projects, startup->data, startup->len, NULL)) {
-			ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, (int)startup->len, startup->data);
+		if (dict_get(&sln->projects, startup->val.data, startup->val.len, NULL)) {
+			ERR_LOGICS("project '%.*s' doesn't exists", startup->path, startup->line, startup->col, (int)startup->val.len, startup->val.data);
 			ret = 1;
 		} else {
-			c_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->len, startup->data);
+			c_fprintf(file, "\nset_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT %.*s)\n", startup->val.len, startup->val.data);
 		}
 	}
 

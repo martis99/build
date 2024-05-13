@@ -22,12 +22,12 @@ static const var_pol_t vars = {
 
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
-	size_t buf_len = prop->len;
-	mem_cpy(buf, buf_size, prop->data, prop->len);
+	size_t buf_len = prop->val.len;
+	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 
 	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->val.data, proj->name->val.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
 
 	return buf_len;
@@ -44,11 +44,11 @@ static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, st
 
 static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action, int coverable)
 {
-	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), action), 0));
+	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strs(proj->name->val)), action), 0));
 	make_rule_add_depend(make, maction, MRULE(MSTR(STR("check"))));
 
 	if (dep_compile) {
-		make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), STR("compile")));
+		make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(proj->name->val)), STR("compile")));
 	}
 
 	if (add_depends) {
@@ -57,13 +57,13 @@ static void add_action(make_t *make, const dict_t *projects, const proj_t *proj,
 			const prop_str_t *dname = arr_get(depends, i);
 
 			const proj_t *dproj = NULL;
-			if (dict_get(projects, dname->data, dname->len, (void **)&dproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dname->len, dname->data);
+			if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
 				continue;
 			}
 
 			if (coverable == 0 || proj_coverable(dproj)) {
-				make_rule_add_depend(make, maction, MRULEACT(MSTR(strc(dproj->name->data, dproj->name->len)), action));
+				make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), action));
 			}
 		}
 	}
@@ -128,8 +128,8 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		for (uint i = 0; i < exports->arr.cnt; i++) {
 			const prop_str_t *export = arr_get(&exports->arr, i);
 
-			buf_len = export->len;
-			mem_cpy(CSTR(buf), export->data, export->len);
+			buf_len = export->val.len;
+			mem_cpy(CSTR(buf), export->val.data, export->val.len);
 			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), out, out_len, NULL);
 
 			if (first) {
@@ -150,12 +150,12 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
-			make_var_add_val(&make, mconfigs, MSTR(strc(config->data, config->len)));
+			make_var_add_val(&make, mconfigs, MSTR(strs(config->val)));
 		}
 
 		prop_str_t *config	 = arr_get(&configs->arr, 0);
 		const make_var_t mconfig = make_add_act(&make, make_create_var(&make, STR("CONFIG"), MAKE_VAR_INST));
-		make_var_add_val(&make, mconfig, MSTR(strc(config->data, config->len)));
+		make_var_add_val(&make, mconfig, MSTR(strs(config->val)));
 	}
 
 	make_add_act(&make, make_create_empty(&make));
@@ -170,7 +170,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		const proj_t **proj;
 		arr_foreach(&sln->build_order, proj)
 		{
-			make_rule_add_depend(&make, all, MRULE(MSTR(strc((*proj)->name->data, (*proj)->name->len))));
+			make_rule_add_depend(&make, all, MRULE(MSTR(strs((*proj)->name->val))));
 		}
 	}
 
@@ -213,7 +213,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 			const proj_t *proj = *pproj;
 
 			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
-				make_rule_add_depend(&make, rartifact, MRULEACT(MSTR(strc(proj->name->data, proj->name->len)), STR("artifact")));
+				make_rule_add_depend(&make, rartifact, MRULEACT(MSTR(strs(proj->name->val)), STR("artifact")));
 			}
 		}
 	}

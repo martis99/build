@@ -25,9 +25,9 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 {
 	size_t buf_len;
 
-	buf_len = convert_slash(buf, buf_size, prop->data, prop->len);
+	buf_len = convert_slash(buf, buf_size, prop->val.data, prop->val.len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->val.data, proj->name->val.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
 
 	return buf_len;
@@ -65,7 +65,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 	size_t buf_len;
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-		enclude_len = convert_slash(CSTR(enclude), proj->props[PROJ_PROP_ENCLUDE].value.data, proj->props[PROJ_PROP_ENCLUDE].value.len);
+		enclude_len = convert_slash(CSTR(enclude), proj->props[PROJ_PROP_ENCLUDE].value.val.data, proj->props[PROJ_PROP_ENCLUDE].value.val.len);
 	}
 
 	int ret = 0;
@@ -93,13 +93,13 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 	uint lang = langs->mask;
 
 	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET)) {
-		c_fprintf(file, "file(GLOB_RECURSE %.*s_SOURCE", name->len, name->data);
+		c_fprintf(file, "file(GLOB_RECURSE %.*s_SOURCE", name->val.len, name->val.data);
 		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 			const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
 			for (uint i = 0; i < sources->cnt; i++) {
 				prop_str_t *source = arr_get(sources, i);
-				buf_len		   = convert_slash(CSTR(buf), source->data, source->len);
+				buf_len		   = convert_slash(CSTR(buf), source->val.data, source->val.len);
 
 				if (lang & (1 << LANG_ASM)) {
 					c_fprintf(file, " %.*s/*.asm %.*s/*.inc", buf_len, buf, buf_len, buf);
@@ -121,7 +121,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 			for (uint i = 0; i < includes->cnt; i++) {
 				prop_str_t *include = arr_get(includes, i);
-				buf_len		    = convert_slash(CSTR(buf), include->data, include->len);
+				buf_len		    = convert_slash(CSTR(buf), include->val.data, include->val.len);
 
 				if (lang & (1 << LANG_ASM)) {
 					c_fprintf(file, " %.*s/*.inc", buf_len, buf);
@@ -154,7 +154,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 		for (uint i = 0; i < defines->cnt; i++) {
 			const prop_str_t *define = arr_get(defines, i);
-			c_fprintf(file, first ? "-D%.*s" : " -D%.*s", define->len, define->data);
+			c_fprintf(file, first ? "-D%.*s" : " -D%.*s", define->val.len, define->val.data);
 			first = 0;
 		}
 
@@ -165,7 +165,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
-		c_fprintf(file, "add_library(%.*s STATIC ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
+		c_fprintf(file, "add_library(%.*s STATIC ${%.*s_SOURCE})\n", name->val.len, name->val.data, name->val.len, name->val.data);
 		break;
 	case PROJ_TYPE_EXE: {
 		int first = 0;
@@ -188,15 +188,15 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 					const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 					for (uint j = 0; j < libdirs->cnt; j++) {
 						prop_str_t *libdir = arr_get(libdirs, j);
-						if (libdir->len > 0) {
+						if (libdir->val.len > 0) {
 							if (!first) {
 								c_fprintf(file, " ");
 							}
 
-							mem_cpy(buf, sizeof(buf), libdir->data, libdir->len);
-							buf_len = cstr_replaces(buf, sizeof(buf), libdir->len, vars.old, vars.new, __VAR_MAX, NULL);
-							buf_len =
-								cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(PROJ_NAME)"), dproj->name->data, dproj->name->len, NULL);
+							mem_cpy(buf, sizeof(buf), libdir->val.data, libdir->val.len);
+							buf_len = cstr_replaces(buf, sizeof(buf), libdir->val.len, vars.old, vars.new, __VAR_MAX, NULL);
+							buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(PROJ_NAME)"), dproj->name->val.data,
+									       dproj->name->val.len, NULL);
 
 							print_rel_path(file, dproj, buf, buf_len);
 							first = 0;
@@ -209,16 +209,16 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 			c_fprintf(file, ")\n");
 		}
 
-		c_fprintf(file, "add_executable(%.*s ${%.*s_SOURCE})\n", name->len, name->data, name->len, name->data);
+		c_fprintf(file, "add_executable(%.*s ${%.*s_SOURCE})\n", name->val.len, name->val.data, name->val.len, name->val.data);
 
 		if (proj->all_depends.cnt > 0) {
-			c_fprintf(file, "target_link_libraries(%.*s", name->len, name->data);
+			c_fprintf(file, "target_link_libraries(%.*s", name->val.len, name->val.data);
 
 			for (uint i = 0; i < proj->all_depends.cnt; i++) {
 				const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
 
 				if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
-					c_fprintf(file, " %.*s", dproj->name->len, dproj->name->data);
+					c_fprintf(file, " %.*s", dproj->name->val.len, dproj->name->val.data);
 				}
 			}
 			c_fprintf(file, ")\n");
@@ -244,7 +244,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 		for (uint i = 0; i < sources->cnt; i++) {
 			prop_str_t *source = arr_get(sources, i);
 
-			buf_len = convert_slash(CSTR(buf), source->data, source->len);
+			buf_len = convert_slash(CSTR(buf), source->val.data, source->val.len);
 
 			c_fprintf(file, first ? "%.*s" : " %.*s", buf_len, buf);
 			first = 0;
@@ -257,7 +257,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 		for (uint i = 0; i < includes->cnt; i++) {
 			prop_str_t *include = arr_get(includes, i);
 
-			buf_len = convert_slash(CSTR(buf), include->data, include->len);
+			buf_len = convert_slash(CSTR(buf), include->val.data, include->val.len);
 
 			c_fprintf(file, first ? "%.*s" : " %.*s", buf_len, buf);
 			first = 0;
@@ -275,7 +275,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 				if (!first) {
 					c_fprintf(file, " ");
 				}
-				print_rel_path(file, iproj, include->data, include->len);
+				print_rel_path(file, iproj, include->val.data, include->val.len);
 				first = 0;
 			}
 		}
@@ -285,9 +285,9 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 				c_fprintf(file, " ");
 			}
 
-			mem_cpy(buf, sizeof(buf), iproj->props[PROJ_PROP_ENCLUDE].value.data, iproj->props[PROJ_PROP_ENCLUDE].value.len);
-			buf_len = cstr_replaces(buf, sizeof(buf), iproj->props[PROJ_PROP_ENCLUDE].value.len, vars.old, vars.new, __VAR_MAX, NULL);
-			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(PROJ_NAME)"), iproj->name->data, iproj->name->len, NULL);
+			mem_cpy(buf, sizeof(buf), iproj->props[PROJ_PROP_ENCLUDE].value.val.data, iproj->props[PROJ_PROP_ENCLUDE].value.val.len);
+			buf_len = cstr_replaces(buf, sizeof(buf), iproj->props[PROJ_PROP_ENCLUDE].value.val.len, vars.old, vars.new, __VAR_MAX, NULL);
+			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(PROJ_NAME)"), iproj->name->val.data, iproj->name->val.len, NULL);
 
 			print_rel_path(file, iproj, buf, buf_len);
 			first = 0;
@@ -298,12 +298,12 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 	if (!proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C)) {
-			c_fprintf(file, "set_target_properties(%.*s PROPERTIES LINKER_LANGUAGE C)\n", name->len, name->data);
+			c_fprintf(file, "set_target_properties(%.*s PROPERTIES LINKER_LANGUAGE C)\n", name->val.len, name->val.data);
 		}
 	}
 
 	if (proj->dir.len > 0 || (outdir->flags & PROP_SET) || (intdir->flags & PROP_SET)) {
-		c_fprintf(file, "set_target_properties(%.*s\n    PROPERTIES\n", name->len, name->data);
+		c_fprintf(file, "set_target_properties(%.*s\n    PROPERTIES\n", name->val.len, name->val.data);
 
 		if (proj->dir.len > 0) {
 			buf_len = convert_slash(CSTR(buf), proj->dir.path, proj->dir.len);
@@ -330,14 +330,14 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 
 	if (proj->props[PROJ_PROP_WDIR].flags & PROP_SET) {
 		const prop_str_t *wdir = &proj->props[PROJ_PROP_WDIR].value;
-		buf_len		       = convert_slash(CSTR(buf), wdir->data, wdir->len);
-		if (wdir->len > 0) {
-			c_fprintf(file, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data, buf_len,
-				  buf);
+		buf_len		       = convert_slash(CSTR(buf), wdir->val.data, wdir->val.len);
+		if (wdir->val.len > 0) {
+			c_fprintf(file, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->val.len, name->val.data,
+				  buf_len, buf);
 		}
 	} else {
 		buf_len = convert_slash(CSTR(buf), proj->rel_path.path, proj->rel_path.len);
-		c_fprintf(file, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data,
+		c_fprintf(file, "set_property(TARGET %.*s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->val.len, name->val.data,
 			  proj->rel_path.len, buf);
 	}
 

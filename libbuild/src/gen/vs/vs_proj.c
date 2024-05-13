@@ -28,8 +28,8 @@ static const var_pol_t vars = {
 
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
-	size_t buf_len = prop->len;
-	mem_cpy(buf, buf_size, prop->data, prop->len);
+	size_t buf_len = prop->val.len;
+	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
 #if defined(C_WIN)
@@ -191,7 +191,7 @@ static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *pro
 		for (uint k = 0; k < defines->cnt; k++) {
 			prop_str_t *define = arr_get(defines, k);
 
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)define->len, define->data);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)define->val.len, define->val.data);
 			first = 0;
 		}
 	}
@@ -214,7 +214,7 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 			const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 			for (uint j = 0; j < libdirs->cnt; j++) {
 				prop_str_t *libdir = arr_get(libdirs, j);
-				if (libdir->len > 0) {
+				if (libdir->val.len > 0) {
 					tmp_len = resolve(libdir, CSTR(tmp), dproj);
 
 					if (cstr_eqn(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
@@ -310,9 +310,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	for (int i = platforms->cnt - 1; i >= 0; i--) {
 		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->data;
-		size_t platf_len     = platform->len;
-		if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+		const char *platf    = platform->val.data;
+		size_t platf_len     = platform->val.len;
+		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -320,8 +320,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			prop_str_t *config = arr_get(configs, j);
 
 			xml_tag_t xml_proj_conf = xml_add_tag(&xml, xml_proj_confs, STR("ProjectConfiguration"));
-			xml_add_attr(&xml, xml_proj_conf, STR("Include"), strf("%.*s|%.*s", config->len, config->data, platf_len, platf));
-			xml_add_tag_val(&xml, xml_proj_conf, STR("Configuration"), strc(config->data, config->len));
+			xml_add_attr(&xml, xml_proj_conf, STR("Include"), strf("%.*s|%.*s", config->val.len, config->val.data, platf_len, platf));
+			xml_add_tag_val(&xml, xml_proj_conf, STR("Configuration"), strs(config->val));
 			xml_add_tag_val(&xml, xml_proj_conf, STR("Platform"), strc(platf, platf_len));
 		}
 	}
@@ -358,20 +358,20 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	for (int i = platforms->cnt - 1; i >= 0; i--) {
 		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->data;
-		size_t platf_len     = platform->len;
-		if (cstr_eq(platform->data, platform->len, "x86", 3)) {
+		const char *platf    = platform->val.data;
+		size_t platf_len     = platform->val.len;
+		if (cstr_eq(platform->val.data, platform->val.len, "x86", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (uint j = 0; j < configs->cnt; j++) {
 			prop_str_t *config = arr_get(configs, j);
 
-			const int debug	  = cstr_eq(config->data, config->len, CSTR("Debug"));
-			const int release = cstr_eq(config->data, config->len, CSTR("Release"));
+			const int debug	  = cstr_eq(config->val.data, config->val.len, CSTR("Debug"));
+			const int release = cstr_eq(config->val.data, config->val.len, CSTR("Release"));
 
 			xml_tag_t xml_conf = xml_add_tag(&xml, xml_proj, STR("PropertyGroup"));
-			xml_add_attr(&xml, xml_conf, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf));
+			xml_add_attr(&xml, xml_conf, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 			xml_add_attr(&xml, xml_conf, STR("Label"), STR("Configuration"));
 			xml_add_tag_val(&xml, xml_conf, STR("ConfigurationType"),
 					strc(config_types[proj->props[PROJ_PROP_TYPE].mask].name, config_types[proj->props[PROJ_PROP_TYPE].mask].len));
@@ -401,9 +401,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	for (int i = platforms->cnt - 1; i >= 0; i--) {
 		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->data;
-		size_t platf_len     = platform->len;
-		if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+		const char *platf    = platform->val.data;
+		size_t platf_len     = platform->val.len;
+		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -413,7 +413,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			xml_tag_t xml_sheets = xml_add_tag(&xml, xml_proj, STR("ImportGroup"));
 			xml_add_attr(&xml, xml_sheets, STR("Label"), STR("PropertySheets"));
 			xml_add_attr(&xml, xml_sheets, STR("Condition"),
-				     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf));
+				     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 			xml_tag_t xml_data = xml_add_tag(&xml, xml_sheets, STR("Import"));
 			xml_add_attr(&xml, xml_data, STR("Project"), STR("$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props"));
 			xml_add_attr(&xml, xml_data, STR("Condition"), STR("exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')"));
@@ -426,19 +426,19 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	for (int i = platforms->cnt - 1; i >= 0; i--) {
 		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->data;
-		size_t platf_len     = platform->len;
-		if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+		const char *platf    = platform->val.data;
+		size_t platf_len     = platform->val.len;
+		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (uint j = 0; j < configs->cnt; j++) {
 			prop_str_t *config = arr_get(configs, j);
 
-			const int debug = cstr_eq(config->data, config->len, CSTR("Debug"));
+			const int debug = cstr_eq(config->val.data, config->val.len, CSTR("Debug"));
 
 			xml_tag_t xml_plat = xml_add_tag(&xml, xml_proj, STR("PropertyGroup"));
-			xml_add_attr(&xml, xml_plat, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf));
+			xml_add_attr(&xml, xml_plat, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 
 			if (proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXE) {
 				xml_add_tag_val(&xml, xml_plat, STR("LinkIncremental"), strc(debug ? "true" : "false", debug ? 4 : 5));
@@ -456,19 +456,19 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 	for (int i = platforms->cnt - 1; i >= 0; i--) {
 		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->data;
-		size_t platf_len     = platform->len;
-		if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+		const char *platf    = platform->val.data;
+		size_t platf_len     = platform->val.len;
+		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
 		for (uint j = 0; j < configs->cnt; j++) {
 			prop_str_t *config = arr_get(configs, j);
 
-			const int release = cstr_eq(config->data, config->len, CSTR("Release"));
+			const int release = cstr_eq(config->val.data, config->val.len, CSTR("Release"));
 
 			xml_tag_t xml_def = xml_add_tag(&xml, xml_proj, STR("ItemDefinitionGroup"));
-			xml_add_attr(&xml, xml_def, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf));
+			xml_add_attr(&xml, xml_def, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 			xml_tag_t xml_comp = xml_add_tag(&xml, xml_def, STR("ClCompile"));
 			xml_add_tag_val(&xml, xml_comp, STR("WarningLevel"), STR("Level3"));
 
@@ -543,11 +543,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		for (uint i = 0; i < sources->cnt; i++) {
 			prop_str_t *source = arr_get(sources, i);
 
-			path_init(&afd.path, source->data, source->len);
+			path_init(&afd.path, source->val.data, source->val.len);
 
 			path_t src = { 0 };
 			path_init(&src, proj->path.path, proj->path.len);
-			path_child(&src, source->data, source->len);
+			path_child(&src, source->val.data, source->val.len);
 
 			files_foreach(&src, add_src_folder, add_src_file, &afd);
 		}
@@ -574,7 +574,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
 					xml_add_attr(&xml, xml_ref, STR("Include"),
-						     strf("%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->len, dproj->name->data));
+						     strf("%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->val.len, dproj->name->val.data));
 					xml_add_tag_val(&xml, xml_ref, STR("Project"), strf("{%s}", dproj->guid));
 				}
 			}
@@ -592,11 +592,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			for (uint i = 0; i < sources->cnt; i++) {
 				prop_str_t *source = arr_get(sources, i);
 
-				path_init(&afd.path, source->data, source->len);
+				path_init(&afd.path, source->val.data, source->val.len);
 
 				path_t src = { 0 };
 				path_init(&src, proj->path.path, proj->path.len);
-				path_child(&src, source->data, source->len);
+				path_child(&src, source->val.data, source->val.len);
 
 				files_foreach(&src, add_inc_folder, add_inc_file, &afd);
 			}
@@ -608,11 +608,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			for (uint i = 0; i < includes->cnt; i++) {
 				prop_str_t *include = arr_get(includes, i);
 
-				path_init(&afd.path, include->data, include->len);
+				path_init(&afd.path, include->val.data, include->val.len);
 
 				path_t inc = { 0 };
 				path_init(&inc, proj->path.path, proj->path.len);
-				path_child(&inc, include->data, include->len);
+				path_child(&inc, include->val.data, include->val.len);
 
 				files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
 			}
@@ -640,7 +640,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		folder_create(cmake_path.path);
 	}
 
-	if (path_child(&cmake_path, name->data, name->len) == NULL) {
+	if (path_child(&cmake_path, name->val.data, name->val.len) == NULL) {
 		return 1;
 	}
 
@@ -668,9 +668,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	if (proj->props[PROJ_PROP_ARGS].flags & PROP_SET) {
 		for (int i = platforms->cnt - 1; i >= 0; i--) {
 			prop_str_t *platform = arr_get(platforms, i);
-			const char *platf    = platform->data;
-			size_t platf_len     = platform->len;
-			if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+			const char *platf    = platform->val.data;
+			size_t platf_len     = platform->val.len;
+			if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 				platf	  = "Win32";
 				platf_len = 5;
 			}
@@ -679,10 +679,10 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 				xml_tag_t xml_group = xml_add_tag(&xml_user, xml_proj_user, STR("PropertyGroup"));
 				xml_add_attr(&xml_user, xml_group, STR("Condition"),
-					     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->len, config->data, platf_len, platf));
+					     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 
 				xml_add_tag_val(&xml_user, xml_group, STR("LocalDebuggerCommandArguments"),
-						strc(proj->props[PROJ_PROP_ARGS].value.data, proj->props[PROJ_PROP_ARGS].value.len));
+						strs(proj->props[PROJ_PROP_ARGS].value.val));
 			}
 		}
 	}
@@ -699,7 +699,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		folder_create(cmake_path_user.path);
 	}
 
-	if (path_child(&cmake_path_user, name->data, name->len) == NULL) {
+	if (path_child(&cmake_path_user, name->val.data, name->val.len) == NULL) {
 		return 1;
 	}
 

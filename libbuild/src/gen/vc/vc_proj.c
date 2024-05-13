@@ -17,25 +17,25 @@ static const var_pol_t vars = {
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, const char *outdir,
 		      size_t outdir_len)
 {
-	size_t buf_len = prop->len;
-	mem_cpy(buf, buf_size, prop->data, prop->len);
+	size_t buf_len = prop->val.len;
+	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 
 	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->val.data, proj->name->val.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), config ? config->data : "", config ? config->len : 0, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), platform ? platform->data : "", platform ? platform->len : 0, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), config ? config->val.data : "", config ? config->val.len : 0, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), platform ? platform->val.data : "", platform ? platform->val.len : 0, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN)"), CSTR("$(BIN_PATH)$(BIN_FILE)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_PATH)"), outdir, outdir_len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_FILE)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_FILE)"), proj->name->val.data, proj->name->val.len, NULL);
 
 	return buf_len;
 }
 
 #define NAME_PATTERN		 "%.*s%s%.*s%s%.*s"
-#define NAME_VAL(_val)		 _val ? "-" : "", _val ? ((const prop_str_t *)_val)->len : 0, _val ? ((const prop_str_t *)_val)->data : ""
-#define NAME(_config, _platform) name->len, name->data, NAME_VAL(_config), NAME_VAL(_platform)
+#define NAME_VAL(_val)		 _val ? "-" : "", _val ? ((const prop_str_t *)_val)->val.len : 0, _val ? ((const prop_str_t *)_val)->val.data : ""
+#define NAME(_config, _platform) name->val.len, name->val.data, NAME_VAL(_config), NAME_VAL(_platform)
 
 static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_t *config, const prop_str_t *platform, const char *prefix, const char *action,
 		    json_t *json, json_val_t tasks)
@@ -50,14 +50,14 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 	json_add_val(json, task, STR("command"), JSON_STR(STR("make")));
 	const json_val_t args = json_add_val(json, task, STR("args"), JSON_ARR());
 	json_add_val(json, args, str_null(), JSON_STR(STR("clean")));
-	json_add_val(json, args, str_null(), JSON_STR(strf("%.*s/%s", name->len, name->data, action)));
+	json_add_val(json, args, str_null(), JSON_STR(strf("%.*s/%s", name->val.len, name->val.data, action)));
 
 	if (config) {
-		json_add_val(json, args, str_null(), JSON_STR(strf("CONFIG=%.*s", config->len, config->data)));
+		json_add_val(json, args, str_null(), JSON_STR(strf("CONFIG=%.*s", config->val.len, config->val.data)));
 	}
 
 	if (platform) {
-		json_add_val(json, args, str_null(), JSON_STR(strf("PLATFORM=%.*s", platform->len, platform->data)));
+		json_add_val(json, args, str_null(), JSON_STR(strf("PLATFORM=%.*s", platform->val.len, platform->val.data)));
 	}
 
 	if (run->flags & PROP_SET) {
@@ -156,10 +156,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config
 	const prop_t *args    = &proj->props[PROJ_PROP_ARGS];
 	const prop_t *program = &proj->props[PROJ_PROP_PROGRAM];
 
-	prop_str_t rel_path = {
-		.cdata = proj->rel_path.path,
-		.len   = proj->rel_path.len,
-	};
+	prop_str_t rel_path = { .val = strc(proj->rel_path.path, proj->rel_path.len) };
 
 	const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
 	const prop_str_t *cwd	 = (wdir->flags & PROP_SET) ? &wdir->value : &rel_path;
@@ -178,15 +175,15 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config
 
 	if (program->flags & PROP_SET) {
 		const prop_str_t *pname = &program->value;
-		if (dict_get(projects, pname->data, pname->len, (void **)&pproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)pname->len, pname->data);
+		if (dict_get(projects, pname->val.data, pname->val.len, (void **)&pproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)pname->val.len, pname->val.data);
 			return 1;
 		}
 	}
 
 	make_ext_set_val(&pproj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}")));
-	make_ext_set_val(&pproj->make, STR("CONFIG"), MSTR(strc(config->data, config->len)));
-	make_ext_set_val(&pproj->make, STR("PLATFORM"), MSTR(strc(platform->data, platform->len)));
+	make_ext_set_val(&pproj->make, STR("CONFIG"), MSTR(strs(config->val)));
+	make_ext_set_val(&pproj->make, STR("PLATFORM"), MSTR(strs(platform->val)));
 	make_expand(&pproj->make);
 	str_t mtarget = make_var_get_resolved(&pproj->make, STR("TARGET"));
 
@@ -197,10 +194,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config
 	if (args->flags & PROP_SET) {
 		int end = 0;
 
-		str_t arg = {
-			.data = args->value.data,
-			.len  = args->value.len,
-		};
+		str_t arg  = args->value.val;
 		str_t next = { 0 };
 
 		while (!end) {
@@ -209,10 +203,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config
 				end = 1;
 			}
 
-			const prop_str_t argp = {
-				.cdata = arg.data,
-				.len   = arg.len,
-			};
+			const prop_str_t argp = { .val = strc(arg.data, arg.len) };
 
 			buf_len = resolve(&argp, CSTR(buf), proj, config, platform, out, out_len);
 
@@ -227,7 +218,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const prop_str_t *config
 	}
 
 	json_add_val(json, conf, STR("stopAtEntry"), JSON_BOOL(0));
-	json_add_val(json, conf, STR("cwd"), JSON_STR(strf("${workspaceFolder}/%.*s", cwd->len, cwd->data)));
+	json_add_val(json, conf, STR("cwd"), JSON_STR(strf("${workspaceFolder}/%.*s", cwd->val.len, cwd->val.data)));
 	json_add_val(json, conf, STR("environment"), JSON_ARR());
 	json_add_val(json, conf, STR("externalConsole"), JSON_BOOL(0));
 	json_add_val(json, conf, STR("MIMode"), JSON_STR(STR("gdb")));
@@ -256,7 +247,7 @@ static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_s
 
 static int add_launch(proj_t *proj, const dict_t *projects, const prop_str_t *config, const prop_str_t *platform, json_t *json, json_val_t confs)
 {
-	if (config && cstr_eq(config->data, config->len, CSTR("Release"))) {
+	if (config && cstr_eq(config->val.data, config->val.len, CSTR("Release"))) {
 		return f5anything(proj, config, platform, json, confs);
 	} else {
 		return cppdbg(proj, projects, config, platform, json, confs);

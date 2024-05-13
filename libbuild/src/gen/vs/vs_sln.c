@@ -14,7 +14,7 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, sln->props[SLN_PROP_NAME].value.data, sln->props[SLN_PROP_NAME].value.len) == NULL) {
+	if (path_child(&cmake_path, sln->props[SLN_PROP_NAME].value.val.data, sln->props[SLN_PROP_NAME].value.val.len) == NULL) {
 		return 1;
 	}
 
@@ -49,8 +49,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj	       = pair->value;
 		const prop_str_t *name = proj->name;
-		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (int)name->len,
-			  name->data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->len, name->data, proj->guid);
+		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (int)name->val.len,
+			  name->val.data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->val.len, name->val.data, proj->guid);
 	}
 
 	c_fprintf(file, "Global\n"
@@ -69,8 +69,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 		prop_str_t *config = arr_get(&configs->arr, i);
 		for (uint j = 0; j < platforms->cnt; j++) {
 			prop_str_t *platform = arr_get(platforms, j);
-			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->len, config->data, platform->len, platform->data, config->len, config->data, platform->len,
-				  platform->data);
+			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platform->val.len,
+				  platform->val.data);
 		}
 	}
 
@@ -85,9 +85,9 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 			prop_str_t *config = arr_get(&configs->arr, i);
 			for (uint j = 0; j < platforms->cnt; j++) {
 				prop_str_t *platform = arr_get(platforms, j);
-				const char *platf    = platform->data;
-				size_t platf_len     = platform->len;
-				if (cstr_eq(platform->data, platform->len, CSTR("x86"))) {
+				const char *platf    = platform->val.data;
+				size_t platf_len     = platform->val.len;
+				if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
 					platf	  = "Win32";
 					platf_len = 5;
 				}
@@ -95,8 +95,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 				c_fprintf(file,
 					  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 					  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
-					  proj->guid, config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf, proj->guid,
-					  config->len, config->data, platform->len, platform->data, config->len, config->data, platf_len, platf);
+					  proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platf_len, platf, proj->guid,
+					  config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platf_len, platf);
 			}
 		}
 	}

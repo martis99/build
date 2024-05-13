@@ -37,9 +37,7 @@ static uint val_to_mask(str_t val, const str_t *table, size_t table_len)
 
 static void parse_value(prop_str_t *data, prop_t *prop, str_t val, const str_t *table, size_t table_len, int arr)
 {
-	str_t copy  = str_cpy(val);
-	data->cdata = copy.data;
-	data->len   = copy.len;
+	data->val = str_cpy(val);
 
 	if (table) {
 		if (arr) {
@@ -106,8 +104,7 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 	ini_prs_t ini_prs;
 	ini_prs_init(&ini_prs);
 
-	str_t str = strc(data.data, data.len);
-	ini_prs_parse(&ini_prs, str, &ini);
+	ini_prs_parse(&ini_prs, data.val, &ini);
 
 	ini_sec_data_t *sec;
 	ini_sec_foreach(&ini.secs, sec)
@@ -141,7 +138,8 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 				if (props_pol[i].str_table) {
 					INFP("    %.*s: %s", (int)props_pol[i].name.len, props_pol[i].name.data, props_pol[i].str_table[props[i].mask].data);
 				} else {
-					INFP("    %.*s: '%.*s'", (int)props_pol[i].name.len, props_pol[i].name.data, (int)props[i].value.len, props[i].value.data);
+					INFP("    %.*s: '%.*s'", (int)props_pol[i].name.len, props_pol[i].name.data, (int)props[i].value.val.len,
+					     props[i].value.val.data);
 				}
 			}
 		}
@@ -151,19 +149,19 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 
 int prop_eq(const prop_str_t *l, const prop_str_t *r)
 {
-	return cstr_eq(l->data, l->len, r->data, r->len);
+	return str_eq(l->val, r->val);
 }
 
 void prop_print_arr(const prop_t *prop)
 {
 	for (uint j = 0; j < prop->arr.cnt; j++) {
 		prop_str_t *val = arr_get(&prop->arr, j);
-		if (val->data == NULL) {
+		if (val->val.data == NULL) {
 			INFP("%s", "        <null>");
 			continue;
 		}
 
-		INFP("        '%.*s'", (int)val->len, val->data);
+		INFP("        '%.*s'", (int)val->val.len, val->val.data);
 	}
 }
 
@@ -181,10 +179,7 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 	size_t props_pol_len = props_pol_size / sizeof(prop_pol_t);
 	for (size_t i = 0; i < props_pol_len; i++) {
 		if (!(props[i].flags & PROP_SET) && props_pol[i].def.data != NULL) {
-			props[i].value = (prop_str_t){
-				.cdata = props_pol[i].def.data,
-				.len   = props_pol[i].def.len,
-			};
+			props[i].value.val = strc(props_pol[i].def.data, props_pol[i].def.len);
 			props[i].flags |= PROP_SET;
 		}
 	}
@@ -192,9 +187,18 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 
 void prop_free(prop_t *prop)
 {
+	if (prop->ref || !(prop->flags & PROP_SET)) {
+		return;
+	}
+
 	if (prop->flags & PROP_ARR) {
+		prop_str_t *val;
+		arr_foreach(&prop->arr, val) {
+			str_free(&val->val);
+		}
 		arr_free(&prop->arr);
-		prop->flags &= ~PROP_ARR;
+	} else {
+		str_free(&prop->value.val);
 	}
 }
 

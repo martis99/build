@@ -22,12 +22,12 @@ static const var_pol_t vars = {
 
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
-	size_t buf_len = prop->len;
-	mem_cpy(buf, buf_size, prop->data, prop->len);
+	size_t buf_len = prop->val.len;
+	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 
 	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->data, proj->name->len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name->val.data, proj->name->val.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
 
 	return buf_len;
@@ -101,19 +101,19 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 			if (lang & (1 << LANG_ASM)) {
 				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", include->len, include->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", include->val.len, include->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", include->len, include->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", include->val.len, include->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
 				make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", include->len, include->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", include->val.len, include->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 		}
@@ -127,35 +127,35 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 			if (lang & (1 << LANG_ASM)) {
 				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", source->len, source->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.inc')", source->val.len, source->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
 				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", source->len, source->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.h')", source->val.len, source->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_CPP)) {
 				const make_var_t deps = make_add_act(make, make_create_var(make, STR("DEPS"), deps_type));
-				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", source->len, source->data)));
+				make_var_add_val(make, deps, MSTR(strf("$(shell find %.*s -name '*.hpp')", source->val.len, source->val.data)));
 				deps_type = MAKE_VAR_APP;
 			}
 
 			if (lang & (1 << LANG_ASM)) {
 				const make_var_t src_asm = make_add_act(make, make_create_var(make, STR("SRC_ASM"), MAKE_VAR_INST));
-				make_var_add_val(make, src_asm, MSTR(strf("$(shell find %.*s -name '*.asm')", source->len, source->data)));
+				make_var_add_val(make, src_asm, MSTR(strf("$(shell find %.*s -name '*.asm')", source->val.len, source->val.data)));
 			}
 
 			if (lang & (1 << LANG_C)) {
 				const make_var_t src_c = make_add_act(make, make_create_var(make, STR("SRC_C"), MAKE_VAR_INST));
-				make_var_add_val(make, src_c, MSTR(strf("$(shell find %.*s -name '*.c')", source->len, source->data)));
+				make_var_add_val(make, src_c, MSTR(strf("$(shell find %.*s -name '*.c')", source->val.len, source->val.data)));
 			}
 
 			if (lang & (1 << LANG_CPP)) {
 				const make_var_t src_cpp = make_add_act(make, make_create_var(make, STR("SRC_CPP"), MAKE_VAR_INST));
-				make_var_add_val(make, src_cpp, MSTR(strf("$(shell find %.*s -name '*.cpp')", source->len, source->data)));
+				make_var_add_val(make, src_cpp, MSTR(strf("$(shell find %.*s -name '*.cpp')", source->val.len, source->val.data)));
 			}
 		}
 	}
@@ -218,20 +218,20 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", filename->len, filename->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_BIN:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", filename->len, filename->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_ELF:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.elf", filename->len, filename->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.elf", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_FAT12:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", filename->len, filename->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_LIB:
 	case PROJ_TYPE_EXT:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", filename->len, filename->data)));
+		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", filename->val.len, filename->val.data)));
 		break;
 	}
 
@@ -240,7 +240,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		const make_var_t martifactdir = make_add_act(make, make_create_var(make, STR("ARTIFACTDIR"), MAKE_VAR_INST));
 		make_var_add_val(make, martifactdir, MSTR(STR("$(SLNDIR)/tmp/artifact/")));
 		martifact = make_add_act(make, make_create_var(make, STR("ARTIFACT"), MAKE_VAR_INST));
-		make_var_add_val(make, martifact, MSTR(strf("$(ARTIFACTDIR)%.*s", partifact->value.len, partifact->value.data)));
+		make_var_add_val(make, martifact, MSTR(strf("$(ARTIFACTDIR)%.*s", partifact->value.val.len, partifact->value.val.data)));
 	}
 
 	make_add_act(make, make_create_empty(make));
@@ -308,7 +308,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		for (uint k = 0; k < defines->cnt; k++) {
 			const prop_str_t *define = arr_get(defines, k);
 
-			make_var_add_val(make, mflags, MSTR(strf("-D%.*s", define->len, define->data)));
+			make_var_add_val(make, mflags, MSTR(strf("-D%.*s", define->val.len, define->val.data)));
 		}
 	}
 
@@ -340,7 +340,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		if (ccflags->flags & PROP_SET) {
 			for (uint i = 0; i < ccflags->arr.cnt; i++) {
 				const prop_str_t *ccflag = arr_get(&ccflags->arr, i);
-				make_var_add_val(make, mcflags, MSTR(strc(ccflag->data, ccflag->len)));
+				make_var_add_val(make, mcflags, MSTR(strs(ccflag->val)));
 			}
 		}
 	}
@@ -357,8 +357,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			const proj_t *dproj = NULL;
-			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
+			if (dict_get(projects, dpname->val.data, dpname->val.len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dpname->val.len, dpname->val.data);
 				continue;
 			}
 
@@ -395,10 +395,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 					buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
 					add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
 
-					make_var_add_val(make, mldflags, MSTR(strf("-l:%.*s.a", dproj->name->len, dproj->name->data)));
+					make_var_add_val(make, mldflags, MSTR(strf("-l:%.*s.a", dproj->name->val.len, dproj->name->val.data)));
 				} else {
 					buf_len = convert_slash(CSTR(buf), dproj->rel_path.path, dproj->rel_path.len);
-					make_var_add_val(make, mldflags, MSTR(strf("-L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->len, dproj->name->data)));
+					make_var_add_val(make, mldflags,
+							 MSTR(strf("-L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->val.len, dproj->name->val.data)));
 				}
 			}
 
@@ -406,7 +407,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
 				for (uint j = 0; j < libdirs->cnt; j++) {
 					const prop_str_t *libdir = arr_get(libdirs, j);
-					if (libdir->len > 0) {
+					if (libdir->val.len > 0) {
 						buf_len = resolve(libdir, CSTR(buf), dproj);
 						add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
 					}
@@ -417,8 +418,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				const arr_t *links = &dproj->props[PROJ_PROP_LINK].arr;
 				for (uint j = 0; j < links->cnt; j++) {
 					const prop_str_t *link = arr_get(links, j);
-					if (link->len > 0) {
-						make_var_add_val(make, mldflags, MSTR(strf(" -l:%.*s.a", link->len, link->data)));
+					if (link->val.len > 0) {
+						make_var_add_val(make, mldflags, MSTR(strf(" -l:%.*s.a", link->val.len, link->val.data)));
 					}
 				}
 			}
@@ -479,7 +480,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
-	make_rule_add_depend(make, all, MRULE(MSTR(strc(name->data, name->len))));
+	make_rule_add_depend(make, all, MRULE(MSTR(strs(name->val))));
 
 	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
 
@@ -502,9 +503,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			const make_if_t if_dpkg =
-				make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
-			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->len, require->data))));
+			const make_if_t if_dpkg = make_rule_add_act(
+				make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->val.len, require->val.data))));
+			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->val.len, require->val.data))));
 		}
 	}
 
@@ -518,7 +519,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strc(name->data, name->len))), 0));
+	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strs(name->val))), 0));
 	make_rule_add_depend(make, mname, MRULE(MSTR(STR("clean"))));
 	make_rule_add_depend(make, mname, MRULE(MSTR(STR("compile"))));
 
@@ -548,8 +549,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			const prop_str_t *dpname = arr_get(&depends->arr, i);
 
 			const proj_t *dproj = NULL;
-			if (dict_get(projects, dpname->data, dpname->len, (void **)&dproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dpname->len, dpname->data);
+			if (dict_get(projects, dpname->val.data, dpname->val.len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dpname->val.len, dpname->val.data);
 				continue;
 			}
 
@@ -562,11 +563,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			size_t rel_path_len	  = convert_slash(CSTR(rel_path), proj->rel_path.path, proj->rel_path.len);
 
 			if (cstr_eqn(path_b, path_b_len, CSTR("$(SLNDIR)"), 9)) {
-				make_rule_add_depend(make, rtarget, MRULE(MSTR(strf("%.*s%.*s.bin", path_b_len, path_b, dproj->name->len, dproj->name->data))));
+				make_rule_add_depend(make, rtarget, MRULE(MSTR(strf("%.*s%.*s.bin", path_b_len, path_b, dproj->name->val.len, dproj->name->val.data))));
 			} else {
 				make_rule_add_depend(make, rtarget,
-						     MRULE(MSTR(strf("$(SLNDIR)/%.*s/%.*s%.*s.bin", rel_path_len, rel_path, path_b_len, path_b, dproj->name->len,
-								     dproj->name->data))));
+						     MRULE(MSTR(strf("$(SLNDIR)/%.*s/%.*s%.*s.bin", rel_path_len, rel_path, path_b_len, path_b, dproj->name->val.len,
+								     dproj->name->val.data))));
 			}
 		}
 	}
@@ -595,8 +596,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				const prop_str_t *fname = arr_get(&files->arr, i);
 
 				proj_t *fproj = NULL;
-				if (dict_get(projects, fname->data, fname->len, (void **)&fproj)) {
-					ERR("project doesn't exists: '%.*s'", (int)fname->len, fname->data);
+				if (dict_get(projects, fname->val.data, fname->val.len, (void **)&fproj)) {
+					ERR("project doesn't exists: '%.*s'", (int)fname->val.len, fname->val.data);
 					continue;
 				}
 
@@ -620,8 +621,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 			if (size->flags & PROP_SET) {
 				make_rule_add_act(make, rtarget,
-						  make_create_cmd(make,
-								  MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", size->value.len, size->value.data))));
+						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", size->value.val.len,
+										  size->value.val.data))));
 			}
 		} else if (lang == (1 << LANG_ASM) || dep_bin) {
 			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
@@ -645,8 +646,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			const prop_str_t *fname = arr_get(&files->arr, i);
 
 			proj_t *fproj = NULL;
-			if (dict_get(projects, fname->data, fname->len, (void **)&fproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)fname->len, fname->data);
+			if (dict_get(projects, fname->val.data, fname->val.len, (void **)&fproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)fname->val.len, fname->val.data);
 				continue;
 			}
 
@@ -699,11 +700,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		if (run->flags & PROP_SET && drun->flags & PROP_SET) {
 			const make_if_t if_config = make_rule_add_act(make, mrun, make_create_if(make, MVAR(mconfig), MSTR(STR("Debug"))));
-			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(strc(drun->value.data, drun->value.len))));
-			make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(strc(run->value.data, run->value.len))));
+			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(strs(drun->value.val))));
+			make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(strs(run->value.val))));
 
 		} else if (run->flags & PROP_SET) {
-			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(strc(run->value.data, run->value.len))));
+			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(strs(run->value.val))));
 		} else {
 			make_rule_add_act(make, mrun, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 		}
@@ -758,13 +759,13 @@ static int gen_url(const proj_t *proj, make_t *make)
 	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
 
 	const make_var_t murl = make_add_act(make, make_create_var(make, STR("URL"), MAKE_VAR_INST));
-	make_var_add_val(make, murl, MSTR(strc(url->data, url->len)));
+	make_var_add_val(make, murl, MSTR(strs(url->val)));
 
 	const make_var_t mname = make_add_act(make, make_create_var(make, STR("NAME"), MAKE_VAR_INST));
-	make_var_add_val(make, mname, MSTR(strc(name->data, name->len)));
+	make_var_add_val(make, mname, MSTR(strs(name->val)));
 
 	const make_var_t mformat = make_add_act(make, make_create_var(make, STR("FORMAT"), MAKE_VAR_INST));
-	make_var_add_val(make, mformat, MSTR(strc(format->data, format->len)));
+	make_var_add_val(make, mformat, MSTR(strs(format->val)));
 
 	const make_var_t mfile = make_add_act(make, make_create_var(make, STR("FILE"), MAKE_VAR_INST));
 	make_var_add_val(make, mfile, MSTR(STR("$(NAME).$(FORMAT)")));
@@ -795,9 +796,9 @@ static int gen_url(const proj_t *proj, make_t *make)
 		for (uint i = 0; i < requires->arr.cnt; i++) {
 			const prop_str_t *require = arr_get(&requires->arr, i);
 
-			make_if_t if_dpkg =
-				make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
-			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->len, require->data))));
+			make_if_t if_dpkg = make_rule_add_act(
+				make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->val.len, require->val.data))));
+			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->val.len, require->val.data))));
 		}
 	}
 
@@ -818,8 +819,9 @@ static int gen_url(const proj_t *proj, make_t *make)
 		make, routdir,
 		make_create_cmd(make,
 				MCMD(strf("@cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)/configure.log",
-					  config->len, config->data))));
-	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)/make.log", target->len, target->data))));
+					  config->val.len, config->val.data))));
+	make_rule_add_act(make, routdir,
+			  make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)/make.log", target->val.len, target->val.data))));
 	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@touch $(OUTDIR)/$(NAME)"))));
 
 	const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
