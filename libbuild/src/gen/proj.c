@@ -52,7 +52,7 @@ static void replace_prop(prop_t *proj_prop, const prop_t *sln_prop)
 	}
 }
 
-int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props)
+int proj_read(build_t *build, proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props)
 {
 	proj->file_path = *path;
 	pathv_path(&proj->path, &proj->file_path);
@@ -77,7 +77,7 @@ int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const st
 	proj->data.path = proj->file_path.path;
 	proj->data.val	= strb(proj->file, sizeof(proj->file), proj->data.val.len);
 
-	int ret = props_parse_file(proj->data, proj->props, s_proj_props, sizeof(s_proj_props));
+	int ret = props_parse_file(proj->data, &build->ini_prs, proj->props, s_proj_props, sizeof(s_proj_props));
 
 	if (!proj->props[PROJ_PROP_NAME].flags & PROP_SET) {
 		ERR("%.*s: project name is not set", (int)proj->file_path.len, proj->file_path.path);

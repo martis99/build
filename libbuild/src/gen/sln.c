@@ -3,6 +3,7 @@
 #include "dir.h"
 #include "gen/proj.h"
 
+#include "build.h"
 #include "common.h"
 
 #include "md5.h"
@@ -21,6 +22,7 @@ static const prop_pol_t s_sln_props[] = {
 };
 
 typedef struct read_dir_data_s {
+	build_t *build;
 	sln_t *sln;
 	dir_t *parent;
 } read_dir_data_t;
@@ -39,7 +41,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	read_dir_data_t *data = priv;
 	if (file_exists(file_path.path)) {
 		proj_t *proj = mem_calloc(1, sizeof(proj_t));
-		ret += proj_read(proj, &data->sln->path, path, data->parent, data->sln->props);
+		ret += proj_read(data->build, proj, &data->sln->path, path, data->parent, data->sln->props);
 		const prop_str_t *name = proj->name;
 		if (dict_get(&data->sln->projects, name->val.data, name->val.len, NULL)) {
 			dict_set(&data->sln->projects, name->val.data, name->val.len, proj);
@@ -60,7 +62,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	dir_t *dir = mem_calloc(1, sizeof(dir_t));
 	if (dict_get(&data->sln->dirs, path->path, path->len, NULL)) {
 		dict_set(&data->sln->dirs, path->path, path->len, dir);
-		ret += dir_read(dir, &data->sln->path, path, read_dir, data->parent, data);
+		ret += dir_read(data->build, dir, &data->sln->path, path, read_dir, data->parent, data);
 	} else {
 		//ERR_LOGICS("Direcotry '%.*s' with the same path already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
 		mem_free(dir, sizeof(dir_t));
@@ -209,7 +211,11 @@ int sln_read(sln_t *sln, const path_t *path)
 	sln->data.path = sln->file_path.path;
 	sln->data.val  = strb(sln->file, sizeof(sln->file), sln->data.val.len);
 
-	int ret = props_parse_file(sln->data, sln->props, s_sln_props, sizeof(s_sln_props));
+	build_t build = { 0 };
+
+	ini_prs_init(&build.ini_prs);
+
+	int ret = props_parse_file(sln->data, &build.ini_prs, sln->props, s_sln_props, sizeof(s_sln_props));
 
 	path_t name = { 0 };
 	path_init(&name, sln->props[SLN_PROP_NAME].value.val.data, sln->props[SLN_PROP_NAME].value.val.len);
@@ -226,6 +232,7 @@ int sln_read(sln_t *sln, const path_t *path)
 	dict_init(&sln->dirs, 16);
 
 	read_dir_data_t read_dir_data = {
+		.build	= &build,
 		.sln	= sln,
 		.parent = NULL,
 	};
@@ -265,6 +272,8 @@ int sln_read(sln_t *sln, const path_t *path)
 	{
 		calculate_build_older(&sln->build_order, pair->value, &sln->projects);
 	}
+
+	ini_prs_free(&build.ini_prs);
 
 	return ret;
 }

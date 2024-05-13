@@ -2,6 +2,7 @@
 #define PROP_H
 
 #include "arr.h"
+#include "ini_parse.h"
 #include "str.h"
 #include "type.h"
 
@@ -39,7 +40,7 @@ typedef struct prop_pol_s {
 	str_t def;
 } prop_pol_t;
 
-int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
+int props_parse_file(prop_str_t data, const ini_prs_t *ini_prs, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size);
 
 int prop_eq(const prop_str_t *l, const prop_str_t *r);

@@ -92,7 +92,7 @@ static void parse_props(ini_t *ini, ini_sec_data_t *sec, prop_t *props, const pr
 	}
 }
 
-int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
+int props_parse_file(prop_str_t data, const ini_prs_t *ini_prs, prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 {
 	int ret = 0;
 
@@ -101,10 +101,7 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 	ini_t ini = { 0 };
 	ini_init(&ini, 4, 16, 8);
 
-	ini_prs_t ini_prs;
-	ini_prs_init(&ini_prs);
-
-	ini_prs_parse(&ini_prs, data.val, &ini);
+	ini_prs_parse(ini_prs, data.val, &ini);
 
 	ini_sec_data_t *sec;
 	ini_sec_foreach(&ini.secs, sec)
@@ -114,7 +111,6 @@ int props_parse_file(prop_str_t data, prop_t *props, const prop_pol_t *props_pol
 		}
 	}
 
-	ini_prs_free(&ini_prs);
 	ini_free(&ini);
 
 	return ret;
@@ -181,6 +177,7 @@ void prop_def(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_size)
 		if (!(props[i].flags & PROP_SET) && props_pol[i].def.data != NULL) {
 			props[i].value.val = strc(props_pol[i].def.data, props_pol[i].def.len);
 			props[i].flags |= PROP_SET;
+			props[i].ref = 1;
 		}
 	}
 }
@@ -193,7 +190,8 @@ void prop_free(prop_t *prop)
 
 	if (prop->flags & PROP_ARR) {
 		prop_str_t *val;
-		arr_foreach(&prop->arr, val) {
+		arr_foreach(&prop->arr, val)
+		{
 			str_free(&val->val);
 		}
 		arr_free(&prop->arr);

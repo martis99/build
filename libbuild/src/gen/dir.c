@@ -24,11 +24,12 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 }
 
 typedef struct read_dir_data_s {
+	build_t *build;
 	void *sln;
 	dir_t *parent;
 } read_dir_data_t;
 
-int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv)
+int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv)
 {
 	dir->file_path = *path;
 	pathv_path(&dir->path, &dir->file_path);
@@ -51,7 +52,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 		dir->data.path = dir->file_path.path;
 		dir->data.val  = strb(dir->file, sizeof(dir->file), dir->data.val.len);
 
-		ret += props_parse_file(dir->data, dir->props, s_dir_props, sizeof(s_dir_props));
+		ret += props_parse_file(dir->data, &build->ini_prs, dir->props, s_dir_props, sizeof(s_dir_props));
 
 	} else {
 		arr_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
@@ -72,6 +73,7 @@ int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb o
 
 	read_dir_data_t *data	      = priv;
 	read_dir_data_t read_dir_data = {
+		.build	= build,
 		.sln	= data->sln,
 		.parent = dir,
 	};

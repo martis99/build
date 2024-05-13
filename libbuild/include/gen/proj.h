@@ -1,6 +1,7 @@
 #ifndef PROJ_H
 #define PROJ_H
 
+#include "build.h"
 #include "prop.h"
 
 #include "arr.h"
@@ -157,7 +158,7 @@ typedef struct proj_s {
 	make_t make;
 } proj_t;
 
-int proj_read(proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
+int proj_read(build_t *build, proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
 void proj_print(proj_t *proj);
 
 int proj_runnable(const proj_t *proj);

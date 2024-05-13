@@ -1,6 +1,7 @@
 #ifndef DIR_H
 #define DIR_H
 
+#include "build.h"
 #include "path.h"
 #include "prop.h"
 
@@ -30,7 +31,7 @@ typedef struct dir_data_s {
 } dir_data_t;
 
 typedef int (*on_dir_cb)(path_t *path, const char *folder, void *priv);
-int dir_read(dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv);
+int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv);
 void dir_print(dir_t *dir);
 
 void dir_free(dir_t *dir);
