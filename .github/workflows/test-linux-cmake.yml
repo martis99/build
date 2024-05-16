@@ -1,5 +1,5 @@
 name: test
-run-name: test-linux-make
+run-name: test-linux-cmake
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: false
 
 jobs:
-  Linux-Make:
+  Linux-CMake-Make:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,10 +27,13 @@ jobs:
           workflow: build-linux
 
       - name: Generate
-        run: ./build-linux-${{matrix.platform}}-${{matrix.configuration}} -S test_sln -G M
+        run: ./build-linux-${{matrix.platform}}-${{matrix.configuration}} -S test_sln -G C
+
+      - name: Run CMake
+        run: cmake -S test_sln -B test_sln/bin -G "Unix Makefiles"
 
       - name: Build
-        run: make -C test_sln slib/static app/compile CONFIG=${{matrix.configuration}} PLATFORM=${{matrix.platform}}
+        run: make -C test_sln/bin slib app
 
       - name: Run
-        run: ./test_sln/bin/${{matrix.configuration}}-${{matrix.platform}}/app/app
+        run: ./test_sln/bin/app/app

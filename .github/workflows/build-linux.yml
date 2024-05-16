@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        system: [make]
+        system: [cmake, make]
 
     steps:
       - name: Notify
