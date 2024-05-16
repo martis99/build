@@ -1,0 +1,6 @@
+NAME = dlib
+TYPE = LIB
+SOURCE = src
+INCLUDE = inc
+DEPENDS = dlib_lib
+INCLUDES = dlib_lib

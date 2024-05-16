@@ -1,7 +1,8 @@
 NAME = app
 TYPE = EXE
 SOURCE = src
-DEPENDS = lib1, lib2, elib
-INCLUDES = lib1, lib2, elib
+DEPENDS = lib1, elib
+DDEPENDS = dlib
+INCLUDES = lib1, dlib, elib
 LDFLAGS = NONE, WHOLEARCHIVE
 ARGS = test -a 1, -c 6

@@ -18,6 +18,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_INCLUDE]  = { .name = STRS("INCLUDE"), .arr = 1 },
 	[PROJ_PROP_ENCLUDE]  = { .name = STRS("ENCLUDE") },
 	[PROJ_PROP_DEPENDS]  = { .name = STRS("DEPENDS"), .arr = 1 },
+	[PROJ_PROP_DDEPENDS] = { .name = STRS("DDEPENDS"), .arr = 1 },
 	[PROJ_PROP_DEPEND]   = { .name = STRS("DEPEND"), .arr = 1 },
 	[PROJ_PROP_INCLUDES] = { .name = STRS("INCLUDES"), .arr = 1 },
 	[PROJ_PROP_DEFINES]  = { .name = STRS("DEFINES"), .arr = 1 },
@@ -96,6 +97,13 @@ int proj_read(build_t *build, proj_t *proj, const path_t *sln_path, const path_t
 	convert_backslash(rel_path_name.path, rel_path_name.len, rel_path_name.path, rel_path_name.len);
 #endif
 	md5(rel_path_name.path, rel_path_name.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
+	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+		path_t rel_path_name2 = { 0 };
+		path_init(&rel_path_name2, proj->rel_path.path, proj->rel_path.len);
+		path_child(&rel_path_name2, proj->name->val.data, proj->name->val.len);
+		path_child_s(&rel_path_name2, CSTR("d.vcxproj"), '.');
+		md5(rel_path_name2.path, rel_path_name2.len, buf, sizeof(buf), proj->guid2, sizeof(proj->guid2));
+	}
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
@@ -155,9 +163,10 @@ void proj_print(proj_t *proj)
 	     "    Dir    : %.*s\n"
 	     "    Folder : %.*s\n"
 	     "    Name   : %.*s\n"
-	     "    GUID   : %s",
+	     "    GUID   : %s\n"
+	     "    GUID2  : %s",
 	     (int)proj->path.len, proj->path.path, (int)proj->file_path.len, proj->file_path.path, (int)proj->rel_path.len, proj->rel_path.path, (int)proj->dir.len,
-	     proj->dir.path, (int)proj->folder.len, proj->folder.path, (int)proj->name->val.len, proj->name->val.data, proj->guid);
+	     proj->dir.path, (int)proj->folder.len, proj->folder.path, (int)proj->name->val.len, proj->name->val.data, proj->guid, proj->guid2);
 
 	if (proj->parent) {
 		INFP("    Parent : %.*s", (int)proj->parent->folder.len, proj->parent->folder.path);
@@ -169,8 +178,8 @@ void proj_print(proj_t *proj)
 
 	INFP("%s", "    Depends:");
 	for (uint i = 0; i < proj->all_depends.cnt; i++) {
-		const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
-		INFP("        '%.*s'", (int)dproj->name->val.len, dproj->name->val.data);
+		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+		INFP("        '%.*s' (%s)", (int)dep->proj->name->val.len, dep->proj->name->val.data, dep->link_type == LINK_TYPE_DYNAMIC ? "dynamic" : "static");
 	}
 
 	INFP("%s", "    Includes:");

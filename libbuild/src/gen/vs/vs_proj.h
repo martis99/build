@@ -3,6 +3,6 @@
 
 #include "gen/proj.h"
 
-int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props);
+int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props, int dynamic);
 
 #endif

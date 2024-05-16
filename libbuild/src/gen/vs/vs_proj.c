@@ -208,21 +208,21 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 	size_t tmp_len;
 
 	for (uint i = 0; i < proj->all_depends.cnt; i++) {
-		const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
+		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-		if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
-			const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
+		if (dep->proj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
+			const arr_t *libdirs = &dep->proj->props[PROJ_PROP_LIBDIRS].arr;
 			for (uint j = 0; j < libdirs->cnt; j++) {
 				prop_str_t *libdir = arr_get(libdirs, j);
 				if (libdir->val.len > 0) {
-					tmp_len = resolve(libdir, CSTR(tmp), dproj);
+					tmp_len = resolve(libdir, CSTR(tmp), dep->proj);
 
 					if (cstr_eqn(tmp, tmp_len, CSTR("$(SolutionDir)"), 14)) {
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)tmp_len, tmp);
 					} else {
 						path_t dir = { 0 };
 						path_init(&dir, CSTR("$(SolutionDir)"));
-						path_child_s(&dir, dproj->rel_path.path, dproj->rel_path.len, 0);
+						path_child_s(&dir, dep->proj->rel_path.path, dep->proj->rel_path.len, 0);
 						path_child(&dir, tmp, tmp_len);
 #if defined(C_LINUX)
 						convert_backslash(dir.path, dir.len, dir.path, dir.len);
@@ -259,7 +259,7 @@ static inline size_t print_ldflags(char *buf, size_t buf_size, const proj_t *pro
 }
 
 //TODO: Make proj const
-int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props)
+int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props, int dynamic)
 {
 	const prop_str_t *name = proj->name;
 	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
@@ -330,22 +330,30 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	xml_add_attr(&xml, xml_globals, STR("Label"), STR("Globals"));
 	xml_add_tag_val(&xml, xml_globals, STR("VCProjectVersion"), STR("16.0"));
 	xml_add_tag_val(&xml, xml_globals, STR("Keyword"), STR("Win32Proj"));
-	xml_add_tag_val(&xml, xml_globals, STR("ProjectGuid"), strf("{%s}", proj->guid));
+	xml_add_tag_val(&xml, xml_globals, STR("ProjectGuid"), strf("{%s}", dynamic ? proj->guid2 : proj->guid));
 	xml_add_tag_val(&xml, xml_globals, STR("RootNamespace"), strc(proj->folder.path, proj->folder.len));
 	xml_add_tag_val(&xml, xml_globals, STR("WindowsTargetPlatformVersion"), STR("10.0"));
 
 	xml_tag_t xml_import = xml_add_tag(&xml, xml_proj, STR("Import"));
 	xml_add_attr(&xml, xml_import, STR("Project"), STR("$(VCTargetsPath)\\Microsoft.Cpp.Default.props"));
 
-	const struct {
+	typedef struct lib_type_s {
 		const char *name;
 		size_t len;
-	} config_types[] = {
+	} lib_type_t;
+
+	lib_type_t config_types[__PROJ_TYPE_MAX] = {
 		[PROJ_TYPE_UNKNOWN] = { CSTR("") },
-		[PROJ_TYPE_LIB]	    = { CSTR("StaticLibrary") },
 		[PROJ_TYPE_EXE]	    = { CSTR("Application") },
-		[PROJ_TYPE_EXT]	    = { CSTR("StaticLibrary") },
 	};
+
+	if (dynamic) {
+		config_types[PROJ_TYPE_LIB] = (lib_type_t){ CSTR("DynamicLibrary") };
+		config_types[PROJ_TYPE_EXT] = (lib_type_t){ CSTR("DynamicLibrary") };
+	} else {
+		config_types[PROJ_TYPE_LIB] = (lib_type_t){ CSTR("StaticLibrary") };
+		config_types[PROJ_TYPE_EXT] = (lib_type_t){ CSTR("StaticLibrary") };
+	}
 
 	const struct {
 		const char *name;
@@ -371,7 +379,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			const int release = cstr_eq(config->val.data, config->val.len, CSTR("Release"));
 
 			xml_tag_t xml_conf = xml_add_tag(&xml, xml_proj, STR("PropertyGroup"));
-			xml_add_attr(&xml, xml_conf, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
+			xml_add_attr(&xml, xml_conf, STR("Condition"),
+				     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 			xml_add_attr(&xml, xml_conf, STR("Label"), STR("Configuration"));
 			xml_add_tag_val(&xml, xml_conf, STR("ConfigurationType"),
 					strc(config_types[proj->props[PROJ_PROP_TYPE].mask].name, config_types[proj->props[PROJ_PROP_TYPE].mask].len));
@@ -438,7 +447,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			const int debug = cstr_eq(config->val.data, config->val.len, CSTR("Debug"));
 
 			xml_tag_t xml_plat = xml_add_tag(&xml, xml_proj, STR("PropertyGroup"));
-			xml_add_attr(&xml, xml_plat, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
+			xml_add_attr(&xml, xml_plat, STR("Condition"),
+				     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 
 			if (proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXE) {
 				xml_add_tag_val(&xml, xml_plat, STR("LinkIncremental"), strc(debug ? "true" : "false", debug ? 4 : 5));
@@ -468,7 +478,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			const int release = cstr_eq(config->val.data, config->val.len, CSTR("Release"));
 
 			xml_tag_t xml_def = xml_add_tag(&xml, xml_proj, STR("ItemDefinitionGroup"));
-			xml_add_attr(&xml, xml_def, STR("Condition"), strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
+			xml_add_attr(&xml, xml_def, STR("Condition"),
+				     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 			xml_tag_t xml_comp = xml_add_tag(&xml, xml_def, STR("ClCompile"));
 			xml_add_tag_val(&xml, xml_comp, STR("WarningLevel"), STR("Level3"));
 
@@ -560,11 +571,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			xml_tag_t xml_refs = xml_add_tag(&xml, xml_proj, STR("ItemGroup"));
 
 			for (uint i = 0; i < depends->cnt; i++) {
-				const proj_t *dproj = *(proj_t **)arr_get(depends, i);
+				const proj_dep_t *dep = arr_get(depends, i);
 
-				if (dproj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
+				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 					path_t rel_path = { 0 };
-					path_calc_rel(proj->path.path, proj->path.len, dproj->path.path, dproj->path.len, &rel_path);
+					path_calc_rel(proj->path.path, proj->path.len, dep->proj->path.path, dep->proj->path.len, &rel_path);
 
 					path_child_s(&rel_path, CSTR(""), '\\');
 
@@ -574,8 +585,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
 					xml_add_attr(&xml, xml_ref, STR("Include"),
-						     strf("%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dproj->name->val.len, dproj->name->val.data));
-					xml_add_tag_val(&xml, xml_ref, STR("Project"), strf("{%s}", dproj->guid));
+						     strf("%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dep->proj->name->val.len, dep->proj->name->val.data));
+					xml_add_tag_val(&xml, xml_ref, STR("Project"),
+							strf("{%s}", dep->link_type == LINK_TYPE_DYNAMIC ? dep->proj->guid2 : dep->proj->guid));
 				}
 			}
 		}
@@ -644,7 +656,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		return 1;
 	}
 
-	if (path_child_s(&cmake_path, CSTR("vcxproj"), '.') == NULL) {
+	if ((dynamic ? path_child_s(&cmake_path, CSTR("d.vcxproj"), '.') : path_child_s(&cmake_path, CSTR("vcxproj"), '.')) == NULL) {
 		return 1;
 	}
 
@@ -681,8 +693,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 				xml_add_attr(&xml_user, xml_group, STR("Condition"),
 					     strf("'$(Configuration)|$(Platform)'=='%.*s|%.*s'", config->val.len, config->val.data, platf_len, platf));
 
-				xml_add_tag_val(&xml_user, xml_group, STR("LocalDebuggerCommandArguments"),
-						strs(proj->props[PROJ_PROP_ARGS].value.val));
+				xml_add_tag_val(&xml_user, xml_group, STR("LocalDebuggerCommandArguments"), strs(proj->props[PROJ_PROP_ARGS].value.val));
 			}
 		}
 	}
@@ -703,7 +714,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 		return 1;
 	}
 
-	if (path_child_s(&cmake_path_user, CSTR("vcxproj.user"), '.') == NULL) {
+	if ((dynamic ? path_child_s(&cmake_path_user, CSTR("d.vcxproj.user"), '.') : path_child_s(&cmake_path_user, CSTR("vcxproj.user"), '.')) == NULL) {
 		return 1;
 	}
 

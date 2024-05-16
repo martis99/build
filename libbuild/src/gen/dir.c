@@ -61,9 +61,6 @@ int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *p
 	}
 
 	byte buf[256] = { 0 };
-#if defined(C_LINUX)
-	convert_backslash((char *)dir->dir.path, dir->dir.len, dir->dir.path, dir->dir.len);
-#endif
 	md5(dir->dir.path, dir->dir.len, buf, sizeof(buf), dir->guid, sizeof(dir->guid));
 
 	arr_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;

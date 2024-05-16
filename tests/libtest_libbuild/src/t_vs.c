@@ -140,6 +140,48 @@ static const char *PROJ_LIBTEST_CONFIG =
 	"      <SDLCheck>true</SDLCheck>\n"
 	"      <ConformanceMode>true</ConformanceMode>\n";
 
+static const char *PROJ_LIBTEST_D_CONFIG =
+	"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+	"<Project DefaultTargets=\"Build\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
+	"  <ItemGroup Label=\"ProjectConfigurations\">\n"
+	"    <ProjectConfiguration Include=\"Debug|x64\">\n"
+	"      <Configuration>Debug</Configuration>\n"
+	"      <Platform>x64</Platform>\n"
+	"    </ProjectConfiguration>\n"
+	"  </ItemGroup>\n"
+	"  <PropertyGroup Label=\"Globals\">\n"
+	"    <VCProjectVersion>16.0</VCProjectVersion>\n"
+	"    <Keyword>Win32Proj</Keyword>\n"
+	"    <ProjectGuid>{B12458AA-5202-1EA6-C5FA-655A9044D549}</ProjectGuid>\n"
+	"    <RootNamespace>libtest</RootNamespace>\n"
+	"    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>\n"
+	"  </PropertyGroup>\n"
+	"  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n"
+	"  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Debug|x64'\" Label=\"Configuration\">\n"
+	"    <ConfigurationType>DynamicLibrary</ConfigurationType>\n"
+	"    <UseDebugLibraries>true</UseDebugLibraries>\n"
+	"    <PlatformToolset>v143</PlatformToolset>\n"
+	"  </PropertyGroup>\n"
+	"  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />\n"
+	"  <ImportGroup Label=\"ExtensionSettings\">\n"
+	"  </ImportGroup>\n"
+	"  <ImportGroup Label=\"Shared\">\n"
+	"  </ImportGroup>\n"
+	"  <ImportGroup Label=\"PropertySheets\" Condition=\"'$(Configuration)|$(Platform)'=='Debug|x64'\">\n"
+	"    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />\n"
+	"  </ImportGroup>\n"
+	"  <PropertyGroup Label=\"UserMacros\" />\n"
+	"  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Debug|x64'\">\n"
+	"    <LinkIncremental>true</LinkIncremental>\n"
+	"    <OutDir>$(SolutionDir)bin\\$(Configuration)-$(PlatformTarget)\\libtest\\</OutDir>\n"
+	"    <IntDir>$(SolutionDir)bin\\$(Configuration)-$(PlatformTarget)\\libtest\\int\\</IntDir>\n"
+	"  </PropertyGroup>\n"
+	"  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='Debug|x64'\">\n"
+	"    <ClCompile>\n"
+	"      <WarningLevel>Level3</WarningLevel>\n"
+	"      <SDLCheck>true</SDLCheck>\n"
+	"      <ConformanceMode>true</ConformanceMode>\n";
+
 static const char *PROJ_USER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
 			       "<Project ToolsVersion=\"Current\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
 			       "  <PropertyGroup>\n"
@@ -314,7 +356,31 @@ TEST(c_depends)
 			},
 		},
 		{
+			.path = "tmp/libtest/libtest.d.vcxproj",
+			.data = {
+				PROJ_LIBTEST_D_CONFIG,
+				"      <AdditionalIncludeDirectories>$(ProjectDir)src</AdditionalIncludeDirectories>\n"
+				"    </ClCompile>\n"
+				"    <Link>\n"
+				"      <SubSystem>Console</SubSystem>\n"
+				"      <GenerateDebugInformation>true</GenerateDebugInformation>\n"
+				"    </Link>\n"
+				"  </ItemDefinitionGroup>\n"
+				"  <ItemGroup>\n"
+				"    <ClCompile Include=\"src\\main.c\" />\n"
+				"  </ItemGroup>\n"
+				"  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\" />\n"
+				"  <ImportGroup Label=\"ExtensionTargets\">\n"
+				"  </ImportGroup>\n"
+				"</Project>\n",
+			},
+		},
+		{
 			.path = "tmp/libtest/libtest.vcxproj.user",
+			.data = PROJ_USER,
+		},
+		{
+			.path = "tmp/libtest/libtest.d.vcxproj.user",
 			.data = PROJ_USER,
 		},
 		{

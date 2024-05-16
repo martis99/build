@@ -63,7 +63,36 @@ static void add_action(make_t *make, const dict_t *projects, const proj_t *proj,
 			}
 
 			if (coverable == 0 || proj_coverable(dproj)) {
-				make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), action));
+				if (str_eq(action, STR("coverage")) || str_eq(action, STR("coverage_dynamic"))) {
+					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), STR("coverage_static")));
+				} else if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && (str_eq(action, STR("compile")) || str_eq(action, STR("dynamic")))) {
+					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), STR("static")));
+				} else {
+					if (!(str_eq(action, STR("clean")) && dproj->props[PROJ_PROP_URL].flags & PROP_SET)) {
+						make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), action));
+					}
+				}
+			}
+		}
+
+		const arr_t *ddepends = &proj->props[PROJ_PROP_DDEPENDS].arr;
+		for (uint i = 0; i < ddepends->cnt; i++) {
+			const prop_str_t *dname = arr_get(ddepends, i);
+
+			const proj_t *dproj = NULL;
+			if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
+				ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
+				continue;
+			}
+
+			if (coverable == 0 || proj_coverable(dproj)) {
+				if (str_eq(action, STR("coverage")) || str_eq(action, STR("coverage_static"))) {
+					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), STR("coverage_dynamic")));
+				} else if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && (str_eq(action, STR("compile")) || str_eq(action, STR("static")))) {
+					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), STR("dynamic")));
+				} else {
+					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name->val)), action));
+				}
 			}
 		}
 	}
@@ -170,7 +199,13 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		const proj_t **proj;
 		arr_foreach(&sln->build_order, proj)
 		{
-			make_rule_add_depend(&make, all, MRULE(MSTR(strs((*proj)->name->val))));
+			if ((*proj)->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name->val)), STR("static")));
+				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name->val)), STR("dynamic")));
+
+			} else {
+				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name->val)), STR("compile")));
+			}
 		}
 	}
 
@@ -187,15 +222,26 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		{
 			const proj_t *proj = *pproj;
 
-			add_action(&make, &sln->projects, proj, 1, 0, str_null(), 0);
-			add_action(&make, &sln->projects, proj, 0, 0, STR("clean"), 0);
-			add_action(&make, &sln->projects, proj, 1, 0, STR("compile"), 0);
+			add_action(&make, &sln->projects, proj, 1, 0, STR("clean"), 0);
+
+			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+				add_action(&make, &sln->projects, proj, 1, 0, STR("static"), 0);
+				add_action(&make, &sln->projects, proj, 1, 0, STR("dynamic"), 0);
+			} else {
+				add_action(&make, &sln->projects, proj, 1, 0, STR("compile"), 0);
+			}
+
 			if (proj_runnable(proj)) {
 				add_action(&make, &sln->projects, proj, 0, 1, STR("run"), 0);
 			}
 
 			if (proj_coverable(proj)) {
-				add_action(&make, &sln->projects, proj, 1, 0, STR("coverage"), 1);
+				if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+					add_action(&make, &sln->projects, proj, 1, 0, STR("coverage_static"), 1);
+					add_action(&make, &sln->projects, proj, 1, 0, STR("coverage_dynamic"), 1);
+				} else {
+					add_action(&make, &sln->projects, proj, 1, 0, STR("coverage"), 1);
+				}
 			}
 
 			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {

@@ -21,6 +21,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_INCLUDE,
 	PROJ_PROP_ENCLUDE,
 	PROJ_PROP_DEPENDS,
+	PROJ_PROP_DDEPENDS,
 	PROJ_PROP_DEPEND,
 	PROJ_PROP_INCLUDES,
 	PROJ_PROP_DEFINES,
@@ -131,6 +132,11 @@ typedef enum ldflag_e {
 	__LDFLAG_MAX,
 } ldflag_t;
 
+typedef enum link_type_e {
+	LINK_TYPE_STATIC,
+	LINK_TYPE_DYNAMIC,
+} link_type_t;
+
 static const str_t s_ldflags[] = {
 	[LDFLAG_NONE]			 = STRS("NONE"),
 	[LDFLAG_WHOLEARCHIVE]		 = STRS("WHOLEARCHIVE"),
@@ -151,12 +157,18 @@ typedef struct proj_s {
 	prop_str_t data;
 	prop_t props[__PROJ_PROP_MAX];
 	char guid[37];
+	char guid2[37];
 	const prop_str_t *name;
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;
 	make_t make;
 } proj_t;
+
+typedef struct proj_dep_s {
+	const proj_t *proj;
+	link_type_t link_type;
+} proj_dep_t;
 
 int proj_read(build_t *build, proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
 void proj_print(proj_t *proj);

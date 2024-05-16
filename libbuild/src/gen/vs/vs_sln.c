@@ -69,8 +69,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 		prop_str_t *config = arr_get(&configs->arr, i);
 		for (uint j = 0; j < platforms->cnt; j++) {
 			prop_str_t *platform = arr_get(platforms, j);
-			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platform->val.len,
-				  platform->val.data);
+			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
+				  config->val.data, platform->val.len, platform->val.data);
 		}
 	}
 
@@ -95,8 +95,9 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 				c_fprintf(file,
 					  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 					  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
-					  proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platf_len, platf, proj->guid,
-					  config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data, platf_len, platf);
+					  proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data,
+					  platf_len, platf, proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
+					  config->val.data, platf_len, platf);
 			}
 		}
 	}
@@ -122,6 +123,9 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 
 		if (proj->parent) {
 			c_fprintf(file, "\t\t{%s} = {%s}\n", proj->guid, proj->parent->guid);
+			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+				c_fprintf(file, "\t\t{%s} = {%s}\n", proj->guid2, proj->parent->guid);
+			}
 		}
 	}
 
@@ -142,7 +146,11 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		ret |= vs_proj_gen(pair->value, &sln->projects, path, sln->props);
+		proj_t *proj = pair->value;
+		ret |= vs_proj_gen(proj, &sln->projects, path, sln->props, 0);
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			ret |= vs_proj_gen(pair->value, &sln->projects, path, sln->props, 1);
+		}
 	}
 
 	return ret;

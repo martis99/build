@@ -161,26 +161,39 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	make_var_t obj_asm = MAKE_END;
-	if (lang == (1 << LANG_ASM)) {
+	if (type != PROJ_TYPE_EXT && lang == (1 << LANG_ASM)) {
 		obj_asm = make_add_act(make, make_create_var(make, STR("OBJ_ASM"), MAKE_VAR_INST));
 		make_var_add_val(make, obj_asm, MSTR(STR("$(patsubst %.asm, $(INTDIR)%.bin, $(SRC_ASM))")));
-	} else if (lang & (1 << LANG_ASM)) {
+	} else if (type != PROJ_TYPE_EXT && lang & (1 << LANG_ASM)) {
 		obj_asm = make_add_act(make, make_create_var(make, STR("OBJ_ASM"), MAKE_VAR_INST));
 		make_var_add_val(make, obj_asm, MSTR(STR("$(patsubst %.asm, $(INTDIR)%.o, $(SRC_ASM))")));
 	}
 
 	make_var_t obj_c = MAKE_END;
-	if (lang & (1 << LANG_C)) {
+	if (type != PROJ_TYPE_EXT && lang & (1 << LANG_C)) {
 		obj_c = make_add_act(make, make_create_var(make, STR("OBJ_C"), MAKE_VAR_INST));
 		make_var_add_val(make, obj_c, MSTR(STR("$(patsubst %.c, $(INTDIR)%.o, $(SRC_C))")));
 	}
 
+	make_var_t obj_d_c = MAKE_END;
+	if (type != PROJ_TYPE_EXT && lang & (1 << LANG_C)) {
+		obj_d_c = make_add_act(make, make_create_var(make, STR("OBJ_D_C"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_d_c, MSTR(STR("$(patsubst %.c, $(INTDIR)%.d.o, $(SRC_C))")));
+	}
+
 	make_var_t obj_cpp = MAKE_END;
-	if (lang & (1 << LANG_CPP)) {
+	if (type != PROJ_TYPE_EXT && lang & (1 << LANG_CPP)) {
 		obj_cpp = make_add_act(make, make_create_var(make, STR("OBJ_CPP"), MAKE_VAR_INST));
 		make_var_add_val(make, obj_cpp, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.o, $(SRC_CPP))")));
 	}
 
+	make_var_t obj_d_cpp = MAKE_END;
+	if (type != PROJ_TYPE_EXT && lang & (1 << LANG_CPP)) {
+		obj_d_cpp = make_add_act(make, make_create_var(make, STR("OBJ_D_CPP"), MAKE_VAR_INST));
+		make_var_add_val(make, obj_d_cpp, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.d.o, $(SRC_CPP))")));
+	}
+
+	make_var_t cov = MAKE_END;
 	if (proj_coverable(proj)) {
 		const make_var_t lcov = make_add_act(make, make_create_var(make, STR("LCOV"), MAKE_VAR_INST));
 		make_var_add_val(make, lcov, MSTR(STR("$(OUTDIR)lcov.info")));
@@ -189,7 +202,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		make_var_type_t cov_type = MAKE_VAR_INST;
 
 		if (lang & (1 << LANG_C)) {
-			make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
 			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))")));
 			cov_type = MAKE_VAR_APP;
 			cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
@@ -198,7 +211,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 
 		if (lang & (1 << LANG_CPP)) {
-			make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+			cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
 			make_var_add_val(make, cov, MSTR(STR("$(patsubst %.cpp, $(INTDIR)%.gcno, $(SRC_CPP))")));
 			cov_type = MAKE_VAR_APP;
 			cov	 = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
@@ -206,7 +219,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			cov_type = MAKE_VAR_APP;
 		}
 
-		const make_var_t cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
+		cov = make_add_act(make, make_create_var(make, STR("COV"), cov_type));
 		make_var_add_val(make, cov, MVAR(lcov));
 		if (repdir != MAKE_END) {
 			make_var_add_val(make, cov, MVAR(repdir));
@@ -214,24 +227,32 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		cov_type = MAKE_VAR_APP;
 	}
 
-	const make_var_t target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
+	make_var_t target = MAKE_END, target_static = MAKE_END, target_dynamic = MAKE_END;
 
 	switch (type) {
 	case PROJ_TYPE_EXE:
+		target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_BIN:
+		target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.bin", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_ELF:
+		target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.elf", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_FAT12:
+		target = make_add_act(make, make_create_var(make, STR("TARGET"), MAKE_VAR_INST));
 		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.img", filename->val.len, filename->val.data)));
 		break;
 	case PROJ_TYPE_LIB:
+		target_static = make_add_act(make, make_create_var(make, STR("TARGET_STATIC"), MAKE_VAR_INST));
+		make_var_add_val(make, target_static, MSTR(strf("$(OUTDIR)%.*s.a", filename->val.len, filename->val.data)));
+		target_dynamic = make_add_act(make, make_create_var(make, STR("TARGET_DYNAMIC"), MAKE_VAR_INST));
+		make_var_add_val(make, target_dynamic, MSTR(strf("$(OUTDIR)%.*s.so", filename->val.len, filename->val.data)));
+		break;
 	case PROJ_TYPE_EXT:
-		make_var_add_val(make, target, MSTR(strf("$(OUTDIR)%.*s.a", filename->val.len, filename->val.data)));
 		break;
 	}
 
@@ -245,18 +266,23 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	make_add_act(make, make_create_empty(make));
 
-	const make_if_t if_platform = make_add_act(make, make_create_if(make, MVAR(mplatform), MSTR(STR("x86_64"))));
-	const make_var_t bits_64    = make_if_add_true_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
-	make_var_add_val(make, bits_64, MSTR(STR("64")));
-	const make_var_t bits_32 = make_if_add_false_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
-	make_var_add_val(make, bits_32, MSTR(STR("32")));
+	make_if_t if_platform = MAKE_END;
+	if (type != PROJ_TYPE_EXT && lang & (1 << LANG_ASM)) {
+		if_platform		 = make_add_act(make, make_create_if(make, MVAR(mplatform), MSTR(STR("x86_64"))));
+		const make_var_t bits_64 = make_if_add_true_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
+		make_var_add_val(make, bits_64, MSTR(STR("64")));
+		const make_var_t bits_32 = make_if_add_false_act(make, if_platform, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
+		make_var_add_val(make, bits_32, MSTR(STR("32")));
+		make_add_act(make, make_create_empty(make));
+	}
 
-	make_add_act(make, make_create_empty(make));
-
-	const make_var_t mflags = make_add_act(make, make_create_var(make, STR("FLAGS"), MAKE_VAR_INST));
+	make_var_t mflags = MAKE_END;
+	if (type != PROJ_TYPE_EXT) {
+		mflags = make_add_act(make, make_create_var(make, STR("FLAGS"), MAKE_VAR_INST));
+	}
 
 	//TODO: Remove
-	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
+	if (mflags != MAKE_END && proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
 		for (uint i = 0; i < sources->cnt; i++) {
@@ -267,7 +293,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
+	if (mflags != MAKE_END && proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
 		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
 
 		for (uint i = 0; i < includes->cnt; i++) {
@@ -278,7 +304,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	for (uint i = 0; i < proj->includes.cnt; i++) {
+	for (uint i = 0; mflags != MAKE_END && i < proj->includes.cnt; i++) {
 		const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
 
 		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
@@ -302,7 +328,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
+	if (mflags != MAKE_END && proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
 		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
 
 		for (uint k = 0; k < defines->cnt; k++) {
@@ -312,8 +338,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (lang & (1 << LANG_ASM)) {
-		const make_var_t asmflags = make_add_act(make, make_create_var(make, STR("ASMFLAGS"), MAKE_VAR_APP));
+	make_var_t asmflags = MAKE_END;
+	if (mflags != MAKE_END && lang & (1 << LANG_ASM)) {
+		asmflags = make_add_act(make, make_create_var(make, STR("ASMFLAGS"), MAKE_VAR_APP));
 		make_var_add_val(make, asmflags, MVAR(mflags));
 
 		if (lang == (1 << LANG_ASM)) {
@@ -323,8 +350,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (lang & (1 << LANG_C)) {
-		const make_var_t mcflags = make_add_act(make, make_create_var(make, STR("CFLAGS"), MAKE_VAR_APP));
+	make_var_t mcflags = MAKE_END;
+	if (mflags != MAKE_END && lang & (1 << LANG_C)) {
+		mcflags = make_add_act(make, make_create_var(make, STR("CFLAGS"), MAKE_VAR_APP));
 		make_var_add_val(make, mcflags, MVAR(mflags));
 		make_var_add_val(make, mcflags, MSTR(STR("-Wall -Wextra -Werror -pedantic")));
 
@@ -345,9 +373,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (lang & (1 << LANG_CPP)) {
-		const make_var_t cxxflags = make_add_act(make, make_create_var(make, STR("CXXFLAGS"), MAKE_VAR_APP));
+	make_var_t cxxflags = MAKE_END;
+	if (mflags != MAKE_END && lang & (1 << LANG_CPP)) {
+		cxxflags = make_add_act(make, make_create_var(make, STR("CXXFLAGS"), MAKE_VAR_APP));
 		make_var_add_val(make, cxxflags, MVAR(mflags));
+		make_var_add_val(make, cxxflags, MSTR(STR("-Wall -Wextra -Werror -pedantic")));
 	}
 
 	bool dep_bin = 1;
@@ -371,7 +401,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		dep_bin = 0;
 	}
 
-	if (!dep_bin && (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) && (type == PROJ_TYPE_EXE || type == PROJ_TYPE_BIN || type == PROJ_TYPE_ELF)) {
+	if (!dep_bin && (mcflags != MAKE_END || cxxflags != MAKE_END)) {
 		const make_var_t mldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_APP));
 
 		const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
@@ -386,36 +416,48 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 
 		for (int i = proj->all_depends.cnt - 1; i >= 0; i--) {
-			const proj_t *dproj = *(proj_t **)arr_get(&proj->all_depends, i);
+			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-			if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				const prop_t *doutdir = &dproj->props[PROJ_PROP_OUTDIR];
+			if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+				const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
 
 				if (doutdir->flags & PROP_SET) {
-					buf_len = resolve(&doutdir->value, CSTR(buf), dproj);
-					add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
+					buf_len = resolve(&doutdir->value, CSTR(buf), dep->proj);
+					add_rel_path(make, mldflags, dep->proj, "-L", buf, buf_len);
+					if (dep->link_type == LINK_TYPE_DYNAMIC) {
+						add_rel_path(make, mldflags, dep->proj, "-Wl,-rpath,", buf, buf_len);
+					}
 
-					make_var_add_val(make, mldflags, MSTR(strf("-l:%.*s.a", dproj->name->val.len, dproj->name->val.data)));
-				} else {
-					buf_len = convert_slash(CSTR(buf), dproj->rel_path.path, dproj->rel_path.len);
 					make_var_add_val(make, mldflags,
-							 MSTR(strf("-L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dproj->name->val.len, dproj->name->val.data)));
-				}
-			}
-
-			if (dproj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
-				const arr_t *libdirs = &dproj->props[PROJ_PROP_LIBDIRS].arr;
-				for (uint j = 0; j < libdirs->cnt; j++) {
-					const prop_str_t *libdir = arr_get(libdirs, j);
-					if (libdir->val.len > 0) {
-						buf_len = resolve(libdir, CSTR(buf), dproj);
-						add_rel_path(make, mldflags, dproj, "-L", buf, buf_len);
+							 MSTR(strf("-l:%.*s.%s", dep->proj->name->val.len, dep->proj->name->val.data,
+								   dep->link_type == LINK_TYPE_DYNAMIC ? "so" : "a")));
+				} else {
+					buf_len = convert_slash(CSTR(buf), dep->proj->rel_path.path, dep->proj->rel_path.len);
+					if (dep->link_type == LINK_TYPE_DYNAMIC) {
+						make_var_add_val(make, mldflags,
+								 MSTR(strf("-Wl,-rpath,.$(SLNDIR)/%.*s -l:%.*s.so", buf_len, buf, dep->proj->name->val.len,
+									   dep->proj->name->val.data)));
+					} else {
+						make_var_add_val(
+							make, mldflags,
+							MSTR(strf("-L$(SLNDIR)/%.*s -l:%.*s.a", buf_len, buf, dep->proj->name->val.len, dep->proj->name->val.data)));
 					}
 				}
 			}
 
-			if (dproj->props[PROJ_PROP_LINK].flags & PROP_SET) {
-				const arr_t *links = &dproj->props[PROJ_PROP_LINK].arr;
+			if (dep->proj->props[PROJ_PROP_LIBDIRS].flags & PROP_SET) {
+				const arr_t *libdirs = &dep->proj->props[PROJ_PROP_LIBDIRS].arr;
+				for (uint j = 0; j < libdirs->cnt; j++) {
+					const prop_str_t *libdir = arr_get(libdirs, j);
+					if (libdir->val.len > 0) {
+						buf_len = resolve(libdir, CSTR(buf), dep->proj);
+						add_rel_path(make, mldflags, dep->proj, "-L", buf, buf_len);
+					}
+				}
+			}
+
+			if (dep->proj->props[PROJ_PROP_LINK].flags & PROP_SET) {
+				const arr_t *links = &dep->proj->props[PROJ_PROP_LINK].arr;
 				for (uint j = 0; j < links->cnt; j++) {
 					const prop_str_t *link = arr_get(links, j);
 					if (link->val.len > 0) {
@@ -452,21 +494,24 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	make_add_act(make, make_create_empty(make));
+	if (mflags != MAKE_END) {
+		make_add_act(make, make_create_empty(make));
+	}
 
 	const make_var_t rm = make_add_act(make, make_create_var(make, STR("RM"), MAKE_VAR_APP));
 	make_var_add_val(make, rm, MSTR(STR("-r")));
-
-	make_add_act(make, make_create_empty(make));
-	const make_var_t config_flags = make_add_act(make, make_create_var(make, STR("CONFIG_FLAGS"), MAKE_VAR_INST));
-
 	make_add_act(make, make_create_empty(make));
 
-	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
+	make_var_t config_flags = MAKE_END;
+	if (type != PROJ_TYPE_EXT) {
+		config_flags = make_add_act(make, make_create_var(make, STR("CONFIG_FLAGS"), MAKE_VAR_INST));
+		make_add_act(make, make_create_empty(make));
+	}
+
+	if (config_flags != MAKE_END && (configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		const make_if_t if_config	= make_add_act(make, make_create_if(make, MVAR(mconfig), MSTR(STR("Debug"))));
 		const make_var_t config_flags_a = make_if_add_true_act(make, if_config, make_create_var(make, STR("CONFIG_FLAGS"), MAKE_VAR_APP));
 		make_var_add_val(make, config_flags_a, MSTR(STR("-ggdb3 -O0")));
-
 		make_add_act(make, make_create_empty(make));
 	}
 
@@ -480,16 +525,21 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
-	make_rule_add_depend(make, all, MRULE(MSTR(strs(name->val))));
+	if (type == PROJ_TYPE_LIB) {
+		make_rule_add_depend(make, all, MRULE(MSTR(STR("static"))));
+		make_rule_add_depend(make, all, MRULE(MSTR(STR("dynamic"))));
+	} else {
+		make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
+	}
 
 	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
 
-	if (lang & (1 << LANG_ASM)) {
+	if (asmflags != MAKE_END) {
 		const make_if_t if_nasm = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which nasm)"))));
 		make_if_add_true_act(make, if_nasm, make_create_cmd(make, MCMD(STR("sudo apt install nasm -y"))));
 	}
 
-	if (lang & (1 << LANG_C) || lang & (1 << LANG_CPP)) {
+	if (mcflags != MAKE_END || cxxflags != MAKE_END) {
 		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which gcc)"))));
 		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt install gcc -y"))));
 	}
@@ -512,28 +562,52 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	if (proj_coverable(proj)) {
 		const make_rule_t check_coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check_coverage"))), 0));
 		make_rule_add_depend(make, check_coverage, MRULE(MSTR(STR("check"))));
-		make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
+		if (config_flags != MAKE_END) {
+			make_rule_add_act(make, check_coverage, make_create_cmd(make, MCMD(STR("$(eval CONFIG_FLAGS += --coverage -fprofile-abs-path)"))));
+		}
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
 			const make_if_t if_lcov = make_rule_add_act(make, check_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
 			make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov -y"))));
 		}
 	}
 
-	const make_rule_t mname = make_add_act(make, make_create_rule(make, MRULE(MSTR(strs(name->val))), 0));
-	make_rule_add_depend(make, mname, MRULE(MSTR(STR("clean"))));
-	make_rule_add_depend(make, mname, MRULE(MSTR(STR("compile"))));
-
-	const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
-	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
-	make_rule_add_depend(make, compile, MRULE(MVAR(target)));
+	if (type == PROJ_TYPE_LIB) {
+		const make_rule_t cstatic = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("static"))), 0));
+		make_rule_add_depend(make, cstatic, MRULE(MSTR(STR("check"))));
+		make_rule_add_depend(make, cstatic, MRULE(MVAR(target_static)));
+		const make_rule_t cdynamic = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("dynamic"))), 0));
+		make_rule_add_depend(make, cdynamic, MRULE(MSTR(STR("check"))));
+		make_rule_add_depend(make, cdynamic, MRULE(MVAR(target_dynamic)));
+	} else {
+		const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
+		make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
+		if (target != MAKE_END) {
+			make_rule_add_depend(make, compile, MRULE(MVAR(target)));
+		}
+	}
 
 	if (proj_coverable(proj)) {
-		const make_rule_t coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
-		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
-		make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
-		make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
+		make_rule_t coverage;
+		if (type == PROJ_TYPE_LIB) {
+			coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage_static"))), 0));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
+			make_rule_add_depend(make, coverage, MRULE(MVAR(target_static)));
 
-		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+			coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage_dynamic"))), 0));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
+			make_rule_add_depend(make, coverage, MRULE(MVAR(target_dynamic)));
+		} else {
+			coverage = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("coverage"))), 0));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("clean"))));
+			make_rule_add_depend(make, coverage, MRULE(MSTR(STR("check_coverage"))));
+			if (target != MAKE_END) {
+				make_rule_add_depend(make, coverage, MRULE(MVAR(target)));
+			}
+		}
+
+		if (type == PROJ_TYPE_EXE) {
 			make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 			make_rule_add_act(make, coverage, make_create_cmd(make, MCMD(STR("@lcov -q -c -d $(SLNDIR) -o $(LCOV)"))));
 			const make_if_t if_show = make_rule_add_act(make, coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
@@ -542,7 +616,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	const make_rule_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target)), 1));
+	make_rule_t rtarget = MAKE_END;
+	if (type == PROJ_TYPE_LIB) {
+		rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target_static)), 1));
+	} else if (target != MAKE_END) {
+		rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target)), 1));
+	}
 
 	if (dep_bin) {
 		for (uint i = 0; i < depends->arr.cnt; i++) {
@@ -572,19 +651,21 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	if (lang & (1 << LANG_ASM)) {
+	if (rtarget != MAKE_END && obj_asm != MAKE_END) {
 		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_asm)));
 	}
 
-	if (lang & (1 << LANG_C)) {
+	if (rtarget != MAKE_END && obj_c != MAKE_END) {
 		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_c)));
 	}
 
-	if (lang & (1 << LANG_CPP)) {
+	if (rtarget != MAKE_END && obj_cpp != MAKE_END) {
 		make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_cpp)));
 	}
 
-	make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+	if (rtarget != MAKE_END) {
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+	}
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
@@ -667,30 +748,61 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		break;
 	}
 
-	if (lang == (1 << LANG_ASM)) {
-		const make_rule_t int_bin = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.bin"))), 1));
-		make_rule_add_depend(make, int_bin, MRULE(MSTR(STR("%.asm"))));
-		make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
-	} else if (lang & (1 << LANG_ASM)) {
-		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
-		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
+	if (type == PROJ_TYPE_LIB) {
+		rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target_dynamic)), 1));
+
+		if (obj_asm != MAKE_END) {
+			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_asm)));
+		}
+
+		if (obj_d_c != MAKE_END) {
+			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_d_c)));
+		}
+
+		if (obj_d_cpp != MAKE_END) {
+			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj_d_cpp)));
+		}
+
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) $^ -shared -o $@ $(LDFLAGS)"))));
 	}
 
-	if (lang & (1 << LANG_C)) {
-		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
-		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<"))));
-	}
+	if (type != PROJ_TYPE_EXT) {
+		if (lang == (1 << LANG_ASM)) {
+			const make_rule_t int_bin = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.bin"))), 1));
+			make_rule_add_depend(make, int_bin, MRULE(MSTR(STR("%.asm"))));
+			make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_bin, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
+		} else if (lang & (1 << LANG_ASM)) {
+			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@nasm $< $(ASMFLAGS) -o $@"))));
+		}
 
-	if (lang & (1 << LANG_CPP)) {
-		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
-		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<"))));
+		if (lang & (1 << LANG_C)) {
+			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<"))));
+
+			const make_rule_t int_d_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.d.o"))), 1));
+			make_rule_add_depend(make, int_d_o, MRULE(MSTR(STR("%.c"))));
+			make_rule_add_act(make, int_d_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_d_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -fPIC -c -o $@ $<"))));
+		}
+
+		if (lang & (1 << LANG_CPP)) {
+			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.o"))), 1));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<"))));
+
+			const make_rule_t int_d_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("$(INTDIR)%.d.o"))), 1));
+			make_rule_add_depend(make, int_d_o, MRULE(MSTR(STR("%.cpp"))));
+			make_rule_add_act(make, int_d_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+			make_rule_add_act(make, int_d_o, make_create_cmd(make, MCMD(STR("@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -fPIC -c -o $@ $<"))));
+		}
 	}
 
 	if (proj_runnable(proj)) {
@@ -722,25 +834,43 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	const make_rule_t clean = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
 
-	str_catc(&cleans, CSTR(" $(TARGET)"));
+	if (target != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(TARGET)"));
+	}
+
+	if (target_static != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(TARGET_STATIC)"));
+	}
+
+	if (target_dynamic != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(TARGET_DYNAMIC)"));
+	}
 
 	if (martifact != MAKE_END) {
 		str_catc(&cleans, CSTR(" $(ARTIFACT)"));
 	}
 
-	if (lang & (1 << LANG_ASM)) {
+	if (obj_asm != MAKE_END) {
 		str_catc(&cleans, CSTR(" $(OBJ_ASM)"));
 	}
 
-	if (lang & (1 << LANG_C)) {
+	if (obj_c != MAKE_END) {
 		str_catc(&cleans, CSTR(" $(OBJ_C)"));
 	}
 
-	if (lang & (1 << LANG_CPP)) {
+	if (obj_d_c != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(OBJ_D_C)"));
+	}
+
+	if (obj_cpp != MAKE_END) {
 		str_catc(&cleans, CSTR(" $(OBJ_CPP)"));
 	}
 
-	if (lang & (((1 << LANG_C) | (1 << LANG_CPP)))) {
+	if (obj_d_cpp != MAKE_END) {
+		str_catc(&cleans, CSTR(" $(OBJ_D_CPP)"));
+	}
+
+	if (cov != MAKE_END) {
 		str_catc(&cleans, CSTR(" $(COV)"));
 	}
 

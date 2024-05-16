@@ -1,10 +1,8 @@
 #include "app.h"
 
+#include "dlib.hpp"
 #include "lib1.h"
-#include "lib2.hpp"
 #include "slib.h"
-
-#pragma comment(lib, "slib.lib")
 
 int App::print()
 {

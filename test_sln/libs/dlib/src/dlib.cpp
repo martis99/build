@@ -1,4 +1,4 @@
-#include "lib2.hpp"
+#include "dlib.hpp"
 
 #include "lib3.h"
 
@@ -6,7 +6,7 @@
 
 int Printer::print()
 {
-	std::cout << "lib2" << std::endl;
+	std::cout << "dlib" << std::endl;
 	if (lib3_print()) {
 		return 1;
 	}

@@ -4,6 +4,6 @@
 
 int lib3_print()
 {
-	printf("lib3\n");
+	printf("dlib_lib\n");
 	return 0;
 }

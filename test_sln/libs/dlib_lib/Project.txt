@@ -1,4 +1,4 @@
-NAME = lib3
+NAME = dlib_lib
 TYPE = LIB
 SOURCE = src
 INCLUDE = inc
