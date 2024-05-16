@@ -575,9 +575,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 					path_t rel_path = { 0 };
-					path_calc_rel(proj->path.path, proj->path.len, dep->proj->path.path, dep->proj->path.len, &rel_path);
-
-					path_child_s(&rel_path, CSTR(""), '\\');
+					path_calc_rel(proj->path.path, proj->path.len + 1, dep->proj->path.path, dep->proj->path.len + 1, &rel_path);
 
 #if defined(C_LINUX)
 					convert_backslash(rel_path.path, rel_path.len, rel_path.path, rel_path.len);
