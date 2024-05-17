@@ -99,17 +99,13 @@ static const char *PROJ_TEST_C_COMPILE = "RM += -r\n"
 					 "\n"
 					 "$(INTDIR)%.o: %.c\n"
 					 "\t@mkdir -p $(@D)\n"
-					 "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
-					 "\n"
-					 "$(INTDIR)%.d.o: %.c\n"
-					 "\t@mkdir -p $(@D)\n"
-					 "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -fPIC -c -o $@ $<\n"
+					 "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES_STATIC) -c -o $@ $<\n"
 					 "\n"
 					 "run: check $(TARGET)\n"
 					 "\t@$(TARGET) $(ARGS)\n"
 					 "\n"
 					 "clean:\n"
-					 "\t@$(RM) $(TARGET) $(OBJ_C) $(OBJ_D_C) $(COV)\n";
+					 "\t@$(RM) $(TARGET) $(OBJ_C) $(COV)\n";
 
 static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "\n"
@@ -149,11 +145,11 @@ static const char *PROJ_LIBTEST_COMPILE = "RM += -r\n"
 					  "\n"
 					  "$(INTDIR)%.o: %.c\n"
 					  "\t@mkdir -p $(@D)\n"
-					  "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -c -o $@ $<\n"
+					  "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES_STATIC) -c -o $@ $<\n"
 					  "\n"
 					  "$(INTDIR)%.d.o: %.c\n"
 					  "\t@mkdir -p $(@D)\n"
-					  "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) -fPIC -c -o $@ $<\n"
+					  "\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES_DYNAMIC) -fPIC -c -o $@ $<\n"
 					  "\n"
 					  "clean:\n"
 					  "\t@$(RM) $(TARGET_STATIC) $(TARGET_DYNAMIC) $(OBJ_C) $(OBJ_D_C) $(COV)\n";
@@ -199,17 +195,13 @@ static const char *PROJ_TEST_CPP_COMPILE = "RM += -r\n"
 					   "\n"
 					   "$(INTDIR)%.o: %.cpp\n"
 					   "\t@mkdir -p $(@D)\n"
-					   "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -c -o $@ $<\n"
-					   "\n"
-					   "$(INTDIR)%.d.o: %.cpp\n"
-					   "\t@mkdir -p $(@D)\n"
-					   "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) -fPIC -c -o $@ $<\n"
+					   "\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_STATIC) -c -o $@ $<\n"
 					   "\n"
 					   "run: check $(TARGET)\n"
 					   "\t@$(TARGET) $(ARGS)\n"
 					   "\n"
 					   "clean:\n"
-					   "\t@$(RM) $(TARGET) $(OBJ_CPP) $(OBJ_D_CPP) $(COV)\n";
+					   "\t@$(RM) $(TARGET) $(OBJ_CPP) $(COV)\n";
 
 TEST(c_small)
 {
@@ -229,7 +221,6 @@ TEST(c_small)
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
-				"OBJ_D_C := $(patsubst %.c, $(INTDIR)%.d.o, $(SRC_C))\n"
 				"LCOV := $(OUTDIR)lcov.info\n"
 				"COV := $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
 				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
@@ -238,6 +229,7 @@ TEST(c_small)
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -270,7 +262,6 @@ TEST(c_args)
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
-				"OBJ_D_C := $(patsubst %.c, $(INTDIR)%.d.o, $(SRC_C))\n"
 				"LCOV := $(OUTDIR)lcov.info\n"
 				"COV := $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
 				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
@@ -279,6 +270,7 @@ TEST(c_args)
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -312,7 +304,6 @@ TEST(c_include)
 				"DEPS += $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
-				"OBJ_D_C := $(patsubst %.c, $(INTDIR)%.d.o, $(SRC_C))\n"
 				"LCOV := $(OUTDIR)lcov.info\n"
 				"COV := $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
 				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
@@ -321,6 +312,7 @@ TEST(c_include)
 				"\n"
 				"FLAGS := -Isrc -Iinclude\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -361,6 +353,8 @@ TEST(c_depends)
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
+				"DEFINES_DYNAMIC := -DLIBTEST_BUILD_DLL\n"
 				"LDFLAGS +=\n"
 				"\n",
 				PROJ_LIBTEST_COMPILE,
@@ -375,7 +369,6 @@ TEST(c_depends)
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
-				"OBJ_D_C := $(patsubst %.c, $(INTDIR)%.d.o, $(SRC_C))\n"
 				"LCOV := $(OUTDIR)lcov.info\n"
 				"COV := $(patsubst %.c, $(INTDIR)%.gcno, $(SRC_C))\n"
 				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
@@ -384,6 +377,7 @@ TEST(c_depends)
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
 				"LDFLAGS += -L$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/ -l:libtest.a\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
@@ -416,7 +410,6 @@ TEST(cpp_small)
 				"DEPS += $(shell find src -name '*.hpp')\n"
 				"SRC_CPP := $(shell find src -name '*.cpp')\n"
 				"OBJ_CPP := $(patsubst %.cpp, $(INTDIR)%.o, $(SRC_CPP))\n"
-				"OBJ_D_CPP := $(patsubst %.cpp, $(INTDIR)%.d.o, $(SRC_CPP))\n"
 				"LCOV := $(OUTDIR)lcov.info\n"
 				"COV := $(patsubst %.cpp, $(INTDIR)%.gcno, $(SRC_CPP))\n"
 				"COV += $(patsubst %.cpp, $(INTDIR)%.gcda, $(SRC_CPP))\n"
@@ -425,6 +418,7 @@ TEST(cpp_small)
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CXXFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
+				"DEFINES_STATIC :=\n"
 				"LDFLAGS += -lstdc++\n"
 				"\n",
 				PROJ_TEST_CPP_COMPILE,

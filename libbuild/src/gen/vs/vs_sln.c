@@ -51,6 +51,10 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 		const prop_str_t *name = proj->name;
 		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (int)name->val.len,
 			  name->val.data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->val.len, name->val.data, proj->guid);
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s.d\", \"%.*s\\%.*s.d.vcxproj\", \"{%s}\"\nEndProject\n",
+				  (int)name->val.len, name->val.data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->val.len, name->val.data, proj->guid2);
+		}
 	}
 
 	c_fprintf(file, "Global\n"

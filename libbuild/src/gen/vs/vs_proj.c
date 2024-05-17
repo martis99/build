@@ -180,10 +180,32 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 	return len;
 }
 
-static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *proj, const dict_t *projects)
+static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *proj, const dict_t *projects, int dynamic)
 {
 	size_t len = 0;
 	bool first = 1;
+
+	if (dynamic) {
+		str_t upper = strz(proj->name->val.len + 1);
+		str_to_upper(proj->name->val, &upper);
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s_BUILD_DLL" : ";%.*s_BUILD_DLL", (int)upper.len, upper.data);
+		first = 0;
+		str_free(&upper);
+	}
+
+	for (uint i = 0; i < proj->all_depends.cnt; i++) {
+		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+		if (dep->link_type != LINK_TYPE_DYNAMIC) {
+			continue;
+		}
+
+		str_t upper = strz(dep->proj->name->val.len + 1);
+		str_to_upper(dep->proj->name->val, &upper);
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s_DLL" : ";%.*s_DLL", (int)upper.len, upper.data);
+		first = 0;
+		str_free(&upper);
+	}
 
 	if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
 		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
@@ -253,6 +275,29 @@ static inline size_t print_ldflags(char *buf, size_t buf_size, const proj_t *pro
 
 	if (first) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s%%(AdditionalOptions)", first, "");
+	}
+
+	return len;
+}
+
+static inline size_t print_depends(char *buf, size_t buf_size, const proj_t *proj, const dict_t *projects)
+{
+	size_t len = 0;
+	bool first = 1;
+
+	for (uint i = 0; i < proj->all_depends.cnt; i++) {
+		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+		if (dep->proj->props[PROJ_PROP_LINK].flags & PROP_SET) {
+			const arr_t *links = &dep->proj->props[PROJ_PROP_LINK].arr;
+			for (uint j = 0; j < links->cnt; j++) {
+				const prop_str_t *link = arr_get(links, j);
+				if (link->val.len > 0) {
+					len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s.lib" : ";%.*s.lib", (int)link->val.len, link->val.data);
+					first = 0;
+				}
+			}
+		}
 	}
 
 	return len;
@@ -500,9 +545,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			}
 
 			if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
-				size_t def_len = print_defines(NULL, 0, proj, projects) + 1;
+				size_t def_len = print_defines(NULL, 0, proj, projects, dynamic) + 1;
 				str_t def_data = strz(def_len);
-				def_data.len   = print_defines((char *)def_data.data, def_data.size, proj, projects);
+				def_data.len   = print_defines((char *)def_data.data, def_data.size, proj, projects, dynamic);
 				xml_add_tag_val(&xml, xml_comp, STR("PreprocessorDefinitions"), def_data);
 			}
 
@@ -516,6 +561,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 			xml_add_tag_val(&xml, xml_link, STR("GenerateDebugInformation"), STR("true"));
 
+			size_t dep_len = print_depends(NULL, 0, proj, projects) + 1;
+
 			if (proj->props[PROJ_PROP_LDFLAGS].flags & PROP_SET) {
 				size_t ldf_len = print_ldflags(NULL, 0, proj, projects) + 1;
 				if (ldf_len > 1) {
@@ -524,9 +571,15 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 					xml_add_tag_val(&xml, xml_link, STR("AdditionalOptions"), ldf_data);
 				}
 
-				if (proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_NONE)) {
+				if (dep_len <= 1 && proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_NONE)) {
 					xml_add_tag(&xml, xml_link, STR("AdditionalDependencies"));
 				}
+			}
+
+			if (dep_len > 1) {
+				str_t dep_data = strz(dep_len);
+				dep_data.len   = print_depends((char *)dep_data.data, dep_data.size, proj, projects);
+				xml_add_tag_val(&xml, xml_link, STR("AdditionalDependencies"), dep_data);
 			}
 
 			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
@@ -583,7 +636,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
 					xml_add_attr(&xml, xml_ref, STR("Include"),
-						     strf("%.*s%.*s.vcxproj", rel_path.len, rel_path.path, dep->proj->name->val.len, dep->proj->name->val.data));
+						     strf("%.*s%.*s%s.vcxproj", rel_path.len, rel_path.path, dep->proj->name->val.len, dep->proj->name->val.data,
+							  dep->link_type == LINK_TYPE_DYNAMIC ? ".d" : ""));
 					xml_add_tag_val(&xml, xml_ref, STR("Project"),
 							strf("{%s}", dep->link_type == LINK_TYPE_DYNAMIC ? dep->proj->guid2 : dep->proj->guid));
 				}
@@ -639,6 +693,33 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	xml_add_attr(&xml, xml_ext_tar, STR("Label"), STR("ExtensionTargets"));
 	if (langs->mask & (1 << LANG_ASM)) {
 		xml_add_attr(&xml, xml_add_tag(&xml, xml_ext_tar, STR("Import")), STR("Project"), STR("$(VCTargetsPath)\\BuildCustomizations\\masm.targets"));
+	}
+
+	int dll = 0;
+	for (uint i = 0; i < proj->all_depends.cnt; i++) {
+		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+		if (dep->link_type == LINK_TYPE_DYNAMIC) {
+			dll = 1;
+			break;
+		}
+	}
+
+	if (dll) {
+		xml_tag_t xml_copy = xml_add_tag_val(&xml, xml_proj, STR("ItemGroup"), STR("\n"));
+
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+				continue;
+			}
+
+			char doutdir[P_MAX_PATH] = { 0 };
+			size_t doutdir_len	 = resolve(&dep->proj->props[PROJ_PROP_OUTDIR].value, CSTR(doutdir), dep->proj);
+			xml_add_attr(&xml, xml_add_tag(&xml, xml_copy, STR("CopyFileToFolders")), STR("Include"),
+				     strf("%.*s%.*s.d.dll", doutdir_len, doutdir, dep->proj->name->val.len, dep->proj->name->val.data));
+		}
 	}
 
 	path_t cmake_path = *path;

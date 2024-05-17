@@ -21,15 +21,15 @@ static void delete_folder(const char *path)
 
 static int get_diff(const char *act, size_t act_len, const test_gen_data_t exps[MAX_DATA_CNT], uint *p_line, const char **act_ptr, const char **exp_ptr)
 {
-	int line    = 1;
-	int act_pos = 0;
+	int line       = 1;
+	size_t act_pos = 0;
 	const char *exp;
 
 	*act_ptr = &act[act_pos];
 
 	for (int i = 0; i < MAX_DATA_CNT && (exp = exps[i].data); i++) {
 		size_t exp_len = cstr_len(exp);
-		int exp_pos    = 0;
+		size_t exp_pos = 0;
 
 		*exp_ptr = &exp[exp_pos];
 

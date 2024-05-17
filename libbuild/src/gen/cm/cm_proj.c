@@ -132,6 +132,28 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pa
 			first = 0;
 		}
 
+		if (dynamic) {
+			str_t upper = strz(proj->name->val.len + 1);
+			str_to_upper(proj->name->val, &upper);
+			c_fprintf(file, first ? "-D%.*s_BUILD_DLL" : " -D%.*s_BUILD_DLL", (int)upper.len, upper.data);
+			first = 0;
+			str_free(&upper);
+		}
+
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+				continue;
+			}
+
+			str_t upper = strz(dep->proj->name->val.len + 1);
+			str_to_upper(dep->proj->name->val, &upper);
+			c_fprintf(file, first ? "-D%.*s_DLL" : " -D%.*s_DLL", (int)upper.len, upper.data);
+			first = 0;
+			str_free(&upper);
+		}
+
 		for (uint i = 0; i < defines->cnt; i++) {
 			const prop_str_t *define = arr_get(defines, i);
 			c_fprintf(file, first ? "-D%.*s" : " -D%.*s", define->val.len, define->val.data);
@@ -384,7 +406,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 	MSG("generating project: %s", cmake_path.path);
 
 	cm_proj_gen_proj(proj, projects, path, sln_props, file, 0);
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB || proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 		c_fprintf(file, "\n");
 		cm_proj_gen_proj(proj, projects, path, sln_props, file, 1);
 	}
@@ -395,4 +417,6 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const path_t *path, 
 	} else {
 		ERR("generating project: %s failed", cmake_path.path);
 	}
+
+	return ret;
 }

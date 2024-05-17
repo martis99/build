@@ -35,6 +35,8 @@ static const char *SLN_LIBTEST =
 	"MinimumVisualStudioVersion = 10.0.40219.1\n"
 	"Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"libtest\", \"libtest\\libtest.vcxproj\", \"{37B0CE1F-6EF7-728C-315E-DF05CB36999A}\"\n"
 	"EndProject\n"
+	"Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"libtest.d\", \"libtest\\libtest.d.vcxproj\", \"{B12458AA-5202-1EA6-C5FA-655A9044D549}\"\n"
+	"EndProject\n"
 	"Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"test\", \"test\\test.vcxproj\", \"{25F433E4-14EA-1031-0160-BE154E8DE8D1}\"\n"
 	"EndProject\n"
 	"Global\n"
