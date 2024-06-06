@@ -98,7 +98,7 @@ int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in
 	}
 
 	path_t sln_dir = { 0 };
-	if (path_init(&sln_dir, CSTR("tmp")) == NULL) {
+	if (path_init(&sln_dir, CSTR("tmp/")) == NULL) {
 		return 1;
 	}
 
@@ -112,7 +112,7 @@ int test_gen(test_gen_fn gen_fn, test_free_fn free_fn, const test_gen_file_t *in
 
 	path_t build_dir = { 0 };
 
-	if (path_init(&build_dir, CSTR("tmp")) == NULL) {
+	if (path_init(&build_dir, CSTR("tmp/")) == NULL) {
 		return 1;
 	}
 

@@ -19,7 +19,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 	MSG("%s", "generating tasks");
 
 	path_t tasks_path = *path;
-	if (path_child(&tasks_path, CSTR(".vscode")) == NULL) {
+	if (path_child_folder(&tasks_path, CSTR(".vscode")) == NULL) {
 		return 1;
 	}
 

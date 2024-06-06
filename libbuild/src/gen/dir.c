@@ -7,7 +7,7 @@
 #include "md5.h"
 
 static const prop_pol_t s_dir_props[] = {
-	[DIR_PROP_DIRS] = { .name = STRS("DIRS"), .arr = 1 },
+	[DIR_PROP_DIRS] = { .name = STRS("DIRS"), .flags = PPF_ARR | PPF_DIR },
 };
 
 static int add_dir(path_t *path, const char *folder, void *priv)
@@ -16,8 +16,11 @@ static int add_dir(path_t *path, const char *folder, void *priv)
 
 	prop_str_t dir = {
 		.path = NULL,
-		.val  = strn(folder, folder_len, folder_len + 1),
+		.val  = strn(folder, folder_len, folder_len + 2),
 	};
+
+	((char *)dir.val.data)[dir.val.len++] = '/';
+	((char *)dir.val.data)[dir.val.len]   = '\0';
 
 	arr_app(priv, &dir);
 	return 0;
@@ -29,27 +32,26 @@ typedef struct read_dir_data_s {
 	dir_t *parent;
 } read_dir_data_t;
 
-int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv)
+int dir_read(build_t *build, dir_t *dir, const pathv_t *sln_dir, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv)
 {
-	dir->file_path = *path;
-	pathv_path(&dir->path, &dir->file_path);
-	pathv_sub(&dir->dir, &dir->file_path, sln_path);
-	pathv_folder(&dir->folder, &dir->file_path);
+	dir->path    = *path;
+	dir->dir     = pathv_get_dir(pathv_path(&dir->path), NULL);
+	dir->rel_dir = (pathv_t){
+		.path = dir->dir.path + sln_dir->len,
+		.len  = dir->dir.len - sln_dir->len,
+	};
+	pathv_get_dir(dir->dir, &dir->name);
 
 	dir->parent = parent;
 
-	if (path_child(&dir->file_path, CSTR("Directory.txt")) == NULL) {
-		return 1;
-	}
-
 	int ret = 0;
 
-	if (file_exists(dir->file_path.path)) {
-		if ((dir->data.val.len = file_read_t(dir->file_path.path, dir->file, DATA_LEN)) == -1) {
+	if (file_exists(dir->path.path)) {
+		if ((dir->data.val.len = file_read_t(dir->path.path, dir->file, DATA_LEN)) == -1) {
 			return 1;
 		}
 
-		dir->data.path = dir->file_path.path;
+		dir->data.path = dir->path.path;
 		dir->data.val  = strb(dir->file, sizeof(dir->file), dir->data.val.len);
 
 		ret += props_parse_file(dir->data, &build->ini_prs, dir->props, s_dir_props, sizeof(s_dir_props));
@@ -57,7 +59,9 @@ int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *p
 	} else {
 		arr_init(&dir->props[DIR_PROP_DIRS].arr, 8, sizeof(prop_str_t));
 		dir->props[DIR_PROP_DIRS].flags |= PROP_SET | PROP_ARR;
-		ret += files_foreach(path, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
+		path_t pdir = { 0 };
+		path_init(&pdir, dir->dir.path, dir->dir.len);
+		ret += files_foreach(&pdir, add_dir, NULL, &dir->props[DIR_PROP_DIRS].arr);
 	}
 
 	byte buf[256] = { 0 };
@@ -65,7 +69,8 @@ int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *p
 
 	arr_t *subdirs = &dir->props[DIR_PROP_DIRS].arr;
 
-	path_t child_path     = *path;
+	path_t child_path = { 0 };
+	path_init(&child_path, dir->dir.path, dir->dir.len);
 	size_t child_path_len = child_path.len;
 
 	read_dir_data_t *data	      = priv;
@@ -77,7 +82,7 @@ int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *p
 
 	for (uint i = 0; i < subdirs->cnt; i++) {
 		prop_str_t *dir = arr_get(subdirs, i);
-		path_child(&child_path, dir->val.data, dir->val.len);
+		path_child_dir(&child_path, dir->val.data, dir->val.len);
 		if (folder_exists(child_path.path)) {
 			int r = on_dir(&child_path, dir->val.data, &read_dir_data);
 			if (r == -1) {
@@ -88,7 +93,7 @@ int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *p
 				continue;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->val.len, dir->val.data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)child_path.len, child_path.path);
 			ret = 1;
 		}
 		child_path.len = child_path_len;
@@ -101,15 +106,15 @@ void dir_print(dir_t *dir)
 {
 	INFP("Directory\n"
 	     "    Path   : %.*s\n"
-	     "    File   : %.*s\n"
 	     "    Dir    : %.*s\n"
-	     "    Folder : %.*s\n"
+	     "    Rel    : %.*s\n"
+	     "    Name   : %.*s\n"
 	     "    GUID   : %s",
-	     (int)dir->path.len, dir->path.path, (int)dir->file_path.len, dir->file_path.path, (int)dir->dir.len, dir->dir.path, (int)dir->folder.len, dir->folder.path,
+	     (int)dir->path.len, dir->path.path, (int)dir->dir.len, dir->dir.path, (int)dir->rel_dir.len, dir->rel_dir.path, (int)dir->name.len, dir->name.data,
 	     dir->guid);
 
 	if (dir->parent) {
-		INFP("    Parent : %.*s", (int)dir->parent->folder.len, dir->parent->folder.path);
+		INFP("    Parent : %.*s", (int)dir->parent->dir.len, dir->parent->dir.path);
 	} else {
 		INFP("%s", "    Parent :");
 	}

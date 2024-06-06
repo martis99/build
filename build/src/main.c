@@ -150,6 +150,11 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
+	if (sln_dir.path[sln_dir.len - 1] != '\\' && sln_dir.path[sln_dir.len - 1] != '/') {
+		sln_dir.path[sln_dir.len++] = SEP[0];
+		sln_dir.path[sln_dir.len]   = '\0';
+	}
+
 	int ret	  = 0;
 	sln_t sln = { 0 };
 
@@ -160,6 +165,11 @@ int main(int argc, const char **argv)
 	path_t build_dir = { 0 };
 	if (path_init(&build_dir, build, cstr_len(build)) == NULL) {
 		return 1;
+	}
+
+	if (build_dir.path[build_dir.len - 1] != '\\' && build_dir.path[build_dir.len - 1] != '/') {
+		build_dir.path[build_dir.len++] = SEP[0];
+		build_dir.path[build_dir.len]	= '\0';
 	}
 
 	if (gen_fns[gen]) {

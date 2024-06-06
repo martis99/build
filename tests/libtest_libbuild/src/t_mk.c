@@ -7,7 +7,7 @@
 #include "test.h"
 
 static const char *SLN_LIBTEST =
-	"SLNDIR := $(CURDIR)\n"
+	"SLNDIR := $(CURDIR)/\n"
 	"TLD := $(LD)\n"
 	"TCC := $(CC)\n"
 	"\n"
@@ -215,8 +215,8 @@ TEST(c_small)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
@@ -256,8 +256,8 @@ TEST(c_args)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
@@ -267,6 +267,7 @@ TEST(c_args)
 				"COV += $(patsubst %.c, $(INTDIR)%.gcda, $(SRC_C))\n"
 				"COV += $(LCOV) $(REPDIR)\n"
 				"TARGET := $(OUTDIR)test\n"
+				"ARGS := -D\n"
 				"\n"
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
@@ -279,7 +280,7 @@ TEST(c_args)
 		},
 	};
 
-	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_small_in, sizeof(c_small_in), out, sizeof(out));
+	const int ret = test_gen(mk_sln_gen, mk_sln_free, c_args_in, sizeof(c_args_in), out, sizeof(out));
 	EXPECT_EQ(ret, 0);
 
 	END;
@@ -297,8 +298,8 @@ TEST(c_include)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find include -name '*.h')\n"
 				"DEPS += $(shell find src -name '*.h')\n"
@@ -338,8 +339,8 @@ TEST(c_depends)
 		{
 			.path = "tmp/libtest/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/libtest/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/libtest/int/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
 				"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
@@ -363,8 +364,8 @@ TEST(c_depends)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"SRC_C := $(shell find src -name '*.c')\n"
@@ -378,7 +379,7 @@ TEST(c_depends)
 				"FLAGS := -Isrc\n"
 				"CFLAGS += $(FLAGS) -Wall -Wextra -Werror -pedantic\n"
 				"DEFINES_STATIC :=\n"
-				"LDFLAGS += -L$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/libtest/ -l:libtest.a\n"
+				"LDFLAGS += -L$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/libtest/ -l:libtest.a\n"
 				"\n",
 				PROJ_TEST_C_COMPILE,
 			},
@@ -403,8 +404,8 @@ TEST(cpp_small)
 		{
 			.path = "tmp/test/Makefile",
 			.data = {
-				"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/\n"
-				"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+				"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+				"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 				"REPDIR := $(OUTDIR)coverage-report/\n"
 				"DEPS := $(shell find src -name '*.h')\n"
 				"DEPS += $(shell find src -name '*.hpp')\n"

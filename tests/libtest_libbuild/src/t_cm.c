@@ -42,6 +42,7 @@ static const char *SLN_TEST_CPP = "cmake_minimum_required(VERSION 3.16)\n"
 #define PROJ_PROPS(_name)                                                                                                          \
 	"set_target_properties(" _name "\n"                                                                                        \
 	"    PROPERTIES\n"                                                                                                         \
+	"    FOLDER \"" _name "\"\n"                                                                                               \
 	"    ARCHIVE_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/" _name "/\"\n"   \
 	"    ARCHIVE_OUTPUT_DIRECTORY_RELEASE \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/" _name "/\"\n" \
 	"    LIBRARY_OUTPUT_DIRECTORY_DEBUG \"${CMAKE_SOURCE_DIR}/bin/$(Configuration)-${CMAKE_VS_PLATFORM_NAME}/" _name "/\"\n"   \

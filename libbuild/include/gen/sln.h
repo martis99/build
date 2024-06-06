@@ -23,7 +23,7 @@ typedef enum sln_prop_e {
 
 typedef struct sln_s {
 	path_t path;
-	path_t file_path;
+	pathv_t dir;
 	char file[1024];
 	prop_str_t data;
 	prop_t props[__SLN_PROP_MAX];

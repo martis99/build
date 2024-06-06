@@ -35,12 +35,20 @@ static uint val_to_mask(str_t val, const str_t *table, size_t table_len)
 	return 0;
 }
 
-static void parse_value(prop_str_t *data, prop_t *prop, str_t val, const str_t *table, size_t table_len, int arr)
+static void parse_value(prop_str_t *data, prop_t *prop, str_t val, const str_t *table, size_t table_len, int flags)
 {
-	data->val = str_cpy(val);
+	if ((flags & PPF_DIR) && val.data[val.len - 1] != '/' && val.data[val.len - 1] != '\\') {
+		data->val = strz(val.len + 2);
+		str_cpyd(val, &data->val);
+		((char *)data->val.data)[data->val.len++] = '/';
+		((char *)data->val.data)[data->val.len]	  = '\0';
+	} else {
+		data->val = strz(val.len + 1);
+		str_cpyd(val, &data->val);
+	}
 
 	if (table) {
-		if (arr) {
+		if (flags & PPF_ARR) {
 			prop->mask |= 1 << val_to_mask(val, table, table_len);
 		} else {
 			prop->mask = val_to_mask(val, table, table_len);
@@ -48,7 +56,7 @@ static void parse_value(prop_str_t *data, prop_t *prop, str_t val, const str_t *
 	}
 }
 
-static void parse_arr(ini_t *ini, ini_pair_data_t *pair, prop_t *prop, const str_t *table, size_t table_len)
+static void parse_arr(ini_t *ini, ini_pair_data_t *pair, prop_t *prop, const str_t *table, size_t table_len, int flags)
 {
 	arr_init(&prop->arr, 8, sizeof(prop_str_t));
 	prop->flags |= PROP_ARR;
@@ -58,7 +66,7 @@ static void parse_arr(ini_t *ini, ini_pair_data_t *pair, prop_t *prop, const str
 	ini_val_foreach(&ini->vals, pair->vals, val)
 	{
 		prop_str_t data = { 0 };
-		parse_value(&data, prop, *val, table, table_len, 1);
+		parse_value(&data, prop, *val, table, table_len, flags);
 		arr_app(&prop->arr, &data);
 	}
 }
@@ -79,13 +87,13 @@ static void parse_props(ini_t *ini, ini_sec_data_t *sec, prop_t *props, const pr
 
 		props[i].flags |= PROP_SET;
 
-		if (props_pol[i].arr) {
-			parse_arr(ini, pair, &props[i], props_pol[i].str_table, props_pol[i].str_table_len);
+		if (props_pol[i].flags & PPF_ARR) {
+			parse_arr(ini, pair, &props[i], props_pol[i].str_table, props_pol[i].str_table_len, props_pol[i].flags);
 		} else {
 			str_t *val;
 			ini_val_foreach(&ini->vals, pair->vals, val)
 			{
-				parse_value(&props[i].value, &props[i], *val, props_pol[i].str_table, props_pol[i].str_table_len, 0);
+				parse_value(&props[i].value, &props[i], *val, props_pol[i].str_table, props_pol[i].str_table_len, props_pol[i].flags);
 				break;
 			}
 		}
@@ -123,7 +131,7 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 		if (props_pol[i].print) {
 			props_pol[i].print(&props[i]);
 		} else {
-			if (props_pol[i].arr) {
+			if (props_pol[i].flags & PPF_ARR) {
 				INFP("    %.*s:", (int)props_pol[i].name.len, props_pol[i].name.data);
 				if (props_pol[i].str_table) {
 					prop_print_flags(&props[i], props_pol[i].str_table, props_pol[i].str_table_len);

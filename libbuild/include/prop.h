@@ -31,10 +31,16 @@ typedef struct prop_s {
 typedef int (*prop_parse_fn)(prop_str_t *data, prop_t *prop);
 typedef void (*prop_print_fn)(const prop_t *prop);
 
+typedef enum prop_pol_flag_e {
+	PPF_NONE = 0,
+	PPF_ARR	 = 1 << 0,
+	PPF_DIR = 1 << 1,
+} prop_pol_flag_t;
+
 typedef struct prop_pol_s {
 	str_t name;
 	prop_print_fn print;
-	bool arr;
+	int flags;
 	const str_t *str_table;
 	size_t str_table_len;
 	str_t def;

@@ -9,7 +9,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 	const arr_t *dirs = &dir->props[DIR_PROP_DIRS].arr;
 
 	path_t cmake_path = *path;
-	if (path_child(&cmake_path, dir->dir.path, dir->dir.len) == NULL) {
+	if (path_child(&cmake_path, dir->rel_dir.path, dir->rel_dir.len) == NULL) {
 		return 1;
 	}
 
@@ -36,7 +36,7 @@ int cm_dir_gen(const dir_t *dir, const path_t *path)
 			continue;
 		}
 
-		c_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->val.len, dir->val.data);
+		c_fprintf(file, "add_subdirectory(%.*s)\n", (int)dir->val.len - 1, dir->val.data);
 	}
 
 	file_close(file);

@@ -87,7 +87,7 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 			continue;
 		}
 
-		c_fprintf(file, "add_subdirectory(%.*s)\n", dir->val.len, dir->val.data);
+		c_fprintf(file, "add_subdirectory(%.*s)\n", dir->val.len - 1, dir->val.data);
 	}
 
 	if (sln->props[SLN_PROP_STARTUP].flags & PROP_SET) {
@@ -113,7 +113,7 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		ret |= cm_proj_gen(pair->value, &sln->projects, path, sln->props);
+		ret |= cm_proj_gen(pair->value, &sln->projects, sln->props);
 	}
 
 	return ret;

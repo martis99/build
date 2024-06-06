@@ -10,15 +10,15 @@
 
 static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_NAME]	     = { .name = STRS("NAME"), },
-	[SLN_PROP_LANGS]     = { .name = STRS("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .arr = 1 },
-	[SLN_PROP_DIRS]	     = { .name = STRS("DIRS"),  .arr = 1 },
+	[SLN_PROP_LANGS]     = { .name = STRS("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .flags = PPF_ARR },
+	[SLN_PROP_DIRS]	     = { .name = STRS("DIRS"),  .flags = PPF_ARR | PPF_DIR },
 	[SLN_PROP_STARTUP]   = { .name = STRS("STARTUP"), },
-	[SLN_PROP_CONFIGS]   = { .name = STRS("CONFIGS"),.arr = 1 },
-	[SLN_PROP_PLATFORMS] = { .name = STRS("PLATFORMS"), .arr = 1 },
+	[SLN_PROP_CONFIGS]   = { .name = STRS("CONFIGS"), .flags = PPF_ARR},
+	[SLN_PROP_PLATFORMS] = { .name = STRS("PLATFORMS"), .flags = PPF_ARR },
 	[SLN_PROP_CHARSET]   = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[SLN_PROP_CFLAGS]    = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .arr = 1 },
-	[SLN_PROP_OUTDIR]    = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\")},
-	[SLN_PROP_INTDIR]    = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)\\bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_FOLDER)\\int\\")},
+	[SLN_PROP_CFLAGS]    = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .flags = PPF_ARR },
+	[SLN_PROP_OUTDIR]    = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_DIR)")},
+	[SLN_PROP_INTDIR]    = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_DIR)int\\")},
 };
 
 typedef struct read_dir_data_s {
@@ -41,10 +41,10 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	read_dir_data_t *data = priv;
 	if (file_exists(file_path.path)) {
 		proj_t *proj = mem_calloc(1, sizeof(proj_t));
-		ret += proj_read(data->build, proj, &data->sln->path, path, data->parent, data->sln->props);
-		const prop_str_t *name = proj->name;
-		if (dict_get(&data->sln->projects, name->val.data, name->val.len, NULL)) {
-			dict_set(&data->sln->projects, name->val.data, name->val.len, proj);
+		ret += proj_read(data->build, proj, &data->sln->dir, &file_path, data->parent, data->sln->props);
+		const str_t *name = &proj->name;
+		if (dict_get(&data->sln->projects, name->data, name->len, NULL)) {
+			dict_set(&data->sln->projects, name->data, name->len, proj);
 		} else {
 			proj_free(proj);
 			mem_free(proj, sizeof(proj_t));
@@ -62,7 +62,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	dir_t *dir = mem_calloc(1, sizeof(dir_t));
 	if (dict_get(&data->sln->dirs, path->path, path->len, NULL)) {
 		dict_set(&data->sln->dirs, path->path, path->len, dir);
-		ret += dir_read(data->build, dir, &data->sln->path, path, read_dir, data->parent, data);
+		ret += dir_read(data->build, dir, &data->sln->dir, &file_path, read_dir, data->parent, data);
 	} else {
 		//ERR_LOGICS("Direcotry '%.*s' with the same path already exists", name->path, name->line + 1, name->start - name->line_start + 1, name->len, name->data);
 		mem_free(dir, sizeof(dir_t));
@@ -73,7 +73,7 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 
 static int proj_eq_name(const void *proj, const void *name)
 {
-	return prop_eq((*(const proj_t **)proj)->name, *(const prop_str_t **)name);
+	return str_eq((*(const proj_t **)proj)->name, *(const str_t *)name);
 }
 
 static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
@@ -90,7 +90,7 @@ static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
 
 		get_all_depends(arr, dproj, projects);
 
-		if (arr_index_cmp(arr, &dname, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
 			proj_dep_t dep = {
 				.proj	   = dproj,
 				.link_type = LINK_TYPE_STATIC,
@@ -109,7 +109,7 @@ static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
 			continue;
 		}
 
-		if (arr_index_cmp(arr, &dname, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
 			proj_dep_t dep = {
 				.proj	   = dproj,
 				.link_type = LINK_TYPE_DYNAMIC,
@@ -142,7 +142,7 @@ static void calculate_depends(proj_t *proj, sln_t *sln)
 				continue;
 			}
 
-			if (arr_index_cmp(&proj->all_depends, &dpname, proj_eq_name) == -1) {
+			if (arr_index_cmp(&proj->all_depends, &dpname->val, proj_eq_name) == -1) {
 				proj_dep_t dep = {
 					.proj	   = dpproj,
 					.link_type = LINK_TYPE_STATIC,
@@ -167,7 +167,7 @@ static void get_all_includes(arr_t *arr, const proj_t *proj, dict_t *projects)
 
 		get_all_includes(arr, iproj, projects);
 
-		if (arr_index_cmp(arr, &iname, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &iname->val, proj_eq_name) == -1) {
 			arr_app(arr, &iproj);
 		}
 	}
@@ -198,7 +198,7 @@ static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projec
 
 		calculate_build_older(arr, dproj, projects);
 
-		if (arr_index_cmp(arr, &dname, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
 			arr_app(arr, &dproj);
 		}
 	}
@@ -215,7 +215,7 @@ static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projec
 
 		calculate_build_older(arr, dproj, projects);
 
-		if (arr_index_cmp(arr, &dname, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
 			arr_app(arr, &dproj);
 		}
 	}
@@ -227,23 +227,23 @@ static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projec
 
 int sln_read(sln_t *sln, const path_t *path)
 {
-	sln->path      = *path;
-	sln->file_path = *path;
+	sln->path = *path;
+	sln->dir  = pathv_path(path);
 
-	if (path_child(&sln->file_path, CSTR("Solution.txt")) == NULL) {
+	if (path_child(&sln->path, CSTR("Solution.txt")) == NULL) {
 		return 1;
 	}
 
-	if (!file_exists(sln->file_path.path)) {
-		ERR_INPUT("file doesn't exists: '%.*s'", __func__, (int)sln->file_path.len, sln->file_path.path);
+	if (!file_exists(sln->path.path)) {
+		ERR_INPUT("file doesn't exists: '%.*s'", __func__, (int)sln->path.len, sln->path.path);
 		return 1;
 	}
 
-	if ((sln->data.val.len = file_read_t(sln->file_path.path, sln->file, DATA_LEN)) == -1) {
+	if ((sln->data.val.len = file_read_t(sln->path.path, sln->file, DATA_LEN)) == -1) {
 		return 1;
 	}
 
-	sln->data.path = sln->file_path.path;
+	sln->data.path = sln->path.path;
 	sln->data.val  = strb(sln->file, sizeof(sln->file), sln->data.val.len);
 
 	build_t build = { 0 };
@@ -259,8 +259,9 @@ int sln_read(sln_t *sln, const path_t *path)
 	byte buf[256] = { 0 };
 	md5(name.path, name.len, buf, sizeof(buf), sln->guid, sizeof(sln->guid));
 
-	arr_t *dirs	      = &sln->props[SLN_PROP_DIRS].arr;
-	path_t child_path     = sln->path;
+	arr_t *dirs	  = &sln->props[SLN_PROP_DIRS].arr;
+	path_t child_path = { 0 };
+	path_init(&child_path, sln->dir.path, sln->dir.len);
 	size_t child_path_len = child_path.len;
 
 	dict_init(&sln->projects, 16);
@@ -276,7 +277,7 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	for (uint i = 0; i < dirs->cnt; i++) {
 		prop_str_t *dir = arr_get(dirs, i);
-		path_child(&child_path, dir->val.data, dir->val.len);
+		path_child_dir(&child_path, dir->val.data, dir->val.len);
 		if (folder_exists(child_path.path)) {
 			const int r = read_dir(&child_path, dir->val.data, &read_dir_data);
 			if (r == -1) {
@@ -285,7 +286,7 @@ int sln_read(sln_t *sln, const path_t *path)
 				ret += r;
 			}
 		} else {
-			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)dir->val.len, dir->val.data);
+			ERR_LOGICS("Folder '%.*s' doesn't exists", dir->path, dir->line, dir->col, (int)child_path.len, child_path.path);
 			ret += 1;
 		}
 		child_path.len = child_path_len;
@@ -317,9 +318,9 @@ void sln_print(sln_t *sln)
 {
 	INFP("Solution\n"
 	     "    Path: %.*s\n"
-	     "    File: %.*s\n"
+	     "    Dir:  %.*s\n"
 	     "    GUID: %s",
-	     (int)sln->path.len, sln->path.path, (int)sln->file_path.len, sln->file_path.path, sln->guid);
+	     (int)sln->path.len, sln->path.path, (int)sln->dir.len, sln->dir.path, sln->guid);
 
 	props_print(sln->props, s_sln_props, sizeof(s_sln_props));
 
@@ -328,7 +329,7 @@ void sln_print(sln_t *sln)
 	arr_foreach(&sln->build_order, pproj)
 	{
 		proj_t *proj = *pproj;
-		INFP("    %.*s", (int)proj->name->val.len, proj->name->val.data);
+		INFP("    %.*s", (int)proj->name.len, proj->name.data);
 	}
 
 	dict_foreach(&sln->dirs, pair)

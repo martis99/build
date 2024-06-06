@@ -38,22 +38,23 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->dirs, pair)
 	{
-		dir_t *dir	= pair->value;
-		pathv_t *folder = &dir->folder;
+		dir_t *dir = pair->value;
 
-		c_fprintf(file, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)folder->len, folder->path,
-			  (int)folder->len, folder->path, dir->guid);
+		c_fprintf(file, "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)dir->name.len, dir->name.data,
+			  (int)dir->name.len, dir->name.data, dir->guid);
 	}
 
 	dict_foreach(&sln->projects, pair)
 	{
-		proj_t *proj	       = pair->value;
-		const prop_str_t *name = proj->name;
-		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\\%.*s.vcxproj\", \"{%s}\"\nEndProject\n", (int)name->val.len,
-			  name->val.data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->val.len, name->val.data, proj->guid);
+		proj_t *proj  = pair->value;
+		byte buf[256] = { 0 };
+		convert_backslash(buf, sizeof(buf), proj->gen_path.path, proj->gen_path.len);
+		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)proj->name.len, proj->name.data,
+			  (int)proj->gen_path.len, buf, proj->guid);
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s.d\", \"%.*s\\%.*s.d.vcxproj\", \"{%s}\"\nEndProject\n",
-				  (int)name->val.len, name->val.data, (int)proj->rel_path.len, proj->rel_path.path, (int)name->val.len, name->val.data, proj->guid2);
+			convert_backslash(buf, sizeof(buf), proj->gen_path_d.path, proj->gen_path_d.len);
+			c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s.d\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)proj->name.len,
+				  proj->name.data, (int)proj->gen_path_d.len, buf, proj->guid2);
 		}
 	}
 
@@ -151,9 +152,9 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	dict_foreach(&sln->projects, pair)
 	{
 		proj_t *proj = pair->value;
-		ret |= vs_proj_gen(proj, &sln->projects, path, sln->props, 0);
+		ret |= vs_proj_gen(proj, &sln->projects, sln->props, 0);
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			ret |= vs_proj_gen(pair->value, &sln->projects, path, sln->props, 1);
+			ret |= vs_proj_gen(pair->value, &sln->projects, sln->props, 1);
 		}
 	}
 

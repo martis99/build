@@ -148,17 +148,17 @@ static const str_t s_ldflags[] = {
 };
 
 typedef struct proj_s {
-	pathv_t path;
-	path_t file_path;
-	pathv_t rel_path;
+	path_t path;
 	pathv_t dir;
-	pathv_t folder;
+	pathv_t rel_dir;
+	str_t name;
+	path_t gen_path;
+	path_t gen_path_d;
 	char file[1024];
 	prop_str_t data;
 	prop_t props[__PROJ_PROP_MAX];
 	char guid[37];
 	char guid2[37];
-	const prop_str_t *name;
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;
@@ -170,7 +170,7 @@ typedef struct proj_dep_s {
 	link_type_t link_type;
 } proj_dep_t;
 
-int proj_read(build_t *build, proj_t *proj, const path_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
+int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_path, const path_t *path, const struct dir_s *parent, const prop_t *sln_props);
 void proj_print(proj_t *proj);
 
 int proj_runnable(const proj_t *proj);

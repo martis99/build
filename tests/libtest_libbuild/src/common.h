@@ -190,9 +190,9 @@ static test_gen_file_t os_in[] = {
 			"FORMAT = tar.gz\n"
 			"CONFIG = --disable-nls --disable-libssp --enable-languages=c --without-headers\n"
 			"TARGET = all-gcc all-target-libgcc install-gcc install-target-libgcc \n"
-			"OUTDIR = $(SLN_DIR)/bin/toolchain/$(PLATFORM)/gcc\n"
+			"OUTDIR = $(SLNDIR)bin/toolchain/$(PLATFORM)/gcc/\n"
 			"REQUIRE = g++, libgmp-dev, libmpfr-dev, libmpc-dev, texinfo\n"
-			"EXPORT = TCC = $(OUTDIR)/bin/$(PLATFORM)-elf-gcc\n",
+			"EXPORT = TCC = $(OUTDIR)bin/$(PLATFORM)-elf-gcc\n",
 	},
 	{
 		.path = "tmp/os/boot/bin/Project.txt",

@@ -7,34 +7,16 @@
 
 #include "xml.h"
 
-static const var_pol_t vars = {
-	.old = {
-		[VAR_SLN_DIR] = "$(SLN_DIR)\\",
-		[VAR_SLN_NAME] = "$(SLN_NAME)",
-		[VAR_PROJ_DIR] = "$(PROJ_DIR)\\",
-		[VAR_PROJ_NAME] = "$(PROJ_NAME)",
-		[VAR_CONFIG] = "$(CONFIG)",
-		[VAR_PLATFORM] = "$(PLATFORM)",
-	},
-	.new = {
-		[VAR_SLN_DIR] = "$(SolutionDir)",
-		[VAR_SLN_NAME] = "$(SolutionName)",
-		[VAR_PROJ_DIR] = "$(ProjectDir)",
-		[VAR_PROJ_NAME] = "$(ProjectName)",
-		[VAR_CONFIG] = "$(Configuration)",
-		[VAR_PLATFORM] = "$(PlatformTarget)",
-	},
-};
-
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
 	size_t buf_len = prop->val.len;
 	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
-	buf_len = cstr_replaces(buf, buf_size, buf_len, vars.old, vars.new, __VAR_MAX, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_FOLDER)"), proj->rel_path.path, proj->rel_path.len, NULL);
-#if defined(C_WIN)
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("$(SolutionDir)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), CSTR("$(ProjectName)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(Configuration)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), CSTR("$(PlatformTarget)"), NULL);
 	convert_backslash(buf, buf_len, buf, buf_len);
-#endif
 	return buf_len;
 }
 
@@ -45,12 +27,12 @@ typedef struct add_file_s {
 	uint langs;
 } add_file_t;
 
-static int add_src_file(path_t *path, const char *folder, void *priv)
+static int add_src_file(path_t *path, const char *file, void *priv)
 {
 	add_file_t *data = priv;
 
 	path_t new_path = data->path;
-	path_child(&new_path, folder, cstr_len(folder));
+	path_child(&new_path, file, cstr_len(file));
 
 	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".c"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".asm"))) ||
 		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".cpp")));
@@ -77,19 +59,19 @@ static int add_src_folder(path_t *path, const char *folder, void *priv)
 {
 	add_file_t data = *(add_file_t *)priv;
 
-	path_child(&data.path, folder, cstr_len(folder));
+	path_child_folder(&data.path, folder, cstr_len(folder));
 
 	files_foreach(path, add_src_folder, add_src_file, &data);
 
 	return 0;
 }
 
-static int add_inc_file(path_t *path, const char *folder, void *priv)
+static int add_inc_file(path_t *path, const char *file, void *priv)
 {
 	add_file_t *data = priv;
 
 	path_t new_path = data->path;
-	path_child(&new_path, folder, cstr_len(folder));
+	path_child(&new_path, file, cstr_len(file));
 
 	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".inc"))) ||
 		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
@@ -108,7 +90,7 @@ static int add_inc_folder(path_t *path, const char *folder, void *priv)
 {
 	add_file_t data = *(add_file_t *)priv;
 
-	path_child(&data.path, folder, cstr_len(folder));
+	path_child_folder(&data.path, folder, cstr_len(folder));
 
 	files_foreach(path, add_inc_folder, add_inc_file, &data);
 
@@ -131,7 +113,7 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 			prop_str_t *include = arr_get(includes, i);
 
 			tmp_len = resolve(include, CSTR(tmp), proj);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len, tmp);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len - 1, tmp);
 			first = 1;
 		}
 	}
@@ -142,14 +124,14 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 			prop_str_t *source = arr_get(sources, i);
 
 			tmp_len = resolve(source, CSTR(tmp), proj);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len, tmp);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(ProjectDir)%.*s", first, ";", (int)tmp_len - 1, tmp);
 			first = 1;
 		}
 	}
 
 	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 		tmp_len = resolve(enc, CSTR(tmp), proj);
-		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
+		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len - 1, tmp);
 		first = 1;
 	}
 
@@ -162,8 +144,8 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 				prop_str_t *include = arr_get(includes, i);
 
 				tmp_len = resolve(include, CSTR(tmp), iproj);
-				len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", (int)iproj->rel_path.len,
-						iproj->rel_path.path, (int)tmp_len, tmp);
+				len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s$(SolutionDir)%.*s\\%.*s", first, ";", (int)iproj->rel_dir.len - 1,
+						iproj->rel_dir.path, (int)tmp_len - 1, tmp);
 
 				first = 1;
 			}
@@ -171,7 +153,7 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
 			tmp_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, CSTR(tmp), iproj);
-			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len, tmp);
+			len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%.*s%.*s", first, ";", (int)tmp_len - 1, tmp);
 
 			first = 1;
 		}
@@ -186,8 +168,8 @@ static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *pro
 	bool first = 1;
 
 	if (dynamic) {
-		str_t upper = strz(proj->name->val.len + 1);
-		str_to_upper(proj->name->val, &upper);
+		str_t upper = strz(proj->name.len + 1);
+		str_to_upper(proj->name, &upper);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s_BUILD_DLL" : ";%.*s_BUILD_DLL", (int)upper.len, upper.data);
 		first = 0;
 		str_free(&upper);
@@ -200,8 +182,8 @@ static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *pro
 			continue;
 		}
 
-		str_t upper = strz(dep->proj->name->val.len + 1);
-		str_to_upper(dep->proj->name->val, &upper);
+		str_t upper = strz(dep->proj->name.len + 1);
+		str_to_upper(dep->proj->name, &upper);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s_DLL" : ";%.*s_DLL", (int)upper.len, upper.data);
 		first = 0;
 		str_free(&upper);
@@ -244,7 +226,7 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 					} else {
 						path_t dir = { 0 };
 						path_init(&dir, CSTR("$(SolutionDir)"));
-						path_child_s(&dir, dep->proj->rel_path.path, dep->proj->rel_path.len, 0);
+						path_child_s(&dir, dep->proj->rel_dir.path, dep->proj->rel_dir.len, 0);
 						path_child(&dir, tmp, tmp_len);
 #if defined(C_LINUX)
 						convert_backslash(dir.path, dir.len, dir.path, dir.len);
@@ -304,10 +286,10 @@ static inline size_t print_depends(char *buf, size_t buf_size, const proj_t *pro
 }
 
 //TODO: Make proj const
-int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const prop_t *sln_props, int dynamic)
+int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, int dynamic)
 {
-	const prop_str_t *name = proj->name;
-	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
+	const str_t *name = &proj->name;
+	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
 
 	const arr_t *platforms = &sln_props[SLN_PROP_PLATFORMS].arr;
 	const arr_t *configs   = &sln_props[SLN_PROP_CONFIGS].arr;
@@ -376,7 +358,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	xml_add_tag_val(&xml, xml_globals, STR("VCProjectVersion"), STR("16.0"));
 	xml_add_tag_val(&xml, xml_globals, STR("Keyword"), STR("Win32Proj"));
 	xml_add_tag_val(&xml, xml_globals, STR("ProjectGuid"), strf("{%s}", dynamic ? proj->guid2 : proj->guid));
-	xml_add_tag_val(&xml, xml_globals, STR("RootNamespace"), strc(proj->folder.path, proj->folder.len));
+	xml_add_tag_val(&xml, xml_globals, STR("RootNamespace"), strs(proj->name));
 	xml_add_tag_val(&xml, xml_globals, STR("WindowsTargetPlatformVersion"), STR("10.0"));
 
 	xml_tag_t xml_import = xml_add_tag(&xml, xml_proj, STR("Import"));
@@ -610,8 +592,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			path_init(&afd.path, source->val.data, source->val.len);
 
 			path_t src = { 0 };
-			path_init(&src, proj->path.path, proj->path.len);
-			path_child(&src, source->val.data, source->val.len);
+			path_init(&src, proj->dir.path, proj->dir.len);
+			path_child_dir(&src, source->val.data, source->val.len);
 
 			files_foreach(&src, add_src_folder, add_src_file, &afd);
 		}
@@ -628,16 +610,17 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 
 				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 					path_t rel_path = { 0 };
-					path_calc_rel(proj->path.path, proj->path.len + 1, dep->proj->path.path, dep->proj->path.len + 1, &rel_path);
+					if (dep->link_type == LINK_TYPE_DYNAMIC) {
+						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path_d.path, dep->proj->gen_path_d.len, &rel_path);
+					} else {
+						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path.path, dep->proj->gen_path.len, &rel_path);
+					}
 
-#if defined(C_LINUX)
-					convert_backslash(rel_path.path, rel_path.len, rel_path.path, rel_path.len);
-#endif
+					str_t inc = strz(rel_path.len + 1);
+					inc.len	  = convert_backslash((char *)inc.data, inc.size, rel_path.path, rel_path.len);
 
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
-					xml_add_attr(&xml, xml_ref, STR("Include"),
-						     strf("%.*s%.*s%s.vcxproj", rel_path.len, rel_path.path, dep->proj->name->val.len, dep->proj->name->val.data,
-							  dep->link_type == LINK_TYPE_DYNAMIC ? ".d" : ""));
+					xml_add_attr(&xml, xml_ref, STR("Include"), inc);
 					xml_add_tag_val(&xml, xml_ref, STR("Project"),
 							strf("{%s}", dep->link_type == LINK_TYPE_DYNAMIC ? dep->proj->guid2 : dep->proj->guid));
 				}
@@ -659,7 +642,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 				path_init(&afd.path, source->val.data, source->val.len);
 
 				path_t src = { 0 };
-				path_init(&src, proj->path.path, proj->path.len);
+				path_init(&src, proj->dir.path, proj->dir.len);
 				path_child(&src, source->val.data, source->val.len);
 
 				files_foreach(&src, add_inc_folder, add_inc_file, &afd);
@@ -675,7 +658,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 				path_init(&afd.path, include->val.data, include->val.len);
 
 				path_t inc = { 0 };
-				path_init(&inc, proj->path.path, proj->path.len);
+				path_init(&inc, proj->dir.path, proj->dir.len);
 				path_child(&inc, include->val.data, include->val.len);
 
 				files_foreach(&inc, add_inc_folder, add_inc_file, &afd);
@@ -718,33 +701,31 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 			char doutdir[P_MAX_PATH] = { 0 };
 			size_t doutdir_len	 = resolve(&dep->proj->props[PROJ_PROP_OUTDIR].value, CSTR(doutdir), dep->proj);
 			xml_add_attr(&xml, xml_add_tag(&xml, xml_copy, STR("CopyFileToFolders")), STR("Include"),
-				     strf("%.*s%.*s.d.dll", doutdir_len, doutdir, dep->proj->name->val.len, dep->proj->name->val.data));
+				     strf("%.*s%.*s.d.dll", doutdir_len, doutdir, dep->proj->name.len, dep->proj->name.data));
 		}
 	}
 
-	path_t cmake_path = *path;
-	if (path_child(&cmake_path, proj->rel_path.path, proj->rel_path.len) == NULL) {
+	path_t gen_path = { 0 };
+	path_init(&gen_path, proj->dir.path, proj->dir.len);
+
+	if (!folder_exists(gen_path.path)) {
+		folder_create(gen_path.path);
+	}
+
+	if (path_child(&gen_path, name->data, name->len) == NULL) {
 		return 1;
 	}
 
-	if (!folder_exists(cmake_path.path)) {
-		folder_create(cmake_path.path);
-	}
-
-	if (path_child(&cmake_path, name->val.data, name->val.len) == NULL) {
+	if ((dynamic ? path_child_s(&gen_path, CSTR("d.vcxproj"), '.') : path_child_s(&gen_path, CSTR("vcxproj"), '.')) == NULL) {
 		return 1;
 	}
 
-	if ((dynamic ? path_child_s(&cmake_path, CSTR("d.vcxproj"), '.') : path_child_s(&cmake_path, CSTR("vcxproj"), '.')) == NULL) {
-		return 1;
-	}
-
-	FILE *file = file_open(cmake_path.path, "w");
+	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {
 		return 1;
 	}
 
-	MSG("generating project: %s", cmake_path.path);
+	MSG("generating project: %s", gen_path.path);
 
 	xml_print(&xml, xml_proj, PRINT_DST_FILE(file));
 	file_close(file);
@@ -780,24 +761,10 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	xml_tag_t xml_proj_props = xml_add_tag(&xml_user, xml_proj_user, STR("PropertyGroup"));
 	xml_add_tag_val(&xml_user, xml_proj_props, STR("ShowAllFiles"), STR("true"));
 
-	path_t cmake_path_user = *path;
-	if (path_child(&cmake_path_user, proj->rel_path.path, proj->rel_path.len) == NULL) {
-		return 1;
-	}
+	path_t gen_path_user = gen_path;
+	path_child_s(&gen_path_user, CSTR("user"), '.');
 
-	if (!folder_exists(cmake_path_user.path)) {
-		folder_create(cmake_path_user.path);
-	}
-
-	if (path_child(&cmake_path_user, name->val.data, name->val.len) == NULL) {
-		return 1;
-	}
-
-	if ((dynamic ? path_child_s(&cmake_path_user, CSTR("d.vcxproj.user"), '.') : path_child_s(&cmake_path_user, CSTR("vcxproj.user"), '.')) == NULL) {
-		return 1;
-	}
-
-	file = file_open(cmake_path_user.path, "w");
+	file = file_open(gen_path_user.path, "w");
 	if (file == NULL) {
 		return 1;
 	}
@@ -808,9 +775,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const path_t *path, const 
 	xml_free(&xml_user);
 
 	if (ret == 0) {
-		SUC("generating project: %s success", cmake_path.path);
+		SUC("generating project: %s success", gen_path_user.path);
 	} else {
-		ERR("generating project: %s failed", cmake_path.path);
+		ERR("generating project: %s failed", gen_path_user.path);
 	}
 
 	return ret;

@@ -1,7 +1,7 @@
 #ifndef MK_VC
 #define MK_VC
 
-static const char *SLN_TEST = "SLNDIR := $(CURDIR)\n"
+static const char *SLN_TEST = "SLNDIR := $(CURDIR)/\n"
 			      "TLD := $(LD)\n"
 			      "TCC := $(CC)\n"
 			      "\n"
@@ -37,11 +37,11 @@ static const char *SLN_TEST = "SLNDIR := $(CURDIR)\n"
 			      "	@$(MAKE) -C test clean\n";
 
 static const char *OS_SLN =
-	"SLNDIR := $(CURDIR)\n"
+	"SLNDIR := $(CURDIR)/\n"
 	"TLD := $(LD)\n"
 	"TCC := $(CC)\n"
 	"\n"
-	"TCC = $(SLNDIR)/bin/toolchain/$(PLATFORM)/gcc/bin/$(PLATFORM)-elf-gcc\n"
+	"TCC = $(SLNDIR)bin/toolchain/$(PLATFORM)/gcc/bin/$(PLATFORM)-elf-gcc\n"
 	"\n"
 	"export\n"
 	"\n"
@@ -123,8 +123,8 @@ static const char *OS_SLN =
 	"\t@$(MAKE) -C os/kernel/elf clean\n"
 	"\t@$(MAKE) -C toolchain/gcc clean\n";
 
-static const char *OS_PROJ_BOOT_BIN = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/\n"
-				      "INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/int/\n"
+static const char *OS_PROJ_BOOT_BIN = "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/\n"
+				      "INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/int/\n"
 				      "DEPS := $(shell find ../src -name '*.inc')\n"
 				      "SRC_ASM := $(shell find ../src -name '*.asm')\n"
 				      "OBJ_ASM := $(patsubst %.asm, $(INTDIR)%.bin, $(SRC_ASM))\n"
@@ -170,15 +170,15 @@ static const char *OS_PROJ_BOOT_BIN = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATF
 				      "\t@$(RM) $(TARGET) $(OBJ_ASM)\n";
 
 static const char *OS_PROJ_GCC =
-	"OUTDIR := $(SLNDIR)/bin/toolchain/$(PLATFORM)/gcc\n"
+	"OUTDIR := $(SLNDIR)bin/toolchain/$(PLATFORM)/gcc/\n"
 	"URL := http://ftp.gnu.org/gnu/gcc/gcc-13.1.0/\n"
 	"NAME := gcc-13.1.0\n"
 	"FORMAT := tar.gz\n"
 	"FILE := $(NAME).$(FORMAT)\n"
-	"DLDIR := $(SLNDIR)/dl/$(FILE)\n"
-	"SRCDIR := $(SLNDIR)/staging/$(NAME)\n"
-	"BUILDDIR := $(SLNDIR)/build/$(PLATFORM)/$(NAME)\n"
-	"LOGDIR := $(SLNDIR)/logs/$(PLATFORM)/$(NAME)\n"
+	"DLDIR := $(SLNDIR)dl/$(FILE)/\n"
+	"SRCDIR := $(SLNDIR)staging/$(NAME)/\n"
+	"BUILDDIR := $(SLNDIR)build/$(PLATFORM)/$(NAME)/\n"
+	"LOGDIR := $(SLNDIR)logs/$(PLATFORM)/$(NAME)/\n"
 	"\n"
 	".PHONY: all check compile clean\n"
 	"\n"
@@ -208,23 +208,23 @@ static const char *OS_PROJ_GCC =
 	"\t@mkdir -p $(@D)\n"
 	"\t@cd $(@D) && curl -O $(URL)$(FILE)\n"
 	"\n"
-	"$(SRCDIR)/done: $(DLDIR)\n"
-	"\t@mkdir -p $(SLNDIR)/staging\n"
-	"\t@tar xf $(DLDIR) -C $(SLNDIR)/staging\n"
-	"\t@touch $(SRCDIR)/done\n"
+	"$(SRCDIR)done: $(DLDIR)\n"
+	"\t@mkdir -p $(SLNDIR)staging\n"
+	"\t@tar xf $(DLDIR) -C $(SLNDIR)staging\n"
+	"\t@touch $(SRCDIR)done\n"
 	"\n"
-	"$(OUTDIR)/$(NAME): $(SRCDIR)/done\n"
+	"$(OUTDIR)$(NAME): $(SRCDIR)done\n"
 	"\t@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)\n"
-	"\t@cd $(BUILDDIR) && $(SRCDIR)/configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) --disable-nls --disable-libssp --enable-languages=c --without-headers 2>&1 | tee $(LOGDIR)/configure.log\n"
-	"\t@cd $(BUILDDIR) && make all-gcc all-target-libgcc install-gcc install-target-libgcc  2>&1 | tee $(LOGDIR)/make.log\n"
-	"\t@touch $(OUTDIR)/$(NAME)\n"
+	"\t@cd $(BUILDDIR) && $(SRCDIR)configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) --disable-nls --disable-libssp --enable-languages=c --without-headers 2>&1 | tee $(LOGDIR)configure.log\n"
+	"\t@cd $(BUILDDIR) && make all-gcc all-target-libgcc install-gcc install-target-libgcc  2>&1 | tee $(LOGDIR)make.log\n"
+	"\t@touch $(OUTDIR)$(NAME)\n"
 	"\n"
-	"compile: check $(OUTDIR)/$(NAME)\n"
+	"compile: check $(OUTDIR)$(NAME)\n"
 	"\n"
 	"clean:\n";
 
-static const char *OS_PROJ_KERNEL_BIN = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/\n"
-					"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/int/\n"
+static const char *OS_PROJ_KERNEL_BIN = "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/\n"
+					"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/int/\n"
 					"DEPS := $(shell find ../src -name '*.inc')\n"
 					"DEPS += $(shell find ../src -name '*.h')\n"
 					"SRC_ASM := $(shell find ../src -name '*.asm')\n"
@@ -291,8 +291,8 @@ static const char *OS_PROJ_KERNEL_BIN = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLA
 					"clean:\n"
 					"\t@$(RM) $(TARGET) $(OBJ_ASM) $(OBJ_C) $(COV)\n";
 
-static const char *OS_PROJ_KERNEL_ELF = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/elf/\n"
-					"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/elf/int/\n"
+static const char *OS_PROJ_KERNEL_ELF = "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/elf/\n"
+					"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/elf/int/\n"
 					"DEPS := $(shell find ../src -name '*.inc')\n"
 					"DEPS += $(shell find ../src -name '*.h')\n"
 					"SRC_ASM := $(shell find ../src -name '*.asm')\n"
@@ -359,10 +359,10 @@ static const char *OS_PROJ_KERNEL_ELF = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLA
 					"clean:\n"
 					"\t@$(RM) $(TARGET) $(OBJ_ASM) $(OBJ_C) $(COV)\n";
 
-static const char *OS_PROJ_IMAGE_DISK = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/image/disk/\n"
-					"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/image/disk/int/\n"
+static const char *OS_PROJ_IMAGE_DISK = "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/image/disk/\n"
+					"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/image/disk/int/\n"
 					"TARGET := $(OUTDIR)disk.bin\n"
-					"ARTIFACTDIR := $(SLNDIR)/tmp/artifact/\n"
+					"ARTIFACTDIR := $(SLNDIR)tmp/artifact/\n"
 					"ARTIFACT := $(ARTIFACTDIR)disk-$(PLATFORM)-$(CONFIG).bin\n"
 					"\n"
 					"FLAGS :=\n"
@@ -388,8 +388,8 @@ static const char *OS_PROJ_IMAGE_DISK = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLA
 					"\n"
 					"$(TARGET):\n"
 					"\t@mkdir -p $(@D)\n"
-					"\t@dd if=$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/boot.bin status=none >> $@\n"
-					"\t@dd if=$(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/kernel.bin status=none >> $@\n"
+					"\t@dd if=$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/boot.bin status=none >> $@\n"
+					"\t@dd if=$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/kernel.bin status=none >> $@\n"
 					"\n"
 					"run: check $(TARGET)\n"
 					"ifeq ($(CONFIG), Debug)\n"
@@ -406,10 +406,10 @@ static const char *OS_PROJ_IMAGE_DISK = "OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLA
 					"\t@$(RM) $(TARGET) $(ARTIFACT)\n";
 
 static const char *OS_PROJ_IMAGE_FLOPPY =
-	"OUTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/image/floppy/\n"
-	"INTDIR := $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/image/floppy/int/\n"
+	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/image/floppy/\n"
+	"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/image/floppy/int/\n"
 	"TARGET := $(OUTDIR)floppy.img\n"
-	"ARTIFACTDIR := $(SLNDIR)/tmp/artifact/\n"
+	"ARTIFACTDIR := $(SLNDIR)tmp/artifact/\n"
 	"ARTIFACT := $(ARTIFACTDIR)floppy-$(PLATFORM)-$(CONFIG).img\n"
 	"\n"
 	"FLAGS :=\n"
@@ -436,7 +436,7 @@ static const char *OS_PROJ_IMAGE_FLOPPY =
 	"\n"
 	"compile: check $(TARGET)\n"
 	"\n"
-	"$(TARGET): $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/boot.bin $(SLNDIR)/bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/kernel.bin\n"
+	"$(TARGET): $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/boot/bin/boot.bin $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/os/kernel/bin/kernel.bin\n"
 	"\t@mkdir -p $(@D)\n"
 	"\t@dd if=/dev/zero of=$@ bs=512 count=2880 status=none\n"
 	"\t@mkfs.fat -F12 -n \"NBOS\" $@\n"

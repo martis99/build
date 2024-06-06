@@ -4,6 +4,7 @@
 #include "build.h"
 #include "path.h"
 #include "prop.h"
+#include "str.h"
 
 #include <stdio.h>
 
@@ -14,10 +15,10 @@ typedef enum dir_prop_e {
 } dir_prop_t;
 
 typedef struct dir_s {
-	pathv_t path;
-	path_t file_path;
+	path_t path;
 	pathv_t dir;
-	pathv_t folder;
+	pathv_t rel_dir;
+	str_t name;
 	char file[1024];
 	prop_str_t data;
 	prop_t props[__DIR_PROP_MAX];
@@ -31,7 +32,7 @@ typedef struct dir_data_s {
 } dir_data_t;
 
 typedef int (*on_dir_cb)(path_t *path, const char *folder, void *priv);
-int dir_read(build_t *build, dir_t *dir, const path_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv);
+int dir_read(build_t *build, dir_t *dir, const pathv_t *sln_path, const path_t *path, on_dir_cb on_dir, const dir_t *parent, void *priv);
 void dir_print(dir_t *dir);
 
 void dir_free(dir_t *dir);
