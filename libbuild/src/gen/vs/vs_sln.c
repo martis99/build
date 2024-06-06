@@ -105,6 +105,28 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 					  config->val.data, platf_len, platf);
 			}
 		}
+
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			for (uint i = 0; i < configs->arr.cnt; i++) {
+				prop_str_t *config = arr_get(&configs->arr, i);
+				for (uint j = 0; j < platforms->cnt; j++) {
+					prop_str_t *platform = arr_get(platforms, j);
+					const char *platf    = platform->val.data;
+					size_t platf_len     = platform->val.len;
+					if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+						platf	  = "Win32";
+						platf_len = 5;
+					}
+
+					c_fprintf(file,
+						  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
+						  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
+						  proj->guid2, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data,
+						  platf_len, platf, proj->guid2, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
+						  config->val.data, platf_len, platf);
+				}
+			}
+		}
 	}
 
 	c_fprintf(file, "\tEndGlobalSection\n"

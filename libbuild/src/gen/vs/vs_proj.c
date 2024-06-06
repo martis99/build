@@ -311,6 +311,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 	if (p_intdir->flags & PROP_SET) {
 		intdir_len = resolve(&p_intdir->value, CSTR(intdir), proj);
+		if (dynamic) {
+			intdir_len = cstr_cat(intdir, sizeof(intdir), intdir_len, CSTR("dll\\"));
+		}
 	}
 
 	if (charset->mask == CHARSET_UNICODE) {
