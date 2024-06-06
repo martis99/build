@@ -41,9 +41,7 @@ static int add_src_file(path_t *path, const char *file, void *priv)
 		return 0;
 	}
 
-#if defined(C_LINUX)
 	convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
-#endif
 
 	if (path_ends(&new_path, CSTR(".asm"))) {
 		xml_tag_t xml_inc = xml_add_tag(data->xml, data->xml_items, STR("MASM"));
@@ -77,9 +75,7 @@ static int add_inc_file(path_t *path, const char *file, void *priv)
 		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
 
 	if (add) {
-#if defined(C_LINUX)
 		convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
-#endif
 		xml_add_attr(data->xml, xml_add_tag(data->xml, data->xml_items, STR("ClInclude")), STR("Include"), strn(new_path.path, new_path.len, new_path.len + 1));
 	}
 

@@ -357,6 +357,42 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 			  dynamic ? "_d" : "", proj->rel_dir.len - 1, buf);
 	}
 
+#if defined(C_WIN)
+	if (type == PROJ_TYPE_EXE) {
+		for (uint i = 0; i < proj->all_depends.cnt; i++) {
+			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+				continue;
+			}
+
+			path_t target = { 0 };
+			path_init(&target, "", 0);
+			target.len = resolve(&dep->proj->props[PROJ_PROP_OUTDIR].value, target.path, sizeof(target.path), dep->proj);
+			path_child(&target, dep->proj->name.data, dep->proj->name.len);
+			path_child_s(&target, CSTR("_d.dll"), 0);
+
+			c_fprintf(file,
+				  "add_custom_command(TARGET %.*s POST_BUILD\n"
+				  "    COMMAND ${CMAKE_COMMAND} -E copy_if_different\n"
+				  "    \"%.*s\"\n"
+				  "    $<TARGET_FILE_DIR:%.*s>\n"
+				  ")\n",
+				  proj->name.len, proj->name.data, target.len, target.path, proj->name.len, proj->name.data);
+
+			if (dep->proj->props[PROJ_PROP_LINK].flags & PROP_SET) {
+				const arr_t *links = &dep->proj->props[PROJ_PROP_LINK].arr;
+				for (uint j = 0; j < links->cnt; j++) {
+					const prop_str_t *link = arr_get(links, j);
+					if (link->val.len > 0) {
+						c_fprintf(file, " %.*s", link->val.len, link->val.data);
+					}
+				}
+			}
+		}
+	}
+#endif
+
 done:
 	return ret;
 }
