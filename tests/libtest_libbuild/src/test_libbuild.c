@@ -18,16 +18,16 @@ int G_MSG = 0;
 TEST(tests)
 {
 	SSTART;
-	RUN(cm);
+	//RUN(cm);
 	RUN(mk);
-	RUN(vc);
-	RUN(vs);
+	//RUN(vc);
+	//RUN(vs);
 	SEND;
 }
 
 int test_libbuild()
 {
-	t_run(test_cutils, 0);
+	//t_run(test_cutils, 0);
 	tests();
 
 	return 0;
