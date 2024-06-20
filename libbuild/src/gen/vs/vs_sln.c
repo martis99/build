@@ -48,11 +48,13 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj  = pair->value;
 		byte buf[256] = { 0 };
-		convert_backslash(buf, sizeof(buf), proj->gen_path.path, proj->gen_path.len);
+		mem_cpy(buf, sizeof(buf), proj->gen_path.path, proj->gen_path.len);
+		convert_backslash(buf, proj->gen_path.len);
 		c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)proj->name.len, proj->name.data,
 			  (int)proj->gen_path.len, buf, proj->guid);
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			convert_backslash(buf, sizeof(buf), proj->gen_path_d.path, proj->gen_path_d.len);
+			mem_cpy(buf, sizeof(buf), proj->gen_path_d.path, proj->gen_path_d.len);
+			convert_backslash(buf, proj->gen_path_d.len);
 			c_fprintf(file, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%.*s.d\", \"%.*s\", \"{%s}\"\nEndProject\n", (int)proj->name.len,
 				  proj->name.data, (int)proj->gen_path_d.len, buf, proj->guid2);
 		}
@@ -61,21 +63,21 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	c_fprintf(file, "Global\n"
 			"\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
 
-	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_PLATFORMS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.cnt < 1 ||
-	    sln->props[SLN_PROP_PLATFORMS].arr.cnt < 1) {
-		ERR("%s", "at least one config and platform must be set");
+	if (!(sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) || !(sln->props[SLN_PROP_ARCHS].flags & PROP_SET) || sln->props[SLN_PROP_CONFIGS].arr.cnt < 1 ||
+	    sln->props[SLN_PROP_ARCHS].arr.cnt < 1) {
+		ERR("%s", "at least one config and arch must be set");
 		return ret + 1;
 	}
 
-	const prop_t *configs  = &sln->props[SLN_PROP_CONFIGS];
-	const arr_t *platforms = &sln->props[SLN_PROP_PLATFORMS].arr;
+	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
+	const arr_t *archs    = &sln->props[SLN_PROP_ARCHS].arr;
 
 	for (uint i = 0; i < configs->arr.cnt; i++) {
 		prop_str_t *config = arr_get(&configs->arr, i);
-		for (uint j = 0; j < platforms->cnt; j++) {
-			prop_str_t *platform = arr_get(platforms, j);
-			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
-				  config->val.data, platform->val.len, platform->val.data);
+		for (uint j = 0; j < archs->cnt; j++) {
+			prop_str_t *arch = arr_get(archs, j);
+			c_fprintf(file, "\t\t%.*s|%.*s = %.*s|%.*s\n", config->val.len, config->val.data, arch->val.len, arch->val.data, config->val.len,
+				  config->val.data, arch->val.len, arch->val.data);
 		}
 	}
 
@@ -88,11 +90,11 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			prop_str_t *config = arr_get(&configs->arr, i);
-			for (uint j = 0; j < platforms->cnt; j++) {
-				prop_str_t *platform = arr_get(platforms, j);
-				const char *platf    = platform->val.data;
-				size_t platf_len     = platform->val.len;
-				if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+			for (uint j = 0; j < archs->cnt; j++) {
+				prop_str_t *arch  = arr_get(archs, j);
+				const char *platf = arch->val.data;
+				size_t platf_len  = arch->val.len;
+				if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 					platf	  = "Win32";
 					platf_len = 5;
 				}
@@ -100,20 +102,20 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 				c_fprintf(file,
 					  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 					  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
-					  proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data,
-					  platf_len, platf, proj->guid, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
-					  config->val.data, platf_len, platf);
+					  proj->guid, config->val.len, config->val.data, arch->val.len, arch->val.data, config->val.len, config->val.data, platf_len,
+					  platf, proj->guid, config->val.len, config->val.data, arch->val.len, arch->val.data, config->val.len, config->val.data,
+					  platf_len, platf);
 			}
 		}
 
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 			for (uint i = 0; i < configs->arr.cnt; i++) {
 				prop_str_t *config = arr_get(&configs->arr, i);
-				for (uint j = 0; j < platforms->cnt; j++) {
-					prop_str_t *platform = arr_get(platforms, j);
-					const char *platf    = platform->val.data;
-					size_t platf_len     = platform->val.len;
-					if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+				for (uint j = 0; j < archs->cnt; j++) {
+					prop_str_t *arch  = arr_get(archs, j);
+					const char *platf = arch->val.data;
+					size_t platf_len  = arch->val.len;
+					if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 						platf	  = "Win32";
 						platf_len = 5;
 					}
@@ -121,8 +123,8 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 					c_fprintf(file,
 						  "\t\t{%s}.%.*s|%.*s.ActiveCfg = %.*s|%.*s\n"
 						  "\t\t{%s}.%.*s|%.*s.Build.0 = %.*s|%.*s\n",
-						  proj->guid2, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len, config->val.data,
-						  platf_len, platf, proj->guid2, config->val.len, config->val.data, platform->val.len, platform->val.data, config->val.len,
+						  proj->guid2, config->val.len, config->val.data, arch->val.len, arch->val.data, config->val.len, config->val.data,
+						  platf_len, platf, proj->guid2, config->val.len, config->val.data, arch->val.len, arch->val.data, config->val.len,
 						  config->val.data, platf_len, platf);
 				}
 			}

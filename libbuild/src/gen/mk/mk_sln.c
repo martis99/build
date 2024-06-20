@@ -12,12 +12,12 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	size_t buf_len = prop->val.len;
 	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 
-	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("$(SLNDIR)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name.data, proj->name.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(CONFIG)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), CSTR("$(PLATFORM)"), NULL);
+	convert_slash(buf, buf_len);
 
 	return buf_len;
 }
@@ -25,10 +25,11 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, str_t target)
 {
 	char buf[P_MAX_PATH] = { 0 };
-	size_t buf_len;
 
-	buf_len = convert_slash(CSTR(buf), proj->rel_dir.path, proj->rel_dir.len);
-	make_rule_add_act(make, rule, make_create_cmd(make, MCMDCHILD(strn(buf, buf_len - 1, buf_len), target)));
+	str_t path = str_cpy(strc(proj->rel_dir.path, proj->rel_dir.len));
+	convert_slash((char *)path.data, path.len);
+	path.len--;
+	make_rule_add_act(make, rule, make_create_cmd(make, MCMDCHILD(path, target)));
 }
 
 static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action, int coverable)
@@ -97,6 +98,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
+	const prop_t *archs   = &sln->props[SLN_PROP_ARCHS];
 
 	path_t cmake_path = *path;
 	if (path_child(&cmake_path, CSTR("Makefile")) == NULL) {
@@ -113,6 +115,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	const make_var_t curdir = make_add_act(&make, make_create_var_ext(&make, STR("CURDIR"), MAKE_VAR_INST));
 	const make_var_t ld	= make_add_act(&make, make_create_var_ext(&make, STR("LD"), MAKE_VAR_INST));
 	const make_var_t cc	= make_add_act(&make, make_create_var_ext(&make, STR("CC"), MAKE_VAR_INST));
+	const make_var_t as	= make_add_act(&make, make_create_var_ext(&make, STR("AS"), MAKE_VAR_INST));
 
 	const make_var_t slndir = make_add_act(&make, make_create_var(&make, STR("SLNDIR"), MAKE_VAR_INST));
 	make_var_add_val(&make, slndir, MSTR(STR("$(CURDIR)/")));
@@ -120,6 +123,8 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	make_var_add_val(&make, tld, MVAR(ld));
 	const make_var_t tcc = make_add_act(&make, make_create_var(&make, STR("TCC"), MAKE_VAR_INST));
 	make_var_add_val(&make, tcc, MVAR(cc));
+	const make_var_t tas = make_add_act(&make, make_create_var(&make, STR("TAS"), MAKE_VAR_INST));
+	make_var_add_val(&make, tas, MVAR(as));
 
 	int first = 1;
 
@@ -178,6 +183,21 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 	make_add_act(&make, make_create_empty(&make));
 
+	if ((archs->flags & PROP_SET) && archs->arr.cnt > 0) {
+		const make_var_t marchs = make_add_act(&make, make_create_var(&make, STR("ARCHS"), MAKE_VAR_INST));
+
+		for (uint i = 0; i < archs->arr.cnt; i++) {
+			const prop_str_t *arch = arr_get(&archs->arr, i);
+			make_var_add_val(&make, marchs, MSTR(strs(arch->val)));
+		}
+
+		prop_str_t *arch       = arr_get(&archs->arr, 0);
+		const make_var_t march = make_add_act(&make, make_create_var(&make, STR("ARCH"), MAKE_VAR_INST));
+		make_var_add_val(&make, march, MSTR(strs(arch->val)));
+	}
+
+	make_add_act(&make, make_create_empty(&make));
+
 	const make_var_t show = make_add_act(&make, make_create_var(&make, STR("SHOW"), MAKE_VAR_INST));
 	make_var_add_val(&make, show, MSTR(STR("true")));
 
@@ -202,6 +222,10 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
 		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(CONFIG),$(CONFIGS))")), MSTR(str_null())));
 		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
+	}
+	if ((archs->flags & PROP_SET) && archs->arr.cnt > 0) {
+		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(ARCH),$(ARCHS))")), MSTR(str_null())));
+		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Arch '$(ARCH)' not found. Archs: $(ARCHS)"))));
 	}
 
 	int artifacts = 0;

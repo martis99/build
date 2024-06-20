@@ -5,37 +5,37 @@
 
 #include "common.h"
 
-static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, const char *outdir,
+static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj, const prop_str_t *config, const prop_str_t *arch, const char *outdir,
 		      size_t outdir_len)
 {
 	size_t buf_len = prop->val.len;
 	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
 
-	buf_len = invert_slash(buf, buf_len);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("${workspaceFolder}/"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name.data, proj->name.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), config ? config->val.data : "", config ? config->val.len : 0, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), platform ? platform->val.data : "", platform ? platform->val.len : 0, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(ARCH)"), arch ? arch->val.data : "", arch ? arch->val.len : 0, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN)"), CSTR("$(BIN_DIR)$(BIN_FILE)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_DIR)"), outdir, outdir_len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(BIN_FILE)"), proj->name.data, proj->name.len, NULL);
+	convert_slash(buf, buf_len);
 
 	return buf_len;
 }
 
 #define NAME_PATTERN			  "%.*s-%s%s%.*s%s%.*s"
 #define NAME_VAL(_val)			  _val ? "-" : "", _val ? ((const prop_str_t *)_val)->val.len : 0, _val ? ((const prop_str_t *)_val)->val.data : ""
-#define NAME(_action, _config, _platform) name->len, name->data, _action, NAME_VAL(_config), NAME_VAL(_platform)
+#define NAME(_action, _config, _arch) name->len, name->data, _action, NAME_VAL(_config), NAME_VAL(_arch)
 
-static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_t *config, const prop_str_t *platform, const char *action, json_t *json, json_val_t tasks)
+static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_t *config, const prop_str_t *arch, const char *action, json_t *json, json_val_t tasks)
 {
 	const str_t *name = &proj->name;
 
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 
 	const json_val_t task = json_add_val(json, tasks, str_null(), JSON_OBJ());
-	json_add_val(json, task, STR("label"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, platform))));
+	json_add_val(json, task, STR("label"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, arch))));
 	json_add_val(json, task, STR("type"), JSON_STR(STR("shell")));
 	json_add_val(json, task, STR("command"), JSON_STR(STR("make")));
 	const json_val_t args = json_add_val(json, task, STR("args"), JSON_ARR());
@@ -46,8 +46,8 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 		json_add_val(json, args, str_null(), JSON_STR(strf("CONFIG=%.*s", config->val.len, config->val.data)));
 	}
 
-	if (platform) {
-		json_add_val(json, args, str_null(), JSON_STR(strf("PLATFORM=%.*s", platform->val.len, platform->val.data)));
+	if (arch) {
+		json_add_val(json, args, str_null(), JSON_STR(strf("ARCH=%.*s", arch->val.len, arch->val.data)));
 	}
 
 	if (run->flags & PROP_SET) {
@@ -78,30 +78,30 @@ static int add_task(const proj_t *proj, const prop_t *sln_props, const prop_str_
 static int add_tasks(const proj_t *proj, const prop_t *sln_props, const char *action, json_t *json, json_val_t tasks)
 {
 	const str_t *name = &proj->name;
-	proj_type_t type       = proj->props[PROJ_PROP_TYPE].mask;
+	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
 
 	const prop_t *configs	= &sln_props[SLN_PROP_CONFIGS];
-	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
+	const prop_t *archs = &sln_props[SLN_PROP_ARCHS];
 
-	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
+	if (!(configs->flags & PROP_SET) && !(archs->flags & PROP_SET)) {
 		add_task(proj, sln_props, NULL, NULL, action, json, tasks);
-	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
+	} else if ((configs->flags & PROP_SET) && !(archs->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 			add_task(proj, sln_props, config, NULL, action, json, tasks);
 		}
-	} else if (!(configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
-		for (uint i = 0; i < platforms->arr.cnt; i++) {
-			const prop_str_t *platform = arr_get(&platforms->arr, i);
-			add_task(proj, sln_props, NULL, platform, action, json, tasks);
+	} else if (!(configs->flags & PROP_SET) && (archs->flags & PROP_SET)) {
+		for (uint i = 0; i < archs->arr.cnt; i++) {
+			const prop_str_t *arch = arr_get(&archs->arr, i);
+			add_task(proj, sln_props, NULL, arch, action, json, tasks);
 		}
-	} else if ((configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
+	} else if ((configs->flags & PROP_SET) && (archs->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			for (uint j = 0; j < platforms->arr.cnt; j++) {
-				const prop_str_t *platform = arr_get(&platforms->arr, j);
-				add_task(proj, sln_props, config, platform, action, json, tasks);
+			for (uint j = 0; j < archs->arr.cnt; j++) {
+				const prop_str_t *arch = arr_get(&archs->arr, j);
+				add_task(proj, sln_props, config, arch, action, json, tasks);
 			}
 		}
 	}
@@ -125,7 +125,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, json_t *json,
 	return 0;
 }
 
-static json_val_t add_launch_header(const proj_t *proj, const char *action, const prop_str_t *config, const prop_str_t *platform, json_t *json, json_val_t confs,
+static json_val_t add_launch_header(const proj_t *proj, const char *action, const prop_str_t *config, const prop_str_t *arch, json_t *json, json_val_t confs,
 				    str_t type)
 {
 	const str_t *name = &proj->name;
@@ -133,15 +133,15 @@ static json_val_t add_launch_header(const proj_t *proj, const char *action, cons
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 
 	const json_val_t conf = json_add_val(json, confs, str_null(), JSON_OBJ());
-	json_add_val(json, conf, STR("name"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, platform))));
+	json_add_val(json, conf, STR("name"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, arch))));
 	json_add_val(json, conf, STR("type"), JSON_STR(type));
 	json_add_val(json, conf, STR("request"), JSON_STR(STR("launch")));
-	json_add_val(json, conf, STR("preLaunchTask"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, platform))));
+	json_add_val(json, conf, STR("preLaunchTask"), JSON_STR(strf(NAME_PATTERN, NAME(action, config, arch))));
 
 	return conf;
 }
 
-static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, const prop_str_t *config, const prop_str_t *platform, json_t *json, json_val_t confs)
+static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, const prop_str_t *config, const prop_str_t *arch, json_t *json, json_val_t confs)
 {
 	const str_t *name = &proj->name;
 
@@ -163,9 +163,9 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, cons
 	size_t out_len;
 	size_t buf_len;
 
-	out_len = resolve(outdir, CSTR(out), proj, config, platform, "", 0);
+	out_len = resolve(outdir, CSTR(out), proj, config, arch, "", 0);
 
-	const json_val_t conf = add_launch_header(proj, action, config, platform, json, confs, STR("cppdbg"));
+	const json_val_t conf = add_launch_header(proj, action, config, arch, json, confs, STR("cppdbg"));
 
 	proj_t *pproj = proj;
 
@@ -179,7 +179,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, cons
 
 	make_ext_set_val(&pproj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}/")));
 	make_ext_set_val(&pproj->make, STR("CONFIG"), MSTR(strs(config->val)));
-	make_ext_set_val(&pproj->make, STR("PLATFORM"), MSTR(strs(platform->val)));
+	make_ext_set_val(&pproj->make, STR("ARCH"), MSTR(strs(arch->val)));
 	make_expand(&pproj->make);
 	str_t mtarget = make_var_get_resolved(&pproj->make, STR("TARGET"));
 
@@ -201,7 +201,7 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, cons
 
 			const prop_str_t argp = { .val = strc(arg.data, arg.len) };
 
-			buf_len = resolve(&argp, CSTR(buf), proj, config, platform, out, out_len);
+			buf_len = resolve(&argp, CSTR(buf), proj, config, arch, out, out_len);
 
 			json_add_val(json, jargs, str_null(), JSON_STR(strn(buf, buf_len, buf_len + 1)));
 
@@ -234,19 +234,19 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, cons
 	return 0;
 }
 
-static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_str_t *platform, json_t *json, json_val_t confs)
+static int f5anything(const proj_t *proj, const prop_str_t *config, const prop_str_t *arch, json_t *json, json_val_t confs)
 {
-	add_launch_header(proj, "compile", config, platform, json, confs, STR("f5anything"));
+	add_launch_header(proj, "compile", config, arch, json, confs, STR("f5anything"));
 
 	return 0;
 }
 
-static int add_launch(proj_t *proj, const dict_t *projects, const prop_str_t *config, const prop_str_t *platform, json_t *json, json_val_t confs)
+static int add_launch(proj_t *proj, const dict_t *projects, const prop_str_t *config, const prop_str_t *arch, json_t *json, json_val_t confs)
 {
 	if (config && cstr_eq(config->val.data, config->val.len, CSTR("Release"))) {
-		return f5anything(proj, config, platform, json, confs);
+		return f5anything(proj, config, arch, json, confs);
 	} else {
-		return cppdbg(proj, projects, "compile", config, platform, json, confs);
+		return cppdbg(proj, projects, "compile", config, arch, json, confs);
 	}
 }
 
@@ -255,27 +255,27 @@ int vc_proj_gen_launch(proj_t *proj, const dict_t *projects, const prop_t *sln_p
 	const str_t *name = &proj->name;
 
 	const prop_t *configs	= &sln_props[SLN_PROP_CONFIGS];
-	const prop_t *platforms = &sln_props[SLN_PROP_PLATFORMS];
+	const prop_t *archs = &sln_props[SLN_PROP_ARCHS];
 
-	if (!(configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
+	if (!(configs->flags & PROP_SET) && !(archs->flags & PROP_SET)) {
 		add_launch(proj, projects, NULL, NULL, json, confs);
-	} else if ((configs->flags & PROP_SET) && !(platforms->flags & PROP_SET)) {
+	} else if ((configs->flags & PROP_SET) && !(archs->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 			add_launch(proj, projects, config, NULL, json, confs);
 		}
-	} else if (!(configs->flags & PROP_SET) && (platforms->flags & PROP_SET)) {
-		for (uint i = 0; i < platforms->arr.cnt; i++) {
-			const prop_str_t *platform = arr_get(&platforms->arr, i);
-			add_launch(proj, projects, NULL, platform, json, confs);
+	} else if (!(configs->flags & PROP_SET) && (archs->flags & PROP_SET)) {
+		for (uint i = 0; i < archs->arr.cnt; i++) {
+			const prop_str_t *arch = arr_get(&archs->arr, i);
+			add_launch(proj, projects, NULL, arch, json, confs);
 		}
-	} else if ((platforms->flags & PROP_SET) && (configs->flags & PROP_SET)) {
+	} else if ((archs->flags & PROP_SET) && (configs->flags & PROP_SET)) {
 		for (uint i = 0; i < configs->arr.cnt; i++) {
 			const prop_str_t *config = arr_get(&configs->arr, i);
 
-			for (uint j = 0; j < platforms->arr.cnt; j++) {
-				const prop_str_t *platform = arr_get(&platforms->arr, j);
-				add_launch(proj, projects, config, platform, json, confs);
+			for (uint j = 0; j < archs->arr.cnt; j++) {
+				const prop_str_t *arch = arr_get(&archs->arr, j);
+				add_launch(proj, projects, config, arch, json, confs);
 			}
 		}
 	}

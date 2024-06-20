@@ -1,3 +1,5 @@
+//TODO: Add warning when prop not found 
+
 #include "prop.h"
 
 #include "cstr.h"
@@ -216,34 +218,20 @@ void props_free(prop_t *props, const prop_pol_t *props_pol, size_t props_pol_siz
 	}
 }
 
-size_t convert_slash(char *dst, size_t dst_len, const char *src, size_t src_len)
+void convert_slash(char *str, size_t len)
 {
-	mem_cpy(dst, dst_len, src, src_len);
-	for (size_t i = 0; i < src_len; i++) {
-		if (dst[i] == '\\') {
-			dst[i] = '/';
-		}
-	}
-	return src_len;
-}
-
-size_t convert_backslash(char *dst, size_t dst_len, const char *src, size_t src_len)
-{
-	mem_cpy(dst, dst_len, src, src_len);
-	for (size_t i = 0; i < src_len; i++) {
-		if (dst[i] == '/') {
-			dst[i] = '\\';
-		}
-	}
-	return src_len;
-}
-
-size_t invert_slash(char *str, size_t str_len)
-{
-	for (size_t i = 0; i < str_len; i++) {
+	for (size_t i = 0; i < len; i++) {
 		if (str[i] == '\\') {
 			str[i] = '/';
 		}
 	}
-	return str_len;
+}
+
+void convert_backslash(char *str, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] == '/') {
+			str[i] = '\\';
+		}
+	}
 }

@@ -9,16 +9,16 @@
 #include "md5.h"
 
 static const prop_pol_t s_sln_props[] = {
-	[SLN_PROP_NAME]	     = { .name = STRS("NAME"), },
-	[SLN_PROP_LANGS]     = { .name = STRS("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .flags = PPF_ARR },
-	[SLN_PROP_DIRS]	     = { .name = STRS("DIRS"),  .flags = PPF_ARR | PPF_DIR },
-	[SLN_PROP_STARTUP]   = { .name = STRS("STARTUP"), },
-	[SLN_PROP_CONFIGS]   = { .name = STRS("CONFIGS"), .flags = PPF_ARR},
-	[SLN_PROP_PLATFORMS] = { .name = STRS("PLATFORMS"), .flags = PPF_ARR },
-	[SLN_PROP_CHARSET]   = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
-	[SLN_PROP_CFLAGS]    = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .flags = PPF_ARR },
-	[SLN_PROP_OUTDIR]    = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_DIR)")},
-	[SLN_PROP_INTDIR]    = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(PLATFORM)\\$(PROJ_DIR)int\\")},
+	[SLN_PROP_NAME]	   = { .name = STRS("NAME"), },
+	[SLN_PROP_LANGS]   = { .name = STRS("LANGS"),  .str_table = s_langs, .str_table_len = __LANG_MAX, .flags = PPF_ARR },
+	[SLN_PROP_DIRS]	   = { .name = STRS("DIRS"),  .flags = PPF_ARR | PPF_DIR },
+	[SLN_PROP_STARTUP] = { .name = STRS("STARTUP"), },
+	[SLN_PROP_CONFIGS] = { .name = STRS("CONFIGS"), .flags = PPF_ARR},
+	[SLN_PROP_ARCHS]   = { .name = STRS("ARCHS"), .flags = PPF_ARR },
+	[SLN_PROP_CHARSET] = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
+	[SLN_PROP_FLAGS]  = { .name = STRS("CFLAGS"), .str_table = s_flags, .str_table_len = __FLAG_MAX, .flags = PPF_ARR },
+	[SLN_PROP_OUTDIR]  = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(ARCH)\\$(PROJ_DIR)")},
+	[SLN_PROP_INTDIR]  = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(ARCH)\\$(PROJ_DIR)int\\")},
 };
 
 typedef struct read_dir_data_s {

@@ -43,8 +43,9 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 	// clang-format off
 	const char *langs[] = {
 		[LANG_NONE]    = "",
-		[LANG_C]       = " C",
+		[LANG_NASM]    = " NASM",
 		[LANG_ASM]     = " ASM",
+		[LANG_C]       = " C",
 		[LANG_CPP]     = " CXX",
 	};
 	// clang-format on

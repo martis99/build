@@ -1,0 +1,5 @@
+NAME = nasmc_exe
+TYPE = EXE
+LANGS = NASM
+SOURCE = src
+ARGS = test

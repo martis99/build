@@ -27,9 +27,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_CHARSET]  = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[PROJ_PROP_OUTDIR]   = { .name = STRS("OUTDIR"), .flags = PPF_DIR },
 	[PROJ_PROP_INTDIR]   = { .name = STRS("INTDIR"), .flags = PPF_DIR },
-	[PROJ_PROP_CFLAGS]   = { .name = STRS("CFLAGS"), .str_table = s_cflags, .str_table_len = __CFLAG_MAX, .flags = PPF_ARR },
-	[PROJ_PROP_CCFLAGS]  = { .name = STRS("CCFLAGS"), .flags = PPF_ARR },
-	[PROJ_PROP_LDFLAGS]  = { .name = STRS("LDFLAGS"), .str_table = s_ldflags, .str_table_len = __LDFLAG_MAX, .flags = PPF_ARR },
+	[PROJ_PROP_FLAGS]    = { .name = STRS("FLAGS"), .str_table = s_flags, .str_table_len = __FLAG_MAX, .flags = PPF_ARR },
 	[PROJ_PROP_LINK]     = { .name = STRS("LINK"), .flags = PPF_ARR },
 	[PROJ_PROP_EXPORT]   = { .name = STRS("EXPORT"), .flags = PPF_ARR },
 	[PROJ_PROP_REQUIRE]  = { .name = STRS("REQUIRE"), .flags = PPF_ARR },
@@ -87,13 +85,15 @@ int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_dir, const path_t
 	path_child(&proj->gen_path, proj->name.data, proj->name.len);
 	path_child_s(&proj->gen_path, CSTR("vcxproj"), '.');
 	byte buf[256] = { 0 };
-	convert_backslash(buf, sizeof(buf), proj->gen_path.path, proj->gen_path.len);
+	mem_cpy(buf, sizeof(buf), proj->gen_path.path, proj->gen_path.len);
+	convert_backslash(buf, proj->gen_path.len);
 	md5(buf, proj->gen_path.len, buf, sizeof(buf), proj->guid, sizeof(proj->guid));
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 		path_init(&proj->gen_path_d, proj->rel_dir.path, proj->rel_dir.len);
 		path_child(&proj->gen_path_d, proj->name.data, proj->name.len);
 		path_child_s(&proj->gen_path_d, CSTR("d.vcxproj"), '.');
-		convert_backslash(buf, sizeof(buf), proj->gen_path_d.path, proj->gen_path_d.len);
+		mem_cpy(buf, sizeof(buf), proj->gen_path_d.path, proj->gen_path_d.len);
+		convert_backslash(buf, proj->gen_path_d.len);
 		md5(buf, proj->gen_path_d.len, buf, sizeof(buf), proj->guid2, sizeof(proj->guid2));
 	}
 
@@ -137,7 +137,7 @@ int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_dir, const path_t
 
 	replace_prop(&proj->props[PROJ_PROP_LANGS], &sln_props[SLN_PROP_LANGS]);
 	replace_prop(&proj->props[PROJ_PROP_CHARSET], &sln_props[SLN_PROP_CHARSET]);
-	replace_prop(&proj->props[PROJ_PROP_CFLAGS], &sln_props[SLN_PROP_CFLAGS]);
+	replace_prop(&proj->props[PROJ_PROP_FLAGS], &sln_props[SLN_PROP_FLAGS]);
 	replace_prop(&proj->props[PROJ_PROP_OUTDIR], &sln_props[SLN_PROP_OUTDIR]);
 	replace_prop(&proj->props[PROJ_PROP_INTDIR], &sln_props[SLN_PROP_INTDIR]);
 

@@ -15,8 +15,8 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), CSTR("$(ProjectName)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(Configuration)"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), CSTR("$(PlatformTarget)"), NULL);
-	convert_backslash(buf, buf_len, buf, buf_len);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(ARCH)"), CSTR("$(PlatformTarget)"), NULL);
+	convert_backslash(buf, buf_len);
 	return buf_len;
 }
 
@@ -34,14 +34,14 @@ static int add_src_file(path_t *path, const char *file, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, file, cstr_len(file));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".c"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".asm"))) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".cpp")));
+	int add = ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".asm"))) || ((data->langs & (1 << LANG_NASM)) && path_ends(&new_path, CSTR(".nasm"))) ||
+		  ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".c"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".cpp")));
 
 	if (!add) {
 		return 0;
 	}
 
-	convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
+	convert_backslash(new_path.path, new_path.len);
 
 	if (path_ends(&new_path, CSTR(".asm"))) {
 		xml_tag_t xml_inc = xml_add_tag(data->xml, data->xml_items, STR("MASM"));
@@ -71,11 +71,12 @@ static int add_inc_file(path_t *path, const char *file, void *priv)
 	path_t new_path = data->path;
 	path_child(&new_path, file, cstr_len(file));
 
-	int add = ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_ASM)) && path_ends(&new_path, CSTR(".inc"))) ||
-		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
+	int add = ((data->langs & ((1 << LANG_ASM) | (1 << LANG_NASM))) && path_ends(&new_path, CSTR(".inc"))) ||
+		  ((data->langs & (1 << LANG_C)) && path_ends(&new_path, CSTR(".h"))) || ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".h"))) ||
+		  ((data->langs & (1 << LANG_CPP)) && path_ends(&new_path, CSTR(".hpp")));
 
 	if (add) {
-		convert_backslash(new_path.path, new_path.len, new_path.path, new_path.len);
+		convert_backslash(new_path.path, new_path.len);
 		xml_add_attr(data->xml, xml_add_tag(data->xml, data->xml_items, STR("ClInclude")), STR("Include"), strn(new_path.path, new_path.len, new_path.len + 1));
 	}
 
@@ -225,7 +226,7 @@ static inline size_t print_libs(char *buf, size_t buf_size, const proj_t *proj, 
 						path_child_s(&dir, dep->proj->rel_dir.path, dep->proj->rel_dir.len, 0);
 						path_child(&dir, tmp, tmp_len);
 #if defined(C_LINUX)
-						convert_backslash(dir.path, dir.len, dir.path, dir.len);
+						convert_backslash(dir.path, dir.len);
 #endif
 						len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s" : ";%.*s", (int)dir.len, dir.path);
 					}
@@ -244,9 +245,9 @@ static inline size_t print_ldflags(char *buf, size_t buf_size, const proj_t *pro
 	size_t len = 0;
 	bool first = 0;
 
-	const prop_t *ldflags = &proj->props[PROJ_PROP_LDFLAGS];
+	const prop_t *flags = &proj->props[PROJ_PROP_FLAGS];
 
-	if ((ldflags->flags & PROP_SET) && (ldflags->mask & (1 << LDFLAG_WHOLEARCHIVE))) {
+	if ((flags->flags & PROP_SET) && (flags->mask & (1 << FLAG_WHOLEARCHIVE))) {
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, "%*s/WHOLEARCHIVE", first, "");
 		first = 1;
 	}
@@ -287,11 +288,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	const str_t *name = &proj->name;
 	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
 
-	const arr_t *platforms = &sln_props[SLN_PROP_PLATFORMS].arr;
+	const arr_t *archs     = &sln_props[SLN_PROP_ARCHS].arr;
 	const arr_t *configs   = &sln_props[SLN_PROP_CONFIGS].arr;
 	const prop_t *langs    = &proj->props[PROJ_PROP_LANGS];
 	const prop_t *charset  = &proj->props[PROJ_PROP_CHARSET];
-	const prop_t *cflags   = &proj->props[PROJ_PROP_CFLAGS];
+	const prop_t *flags    = &proj->props[PROJ_PROP_FLAGS];
 	const prop_t *p_outdir = &proj->props[PROJ_PROP_OUTDIR];
 	const prop_t *p_intdir = &proj->props[PROJ_PROP_INTDIR];
 
@@ -334,11 +335,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	xml_tag_t xml_proj_confs = xml_add_tag(&xml, xml_proj, STR("ItemGroup"));
 	xml_add_attr(&xml, xml_proj_confs, STR("Label"), STR("ProjectConfigurations"));
 
-	for (int i = platforms->cnt - 1; i >= 0; i--) {
-		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->val.data;
-		size_t platf_len     = platform->val.len;
-		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+	for (int i = archs->cnt - 1; i >= 0; i--) {
+		prop_str_t *arch  = arr_get(archs, i);
+		const char *platf = arch->val.data;
+		size_t platf_len  = arch->val.len;
+		if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -390,11 +391,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 		[CHARSET_MULTI_BYTE] = { CSTR("MultiByte") },
 	};
 
-	for (int i = platforms->cnt - 1; i >= 0; i--) {
-		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->val.data;
-		size_t platf_len     = platform->val.len;
-		if (cstr_eq(platform->val.data, platform->val.len, "x86", 3)) {
+	for (int i = archs->cnt - 1; i >= 0; i--) {
+		prop_str_t *arch  = arr_get(archs, i);
+		const char *platf = arch->val.data;
+		size_t platf_len  = arch->val.len;
+		if (cstr_eq(arch->val.data, arch->val.len, "i386", 3)) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -425,7 +426,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 	xml_add_attr(&xml, xml_add_tag(&xml, xml_proj, STR("Import")), STR("Project"), STR("$(VCTargetsPath)\\Microsoft.Cpp.props"));
 
-	if (langs->mask & (1 << LANG_ASM)) {
+	if (langs->mask & (1 << LANG_NASM)) {
 		xml_tag_t xml_ext_set = xml_add_tag(&xml, xml_proj, STR("ImportGroup"));
 		xml_add_attr(&xml, xml_ext_set, STR("Label"), STR("ExtensionSettings"));
 		xml_add_attr(&xml, xml_add_tag(&xml, xml_ext_set, STR("Import")), STR("Project"), STR("$(VCTargetsPath)\\BuildCustomizations\\masm.props"));
@@ -434,11 +435,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	}
 	xml_add_attr(&xml, xml_add_tag_val(&xml, xml_proj, STR("ImportGroup"), STR("\n")), STR("Label"), STR("Shared"));
 
-	for (int i = platforms->cnt - 1; i >= 0; i--) {
-		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->val.data;
-		size_t platf_len     = platform->val.len;
-		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+	for (int i = archs->cnt - 1; i >= 0; i--) {
+		prop_str_t *arch  = arr_get(archs, i);
+		const char *platf = arch->val.data;
+		size_t platf_len  = arch->val.len;
+		if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -459,11 +460,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	xml_tag_t xml_macros = xml_add_tag(&xml, xml_proj, STR("PropertyGroup"));
 	xml_add_attr(&xml, xml_macros, STR("Label"), STR("UserMacros"));
 
-	for (int i = platforms->cnt - 1; i >= 0; i--) {
-		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->val.data;
-		size_t platf_len     = platform->val.len;
-		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+	for (int i = archs->cnt - 1; i >= 0; i--) {
+		prop_str_t *arch  = arr_get(archs, i);
+		const char *platf = arch->val.data;
+		size_t platf_len  = arch->val.len;
+		if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -490,11 +491,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 		}
 	}
 
-	for (int i = platforms->cnt - 1; i >= 0; i--) {
-		prop_str_t *platform = arr_get(platforms, i);
-		const char *platf    = platform->val.data;
-		size_t platf_len     = platform->val.len;
-		if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+	for (int i = archs->cnt - 1; i >= 0; i--) {
+		prop_str_t *arch  = arr_get(archs, i);
+		const char *platf = arch->val.data;
+		size_t platf_len  = arch->val.len;
+		if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 			platf	  = "Win32";
 			platf_len = 5;
 		}
@@ -544,7 +545,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 			size_t dep_len = print_depends(NULL, 0, proj, projects) + 1;
 
-			if (proj->props[PROJ_PROP_LDFLAGS].flags & PROP_SET) {
+			if (flags->flags & PROP_SET) {
 				size_t ldf_len = print_ldflags(NULL, 0, proj, projects) + 1;
 				if (ldf_len > 1) {
 					str_t ldf_data = strz(ldf_len);
@@ -552,7 +553,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 					xml_add_tag_val(&xml, xml_link, STR("AdditionalOptions"), ldf_data);
 				}
 
-				if (dep_len <= 1 && proj->props[PROJ_PROP_LDFLAGS].mask & (1 << LDFLAG_NONE)) {
+				if (dep_len <= 1 && flags->mask & (1 << FLAG_NONE)) {
 					xml_add_tag(&xml, xml_link, STR("AdditionalDependencies"));
 				}
 			}
@@ -615,8 +616,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path.path, dep->proj->gen_path.len, &rel_path);
 					}
 
-					str_t inc = strz(rel_path.len + 1);
-					inc.len	  = convert_backslash((char *)inc.data, inc.size, rel_path.path, rel_path.len);
+					str_t inc = str_cpy(strc(rel_path.path, rel_path.len));
+					convert_backslash((char *)inc.data, inc.size);
 
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
 					xml_add_attr(&xml, xml_ref, STR("Include"), inc);
@@ -673,7 +674,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 	xml_tag_t xml_ext_tar = xml_add_tag_val(&xml, xml_proj, STR("ImportGroup"), STR("\n"));
 	xml_add_attr(&xml, xml_ext_tar, STR("Label"), STR("ExtensionTargets"));
-	if (langs->mask & (1 << LANG_ASM)) {
+	if (langs->mask & (1 << LANG_NASM)) {
 		xml_add_attr(&xml, xml_add_tag(&xml, xml_ext_tar, STR("Import")), STR("Project"), STR("$(VCTargetsPath)\\BuildCustomizations\\masm.targets"));
 	}
 
@@ -737,11 +738,11 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	xml_add_attr(&xml_user, xml_proj_user, STR("xmlns"), STR("http://schemas.microsoft.com/developer/msbuild/2003"));
 
 	if (proj->props[PROJ_PROP_ARGS].flags & PROP_SET) {
-		for (int i = platforms->cnt - 1; i >= 0; i--) {
-			prop_str_t *platform = arr_get(platforms, i);
-			const char *platf    = platform->val.data;
-			size_t platf_len     = platform->val.len;
-			if (cstr_eq(platform->val.data, platform->val.len, CSTR("x86"))) {
+		for (int i = archs->cnt - 1; i >= 0; i--) {
+			prop_str_t *arch  = arr_get(archs, i);
+			const char *platf = arch->val.data;
+			size_t platf_len  = arch->val.len;
+			if (cstr_eq(arch->val.data, arch->val.len, CSTR("i386"))) {
 				platf	  = "Win32";
 				platf_len = 5;
 			}

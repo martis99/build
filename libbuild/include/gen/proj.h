@@ -30,9 +30,7 @@ typedef enum proj_prop_e {
 	PROJ_PROP_CHARSET,
 	PROJ_PROP_OUTDIR,
 	PROJ_PROP_INTDIR,
-	PROJ_PROP_CFLAGS,
-	PROJ_PROP_CCFLAGS,
-	PROJ_PROP_LDFLAGS,
+	PROJ_PROP_FLAGS,
 	PROJ_PROP_LINK,
 	PROJ_PROP_EXPORT,
 	PROJ_PROP_REQUIRE,
@@ -76,6 +74,7 @@ static const str_t s_proj_types[] = {
 
 typedef enum lang_e {
 	LANG_NONE,
+	LANG_NASM,
 	LANG_ASM,
 	LANG_C,
 	LANG_CPP,
@@ -86,6 +85,7 @@ typedef enum lang_e {
 // clang-format off
 static const str_t s_langs[] = {
 	[LANG_NONE]    = STRS("NONE"),
+	[LANG_NASM]    = STRS("NASM"),
 	[LANG_ASM]     = STRS("ASM"),
 	[LANG_C]       = STRS("C"),
 	[LANG_CPP]     = STRS("CPP"),
@@ -106,46 +106,40 @@ static const str_t s_charsets[] = {
 	[CHARSET_MULTI_BYTE] = STRS("MultiByte"),
 };
 
-typedef enum cflag_e {
-	CFLAG_NONE,
-	CFLAG_STD_C99,
-	CFLAG_FREESTANDING,
+typedef enum flag_e {
+	FLAG_NONE,
+	FLAG_STD_C99,
+	FLAG_FREESTANDING,
+	FLAG_WHOLEARCHIVE,
+	FLAG_ALLOWMULTIPLEDEFINITION,
+	FLAG_STATIC,
+	FLAG_NOSTARTFILES,
+	FLAG_MATH,
+	FLAG_X11,
+	FLAG_GL,
+	FLAG_GLX,
 
-	__CFLAG_MAX,
-} cflag_t;
+	__FLAG_MAX,
+} flag_t;
 
-static const str_t s_cflags[] = {
-	[CFLAG_NONE]	     = STRS("NONE"),
-	[CFLAG_STD_C99]	     = STRS("STD_C99"),
-	[CFLAG_FREESTANDING] = STRS("FREESTANDING"),
+static const str_t s_flags[] = {
+	[FLAG_NONE]		       = STRS("NONE"),
+	[FLAG_STD_C99]		       = STRS("STD_C99"),
+	[FLAG_FREESTANDING]	       = STRS("FREESTANDING"),
+	[FLAG_WHOLEARCHIVE]	       = STRS("WHOLEARCHIVE"),
+	[FLAG_ALLOWMULTIPLEDEFINITION] = STRS("ALLOWMULTIPLEDEFINITION"),
+	[FLAG_STATIC]		       = STRS("STATIC"),
+	[FLAG_NOSTARTFILES]	       = STRS("NOSTARTFILES"),
+	[FLAG_MATH]		       = STRS("MATH"),
+	[FLAG_X11]		       = STRS("X11"),
+	[FLAG_GL]		       = STRS("GL"),
+	[FLAG_GLX]		       = STRS("GLX"),
 };
-
-typedef enum ldflag_e {
-	LDFLAG_NONE,
-	LDFLAG_WHOLEARCHIVE,
-	LDFLAG_ALLOWMULTIPLEDEFINITION,
-	LDFLAG_MATH,
-	LDFLAG_X11,
-	LDFLAG_GL,
-	LDFLAG_GLX,
-
-	__LDFLAG_MAX,
-} ldflag_t;
 
 typedef enum link_type_e {
 	LINK_TYPE_STATIC,
 	LINK_TYPE_DYNAMIC,
 } link_type_t;
-
-static const str_t s_ldflags[] = {
-	[LDFLAG_NONE]			 = STRS("NONE"),
-	[LDFLAG_WHOLEARCHIVE]		 = STRS("WHOLEARCHIVE"),
-	[LDFLAG_ALLOWMULTIPLEDEFINITION] = STRS("ALLOWMULTIPLEDEFINITION"),
-	[LDFLAG_MATH]			 = STRS("MATH"),
-	[LDFLAG_X11]			 = STRS("X11"),
-	[LDFLAG_GL]			 = STRS("GL"),
-	[LDFLAG_GLX]			 = STRS("GLX"),
-};
 
 typedef struct proj_s {
 	path_t path;
