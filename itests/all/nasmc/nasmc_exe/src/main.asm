@@ -43,7 +43,7 @@ get_pc_thunks:
 	mov esi, esi[4] 	; argv[1]
 	push esi
 	push edx
-	call printf
+	call printf wrt ..plt
 	pop eax
 	pop eax
 %elifidn __OUTPUT_FORMAT__, elf64

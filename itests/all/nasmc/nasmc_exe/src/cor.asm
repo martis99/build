@@ -1,32 +1,23 @@
 section .data
-    msg db "NASM", 10, 0
+    msg db "ASM", 10, 0  ; "ASM\n"
 
 section .text
-    global main
     extern printf
 
+global main
+
 main:
-    push ebp
-    mov ebp, esp
-
-    ; Call get_pc_thunk to get current PC
     call get_pc_thunk
-    add edx, msg wrt ..got
+    mov edx, eax  ; Move the result of get_pc_thunk into edx
 
-    ; Load address of msg into ecx
-    mov ecx, dword [edx]
+    lea ecx, [msg - $$ + edx]  ; Calculate the address of msg relative to edx
+    push ecx                    ; Push address of msg
+    call printf                 ; Call printf
+    add esp, 4                  ; Clean up stack after call
 
-    ; Call printf
-    push ecx
-    call printf wrt ..plt
-    add esp, 4
-
-    mov esp, ebp
-    pop ebp
-
-    xor eax, eax
-    ret
+    xor eax, eax  ; Set return value to 0
+    ret           ; Return from main
 
 get_pc_thunk:
-    mov edx, [esp]
-    ret
+    mov eax, [esp]  ; Move return address (top of stack) into eax
+    ret             ; Return with eax containing return address
