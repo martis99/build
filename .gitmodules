@@ -1,3 +1,3 @@
 [submodule "cutils"]
 	path = cutils
-	url = https://github.com/martis99/cutils
+	url = git@github.com:martis99/cutils.git
