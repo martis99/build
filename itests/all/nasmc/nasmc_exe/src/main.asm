@@ -1,3 +1,13 @@
+%ifidn __OUTPUT_FORMAT__, elf32
+%define BS 4
+%define AX eax
+%define SI esi
+%elifidn __OUTPUT_FORMAT__, elf64
+%define BS 8
+%define AX rax
+%define SI rsi
+%endif
+
 section .data
 	msg: db "NASMC: %s",10,0
 	nl: db 10,0
@@ -10,54 +20,51 @@ main:
 %ifidn __OUTPUT_FORMAT__, elf32
 	; esp[4]: argc
 	; esp[8]: argv
-	mov eax, esp[4]
-	mov esi, esp[8]
+	push edi
+	push esi
+	mov edi, [esp+BS*1+BS*2]
+	mov esi, [esp+BS*2+BS*2]
 %elifidn __OUTPUT_FORMAT__, elf64
 	; rdi: argc
 	; rsi: argv
-	push rax
-	mov rax, rdi
 %endif
 	;_if argc != 2
-	cmp eax, 2
+	cmp DI, 2
 	je .continue
 
 %ifidn __OUTPUT_FORMAT__, elf32
-%elifidn __OUTPUT_FORMAT__, elf64
-	pop rax
+	pop esi
+	pop edi
 %endif
 	; return(1)
 	; eax: status
-	mov eax, 1		; 1
+	mov AX, 1		; 1
 	ret
 
 .continue:
-	call get_pc_thunks
-get_pc_thunks:
-	pop edx
-	add edx, msg - get_pc_thunks
 	; printf(msg, argv[1])
 	; edi: fmt
 	; esi: args
+	push SI
 %ifidn __OUTPUT_FORMAT__, elf32
-	mov esi, esi[4] 	; argv[1]
-	push esi
-	push edx
-	call printf wrt ..plt
+	push dword [esi+BS] 	; argv[1]
+	push msg
+	call printf
 	pop eax
 	pop eax
 %elifidn __OUTPUT_FORMAT__, elf64
-	mov rsi, rsi[8]	; argv[1]
+	mov rsi, [rsi+BS]	; argv[1]
 	mov rdi, msg
-	xor eax, eax
-	call printf@PLT
+	call printf
 %endif
+	pop SI
 
 %ifidn __OUTPUT_FORMAT__, elf32
-%elifidn __OUTPUT_FORMAT__, elf64
-	pop rax
+	pop esi
+	pop edi
 %endif
+
 	; return(0)
 	; eax: status
-	xor eax, eax		; 0
+	xor AX, AX		; 0
 	ret

@@ -1,5 +1,5 @@
 .data
-	msg: .asciz "ASMC: %s\n"
+	msg: .asciz "ASM: %s\n"
 
 .text
 	.global asm_args

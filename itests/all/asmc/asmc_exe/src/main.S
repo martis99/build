@@ -1,6 +1,6 @@
 #ifdef __i386__
-#define AX %eax
 #define BS 4
+#define AX %eax
 #define SI %esi
 #define PIC @GOTOFF(%edx)
 #elif defined(__x86_64__)
@@ -23,8 +23,8 @@ main:
 	# esp[8]: argv
 	push %edi
 	push %esi
-	mov BS*1+8(%esp), %edi
-	lea BS*2+8(%esp), %esi
+	mov BS*1+BS*2(%esp), %edi
+	mov BS*2+BS*2(%esp), %esi
 #elif defined(__x86_64__)
 	# rdi: argc
 	# rsi: argv
@@ -33,6 +33,11 @@ main:
 	#_if argc != 2
 	cmp $2, %edi
 	je .continue
+
+#ifdef __i386__
+	pop %esi
+	pop %edi
+#endif
 
 	# return(1)
 	# eax: status
@@ -51,7 +56,7 @@ main:
 	# rsi: args
 	push SI
 #ifdef __i386__
-	push BS(%esi) 	# argv[1]
+	push BS(%esi)		# argv[1]
 	lea msg PIC, %ecx
 	push %ecx
 	mov %edx, %ebx

@@ -38,6 +38,23 @@
 	"OBJ_ASM_D := $(patsubst %.asm, $(INTDIR_D)%.o, $(SRC_ASM))\n" \
 	"\n"
 
+#define S_EXE_VARS                                  \
+	EXE_VARS                                    \
+	"SRC_S := $(shell find src/ -name '*.S')\n" \
+	"OBJ_S := $(patsubst %.S, $(INTDIR)%.o, $(SRC_S))\n"
+
+#define S_STATIC_VARS                                            \
+	STATIC_VARS                                              \
+	"SRC_S := $(shell find src/ -name '*.S')\n"              \
+	"OBJ_S_S := $(patsubst %.S, $(INTDIR_S)%.o, $(SRC_S))\n" \
+	"\n"
+
+#define S_SHARED_VARS                                            \
+	SHARED_VARS                                              \
+	"SRC_S := $(shell find src/ -name '*.S')\n"              \
+	"OBJ_S_D := $(patsubst %.S, $(INTDIR_D)%.o, $(SRC_S))\n" \
+	"\n"
+
 #define C_EXE_VARS                                  \
 	EXE_VARS                                    \
 	"SRC_C := $(shell find src/ -name '*.c')\n" \
@@ -72,38 +89,90 @@
 	"OBJ_CPP_D := $(patsubst %.cpp, $(INTDIR_D)%.o, $(SRC_CPP))\n" \
 	"\n"
 
-#define CONFIG              \
-	"LDFLAGS :=\n"      \
-	"CONFIG_FLAGS :=\n" \
-	"\n"                \
-	"RM += -r\n"        \
+#define CONFIG_NASM                \
+	"LDFLAGS :=\n"             \
+	"NASM_CONFIG_FLAGS :=\n"   \
+	"\n"                       \
+	"RM += -r\n"               \
+	"\n"                       \
+	"ifeq ($(ARCH), x86_64)\n" \
+	"BITS := 64\n"             \
+	"endif\n"                  \
+	"ifeq ($(ARCH), i386)\n"   \
+	"BITS := 32\n"             \
+	"endif\n"                  \
 	"\n"
 
-#define ASM_CHECK                        \
-	"check:\n"                       \
-	"ifeq (, $(shell which nasm))\n" \
-	"\tsudo apt install nasm -y\n"   \
-	"endif\n"                        \
+#define CONFIG                     \
+	"LDFLAGS :=\n"             \
+	"GCC_CONFIG_FLAGS :=\n"    \
+	"\n"                       \
+	"RM += -r\n"               \
+	"\n"                       \
+	"ifeq ($(ARCH), x86_64)\n" \
+	"BITS := 64\n"             \
+	"endif\n"                  \
+	"ifeq ($(ARCH), i386)\n"   \
+	"BITS := 32\n"             \
+	"endif\n"                  \
 	"\n"
 
-#define C_CHECK                         \
-	"check:\n"                      \
-	"ifeq (, $(shell which gcc))\n" \
-	"\tsudo apt install gcc -y\n"   \
-	"endif\n"                       \
+#define CONFIG_DEBUG                       \
+	"ifeq ($(CONFIG), Debug)\n"        \
+	"GCC_CONFIG_FLAGS += -ggdb3 -O0\n" \
+	"endif\n"                          \
 	"\n"
 
-#define CPP_CHECK                       \
-	"check:\n"                      \
-	"ifeq (, $(shell which gcc))\n" \
-	"\tsudo apt install gcc -y\n"   \
-	"endif\n"                       \
+#define ASM_CHECK                          \
+	"check:\n"                         \
+	"ifeq (, $(shell which nasm))\n"   \
+	"\tsudo apt-get install nasm -y\n" \
+	"endif\n"                          \
 	"\n"
 
-#define TARGET_ASM                        \
-	"$(TARGET): $(OBJ_ASM)\n"         \
-	"\t@mkdir -p $(@D)\n"             \
-	"\t@$(TCC) -o $@ $^ $(LDFLAGS)\n" \
+#define S_CHECK                                    \
+	"check:\n"                                 \
+	"ifeq (, $(shell which gcc))\n"            \
+	"\tsudo apt-get install gcc -y\n"          \
+	"endif\n"                                  \
+	"ifeq ($(ARCH), $(shell uname -m))\n"      \
+	"else\n"                                   \
+	"ifeq (, $(shell dpkg -l gcc-multilib))\n" \
+	"\tsudo apt-get install gcc-multilib -y\n" \
+	"endif\n"                                  \
+	"endif\n"                                  \
+	"\n"
+
+#define C_CHECK                                    \
+	"check:\n"                                 \
+	"ifeq (, $(shell which gcc))\n"            \
+	"\tsudo apt-get install gcc -y\n"          \
+	"endif\n"                                  \
+	"ifeq ($(ARCH), $(shell uname -m))\n"      \
+	"else\n"                                   \
+	"ifeq (, $(shell dpkg -l gcc-multilib))\n" \
+	"\tsudo apt-get install gcc-multilib -y\n" \
+	"endif\n"                                  \
+	"endif\n"                                  \
+	"\n"
+
+#define CPP_CHECK                                  \
+	"check:\n"                                 \
+	"ifeq (, $(shell which g++))\n"            \
+	"\tsudo apt-get install g++ -y\n"          \
+	"endif\n"                                  \
+	"ifeq ($(ARCH), $(shell uname -m))\n"      \
+	"else\n"                                   \
+	"ifeq (, $(shell dpkg -l g++-multilib))\n" \
+	"\tsudo apt-get install g++-multilib -y\n" \
+	"endif\n"                                  \
+	"endif\n"                                  \
+	"\n"
+
+#define TARGET_ASM                                  \
+	"$(TARGET): $(OBJ_ASM)\n"                   \
+	"\t@mkdir -p $(@D)\n"                       \
+	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_ASM_S                  \
@@ -115,13 +184,31 @@
 #define TARGET_ASM_D                              \
 	"$(TARGET_D): $(OBJ_ASM_D)\n"             \
 	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared -o $@ $^ $(LDFLAGS)\n" \
+	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
-#define TARGET_C                          \
-	"$(TARGET): $(OBJ_C)\n"           \
-	"\t@mkdir -p $(@D)\n"             \
-	"\t@$(TCC) -o $@ $^ $(LDFLAGS)\n" \
+#define TARGET_S                                    \
+	"$(TARGET): $(OBJ_S)\n"                     \
+	"\t@mkdir -p $(@D)\n"                       \
+	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
+	"\n"
+
+#define TARGET_S_S                  \
+	"$(TARGET_S): $(OBJ_S_S)\n" \
+	"\t@mkdir -p $(@D)\n"       \
+	"\t@ar rcs $@ $^\n"         \
+	"\n"
+
+#define TARGET_S_D                                \
+	"$(TARGET_D): $(OBJ_S_D)\n"               \
+	"\t@mkdir -p $(@D)\n"                     \
+	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
+	"\n"
+
+#define TARGET_C                                    \
+	"$(TARGET): $(OBJ_C)\n"                     \
+	"\t@mkdir -p $(@D)\n"                       \
+	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_C_S                  \
@@ -133,13 +220,13 @@
 #define TARGET_C_D                                \
 	"$(TARGET_D): $(OBJ_C_D)\n"               \
 	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared -o $@ $^ $(LDFLAGS)\n" \
+	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
-#define TARGET_CPP                        \
-	"$(TARGET): $(OBJ_CPP)\n"         \
-	"\t@mkdir -p $(@D)\n"             \
-	"\t@$(TCC) -o $@ $^ $(LDFLAGS)\n" \
+#define TARGET_CPP                                  \
+	"$(TARGET): $(OBJ_CPP)\n"                   \
+	"\t@mkdir -p $(@D)\n"                       \
+	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_CPP_S                  \
@@ -151,66 +238,87 @@
 #define TARGET_CPP_D                              \
 	"$(TARGET_D): $(OBJ_CPP_D)\n"             \
 	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared -o $@ $^ $(LDFLAGS)\n" \
+	"\t@$(TCC) $^ $(LDFLAGS) -shared -o $@\n" \
 	"\n"
 
-#define ASM_O                                                                      \
-	"$(INTDIR)%.o: %.asm\n"                                                    \
-	"\t@mkdir -p $(@D)\n"                                                      \
-	"\t@nasm $(CONFIG_FLAGS) $(ASFLAGS) $(DEFINES) -felf$(BITS) -c -o $@ $<\n" \
+#define ASM_O                                                                                    \
+	"$(INTDIR)%.o: %.asm\n"                                                                  \
+	"\t@mkdir -p $(@D)\n"                                                                    \
+	"\t@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES) $< -o $@\n" \
 	"\n"
 
-#define ASM_SO                                                                       \
-	"$(INTDIR_S)%.o: %.asm\n"                                                    \
-	"\t@mkdir -p $(@D)\n"                                                        \
-	"\t@nasm $(CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_S) -felf$(BITS) -c -o $@ $<\n" \
+#define ASM_SO                                                                                     \
+	"$(INTDIR_S)%.o: %.asm\n"                                                                  \
+	"\t@mkdir -p $(@D)\n"                                                                      \
+	"\t@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_S) $< -o $@\n" \
 	"\n"
 
-#define ASM_DO                                                                             \
-	"$(INTDIR_D)%.o: %.asm\n"                                                          \
-	"\t@mkdir -p $(@D)\n"                                                              \
-	"\t@nasm $(CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_D) -fPIC -felf$(BITS) -c -o $@ $<\n" \
+#define ASM_DO                                                                                     \
+	"$(INTDIR_D)%.o: %.asm\n"                                                                  \
+	"\t@mkdir -p $(@D)\n"                                                                      \
+	"\t@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_D) $< -o $@\n" \
 	"\n"
 
-#define C_O                                                            \
-	"$(INTDIR)%.o: %.c\n"                                          \
-	"\t@mkdir -p $(@D)\n"                                          \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES) -c -o $@ $<\n" \
+#define S_O                                                                                       \
+	"$(INTDIR)%.o: %.S\n"                                                                     \
+	"\t@mkdir -p $(@D)\n"                                                                     \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES) $< -o $@\n" \
 	"\n"
 
-#define C_SO                                                             \
-	"$(INTDIR_S)%.o: %.c\n"                                          \
-	"\t@mkdir -p $(@D)\n"                                            \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES_S) -c -o $@ $<\n" \
+#define S_SO                                                                                        \
+	"$(INTDIR_S)%.o: %.S\n"                                                                     \
+	"\t@mkdir -p $(@D)\n"                                                                       \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_S) $< -o $@\n" \
 	"\n"
 
-#define C_DO                                                                   \
-	"$(INTDIR_D)%.o: %.c\n"                                                \
-	"\t@mkdir -p $(@D)\n"                                                  \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CFLAGS) $(DEFINES_D) -fPIC -c -o $@ $<\n" \
+#define S_DO                                                                                              \
+	"$(INTDIR_D)%.o: %.S\n"                                                                           \
+	"\t@mkdir -p $(@D)\n"                                                                             \
+	"\t@$(TCC) -m$(BITS) -c -fPIC $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES_D) $< -o $@\n" \
 	"\n"
 
-#define CPP_O                                                            \
-	"$(INTDIR)%.o: %.cpp\n"                                          \
-	"\t@mkdir -p $(@D)\n"                                            \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES) -c -o $@ $<\n" \
+#define C_O                                                                                      \
+	"$(INTDIR)%.o: %.c\n"                                                                    \
+	"\t@mkdir -p $(@D)\n"                                                                    \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(DEFINES) $< -o $@\n" \
 	"\n"
 
-#define CPP_SO                                                             \
-	"$(INTDIR_S)%.o: %.cpp\n"                                          \
-	"\t@mkdir -p $(@D)\n"                                              \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_S) -c -o $@ $<\n" \
+#define C_SO                                                                                       \
+	"$(INTDIR_S)%.o: %.c\n"                                                                    \
+	"\t@mkdir -p $(@D)\n"                                                                      \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(DEFINES_S) $< -o $@\n" \
 	"\n"
 
-#define CPP_DO                                                                   \
-	"$(INTDIR_D)%.o: %.cpp\n"                                                \
-	"\t@mkdir -p $(@D)\n"                                                    \
-	"\t@$(TCC) $(CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_D) -fPIC -c -o $@ $<\n" \
+#define C_DO                                                                                             \
+	"$(INTDIR_D)%.o: %.c\n"                                                                          \
+	"\t@mkdir -p $(@D)\n"                                                                            \
+	"\t@$(TCC) -m$(BITS) -c -fPIC $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(DEFINES_D) $< -o $@\n" \
 	"\n"
 
-#define RUN_EXE                  \
-	"run: check $(TARGET)\n" \
-	"\t@$(TARGET) $(ARGS)\n" \
+#define CPP_O                                                                                      \
+	"$(INTDIR)%.o: %.cpp\n"                                                                    \
+	"\t@mkdir -p $(@D)\n"                                                                      \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES) $< -o $@\n" \
+	"\n"
+
+#define CPP_SO                                                                                       \
+	"$(INTDIR_S)%.o: %.cpp\n"                                                                    \
+	"\t@mkdir -p $(@D)\n"                                                                        \
+	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_S) $< -o $@\n" \
+	"\n"
+
+#define CPP_DO                                                                                          \
+	"$(INTDIR_D)%.o: %.cpp\n"                                                                       \
+	"\t@mkdir -p $(@D)\n"                                                                           \
+	"\t@$(TCC) -m$(BITS) -fPIC $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_D) $< -o $@\n" \
+	"\n"
+
+#define RUN_EXE                             \
+	"run: check $(TARGET)\n"            \
+	"\t@$(TARGET) $(ARGS)\n"            \
+	"\n"                                \
+	"debug: check $(TARGET)\n"          \
+	"\t@gdb --args $(TARGET) $(ARGS)\n" \
 	"\n"
 
 #define CLEAN_EXE_ASM                     \
@@ -226,6 +334,21 @@
 #define CLEAN_EXE_ASM_D                       \
 	"clean:\n"                            \
 	"\t@$(RM) $(TARGET_D) $(OBJ_ASM_D)\n" \
+	"\n"
+
+#define CLEAN_EXE_S                     \
+	"clean:\n"                      \
+	"\t@$(RM) $(TARGET) $(OBJ_S)\n" \
+	"\n"
+
+#define CLEAN_EXE_S_S                       \
+	"clean:\n"                          \
+	"\t@$(RM) $(TARGET_S) $(OBJ_S_S)\n" \
+	"\n"
+
+#define CLEAN_EXE_S_D                       \
+	"clean:\n"                          \
+	"\t@$(RM) $(TARGET_D) $(OBJ_S_D)\n" \
 	"\n"
 
 #define CLEAN_EXE_C                     \
@@ -612,7 +735,7 @@ TEST(t_mk_pgen_args)
 			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
 			"\n"
 			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -781,11 +904,18 @@ TEST(t_mk_pgen_ldflags)
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"LDFLAGS := -lm -lpthread\n"
-			"CONFIG_FLAGS :=\n"
+			"GCC_CONFIG_FLAGS :=\n"
 			"\n"
 			"RM += -r\n"
 			"\n"
-			".PHONY: all check compile run clean\n"
+			"ifeq ($(ARCH), x86_64)\n"
+			"BITS := 64\n"
+			"endif\n"
+			"ifeq ($(ARCH), i386)\n"
+			"BITS := 32\n"
+			"endif\n"
+			"\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -813,39 +943,61 @@ TEST(t_mk_pgen_coverage_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.covdir = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/");
 
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_EXE;
 
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
+
 	mk_pgen(&gen, &make);
 
-	char buf[1024] = { 0 };
+	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
 			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/\n"
 			"TARGET := $(OUTDIR)test\n"
 			"ARGS :=\n"
+			"SRC_C := $(shell find src/ -name '*.c')\n"
+			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
+			"COV := $(patsubst %.c, $(COVDIR)%.gcno, $(SRC_C))\n"
+			"COV += $(patsubst %.c, $(COVDIR)%.gcda, $(SRC_C))\n"
 			"REPDIR := $(COVDIR)coverage-report/\n"
 			"LCOV := $(COVDIR)lcov.info\n"
-			"COV := $(LCOV) $(REPDIR)\n"
+			"COV += $(LCOV) $(REPDIR)\n"
 			"\n"
-			"RM += -r\n"
+			"" CONFIG ""
+			"ifeq ($(COVERAGE), true)\n"
+			"GCC_CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
+			"endif\n"
 			"\n"
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
 			"check:\n"
+			"ifeq (, $(shell which gcc))\n"
+			"\tsudo apt-get install gcc -y\n"
+			"endif\n"
+			"ifeq ($(ARCH), $(shell uname -m))\n"
+			"else\n"
+			"ifeq (, $(shell dpkg -l gcc-multilib))\n"
+			"\tsudo apt-get install gcc-multilib -y\n"
+			"endif\n"
+			"endif\n"
 			"ifeq ($(COVERAGE), true)\n"
 			"ifeq (, $(shell which lcov))\n"
-			"\tsudo apt install lcov -y\n"
+			"\tsudo apt-get install lcov -y\n"
 			"endif\n"
 			"endif\n"
 			"\n"
 			"compile: check $(TARGET)\n"
 			"\n"
+			"" TARGET_C ""
+			"" C_O ""
 			"run: check $(TARGET)\n"
 			"\t@$(TARGET) $(ARGS)\n"
 			"ifeq ($(COVERAGE), true)\n"
@@ -856,8 +1008,11 @@ TEST(t_mk_pgen_coverage_exe)
 			"endif\n"
 			"endif\n"
 			"\n"
+			"debug: check $(TARGET)\n"
+			"\t@gdb --args $(TARGET) $(ARGS)\n"
+			"\n"
 			"clean:\n"
-			"\t@$(RM) $(TARGET) $(COV)\n"
+			"\t@$(RM) $(TARGET) $(OBJ_C) $(COV)\n"
 			"\n");
 
 	make_free(&make);
@@ -894,7 +1049,7 @@ TEST(t_mk_pgen_coverage_static)
 			"\n"
 			"" CONFIG ""
 			"ifeq ($(COVERAGE), true)\n"
-			"CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
+			"GCC_CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
 			"endif\n"
 			"\n"
 			".PHONY: all check clean\n"
@@ -941,7 +1096,7 @@ TEST(t_mk_pgen_coverage_shared)
 			"\n"
 			"" CONFIG ""
 			"ifeq ($(COVERAGE), true)\n"
-			"CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
+			"GCC_CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
 			"endif\n"
 			"\n"
 			".PHONY: all check clean\n"
@@ -989,7 +1144,7 @@ TEST(t_mk_pgen_defines_exe)
 			"\n"
 			"DEFINES := -DDEBUG -DVERSION=1\n"
 			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1124,7 +1279,7 @@ TEST(t_mk_pgen_run)
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1135,6 +1290,9 @@ TEST(t_mk_pgen_run)
 			"" C_O ""
 			"run: check $(TARGET)\n"
 			"\trun\n"
+			"\n"
+			"debug: check $(TARGET)\n"
+			"\t@gdb --args run\n"
 			"\n"
 			"" CLEAN_EXE_C "");
 
@@ -1168,16 +1326,13 @@ TEST(t_mk_pgen_run_debug)
 
 	mk_pgen(&gen, &make);
 
-	char buf[1024] = { 0 };
+	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			"ifeq ($(CONFIG), Debug)\n"
-			"CONFIG_FLAGS += -ggdb3 -O0\n"
-			"endif\n"
-			"\n"
-			".PHONY: all check compile run clean\n"
+			"" CONFIG_DEBUG ""
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1192,6 +1347,9 @@ TEST(t_mk_pgen_run_debug)
 			"else\n"
 			"\t@$(TARGET) $(ARGS)\n"
 			"endif\n"
+			"\n"
+			"debug: check $(TARGET)\n"
+			"\t@gdb --args run_debug\n"
 			"\n"
 			"" CLEAN_EXE_C "");
 
@@ -1226,16 +1384,13 @@ TEST(t_mk_pgen_run_run_debug)
 
 	mk_pgen(&gen, &make);
 
-	char buf[1024] = { 0 };
+	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			"ifeq ($(CONFIG), Debug)\n"
-			"CONFIG_FLAGS += -ggdb3 -O0\n"
-			"endif\n"
-			"\n"
-			".PHONY: all check compile run clean\n"
+			"" CONFIG_DEBUG ""
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1250,6 +1405,9 @@ TEST(t_mk_pgen_run_run_debug)
 			"else\n"
 			"\trun\n"
 			"endif\n"
+			"\n"
+			"debug: check $(TARGET)\n"
+			"\t@gdb --args run_debug\n"
 			"\n"
 			"" CLEAN_EXE_C "");
 
@@ -1281,12 +1439,12 @@ TEST(t_mk_pgen_artifact)
 
 	mk_pgen(&gen, &make);
 
-	char buf[1024] = { 0 };
+	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			".PHONY: all check compile run artifact clean\n"
+			".PHONY: all check compile run debug artifact clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1348,7 +1506,7 @@ TEST(t_mk_pgen_bin_obj)
 			"\n"
 			"$(TARGET_BIN): $(OBJ_C)\n"
 			"\t@mkdir -p $(@D)\n"
-			"\t@$(TLD) -Tlinker.ld --oformat binary -o $@ $^ $(LDFLAGS)\n"
+			"\t@$(TLD) -Tlinker.ld --oformat binary $^ $(LDFLAGS) -o $@\n"
 			"\n"
 			"" C_O ""
 			"clean:\n"
@@ -1455,7 +1613,7 @@ TEST(t_mk_pgen_elf)
 			"\n"
 			"$(TARGET_ELF): $(OBJ_C)\n"
 			"\t@mkdir -p $(@D)\n"
-			"\t@$(TLD) -Tlinker.ld -o $@ $^ $(LDFLAGS)\n"
+			"\t@$(TLD) -Tlinker.ld $^ $(LDFLAGS) -o $@\n"
 			"\n"
 			"" C_O ""
 			"clean:\n"
@@ -1505,7 +1663,7 @@ TEST(t_mk_pgen_fat12)
 			"\n"
 			"check:\n"
 			"ifeq (, $(shell which mcopy))\n"
-			"\tsudo apt install mtools -y\n"
+			"\tsudo apt-get install mtools -y\n"
 			"endif\n"
 			"\n"
 			"fat12: check $(TARGET_FAT12)\n"
@@ -1555,11 +1713,8 @@ TEST(t_mk_pgen_configs)
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			"ifeq ($(CONFIG), Debug)\n"
-			"CONFIG_FLAGS += -ggdb3 -O0\n"
-			"endif\n"
-			"\n"
-			".PHONY: all check compile run clean\n"
+			"" CONFIG_DEBUG ""
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1577,7 +1732,7 @@ TEST(t_mk_pgen_configs)
 	END;
 }
 
-TEST(t_mk_pgen_asm_exe)
+TEST(t_mk_pgen_nasm_exe)
 {
 	START;
 
@@ -1601,14 +1756,8 @@ TEST(t_mk_pgen_asm_exe)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" ASM_EXE_VARS ""
 			"\n"
-			"ifeq ($(PLATFORM), x86_64)\n"
-			"BITS := 64\n"
-			"else\n"
-			"BITS := 32\n"
-			"endif\n"
-			"\n"
-			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			"" CONFIG_NASM ""
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1626,7 +1775,7 @@ TEST(t_mk_pgen_asm_exe)
 	END;
 }
 
-TEST(t_mk_pgen_asm_static)
+TEST(t_mk_pgen_nasm_static)
 {
 	START;
 
@@ -1649,13 +1798,7 @@ TEST(t_mk_pgen_asm_static)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" ASM_STATIC_VARS ""
-			"ifeq ($(PLATFORM), x86_64)\n"
-			"BITS := 64\n"
-			"else\n"
-			"BITS := 32\n"
-			"endif\n"
-			"\n"
-			"" CONFIG ""
+			"" CONFIG_NASM ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -1673,7 +1816,7 @@ TEST(t_mk_pgen_asm_static)
 	END;
 }
 
-TEST(t_mk_pgen_asm_shared)
+TEST(t_mk_pgen_nasm_shared)
 {
 	START;
 
@@ -1696,13 +1839,7 @@ TEST(t_mk_pgen_asm_shared)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" ASM_SHARED_VARS ""
-			"ifeq ($(PLATFORM), x86_64)\n"
-			"BITS := 64\n"
-			"else\n"
-			"BITS := 32\n"
-			"endif\n"
-			"\n"
-			"" CONFIG ""
+			"" CONFIG_NASM ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"
@@ -1713,6 +1850,131 @@ TEST(t_mk_pgen_asm_shared)
 			"" TARGET_ASM_D ""
 			"" ASM_DO ""
 			"" CLEAN_EXE_ASM_D "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_asm_exe)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_EXE;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" S_EXE_VARS ""
+			"\n"
+			"" CONFIG ""
+			".PHONY: all check compile run debug clean\n"
+			"\n"
+			"all: compile\n"
+			"\n"
+			"" S_CHECK ""
+			"compile: check $(TARGET)\n"
+			"\n"
+			"" TARGET_S ""
+			"" S_O ""
+			"" RUN_EXE ""
+			"" CLEAN_EXE_S "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_asm_static)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_STATIC;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" S_STATIC_VARS ""
+			"" CONFIG ""
+			".PHONY: all check static clean\n"
+			"\n"
+			"all: static\n"
+			"\n"
+			"" S_CHECK ""
+			"static: check $(TARGET_S)\n"
+			"\n"
+			"" TARGET_S_S ""
+			"" S_SO ""
+			"" CLEAN_EXE_S_S "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_asm_shared)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_SHARED;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" S_SHARED_VARS ""
+			"" CONFIG ""
+			".PHONY: all check shared clean\n"
+			"\n"
+			"all: shared\n"
+			"\n"
+			"" S_CHECK ""
+			"shared: check $(TARGET_D)\n"
+			"\n"
+			"" TARGET_S_D ""
+			"" S_DO ""
+			"" CLEAN_EXE_S_D "");
 
 	make_free(&make);
 	mk_pgen_free(&gen);
@@ -1745,7 +2007,7 @@ TEST(t_mk_pgen_c_exe)
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -1870,7 +2132,7 @@ TEST(t_mk_pgen_cpp_exe)
 	EXPECT_STR(buf, "" CPP_EXE_VARS ""
 			"\n"
 			"" CONFIG ""
-			".PHONY: all check compile run clean\n"
+			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
 			"\n"
@@ -2008,10 +2270,10 @@ TEST(t_mk_pgen_url)
 			"\n"
 			"check:\n"
 			"ifeq (, $(shell which curl))\n"
-			"\tsudo apt install curl -y\n"
+			"\tsudo apt-get install curl -y\n"
 			"endif\n"
 			"ifeq (, $(shell dpkg -l g++))\n"
-			"\tsudo apt install g++ -y\n"
+			"\tsudo apt-get install g++ -y\n"
 			"endif\n"
 			"\n"
 			"$(DLDIR):\n"
@@ -2080,6 +2342,9 @@ STEST(t_mk_pgen)
 	RUN(t_mk_pgen_elf);
 	RUN(t_mk_pgen_fat12);
 	RUN(t_mk_pgen_configs);
+	RUN(t_mk_pgen_nasm_exe);
+	RUN(t_mk_pgen_nasm_static);
+	RUN(t_mk_pgen_nasm_shared);
 	RUN(t_mk_pgen_asm_exe);
 	RUN(t_mk_pgen_asm_static);
 	RUN(t_mk_pgen_asm_shared);

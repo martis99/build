@@ -3,3 +3,4 @@ TYPE = EXE
 LANGS = NASM
 SOURCE = src
 ARGS = test
+FLAGS = STATIC

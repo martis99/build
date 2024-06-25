@@ -410,9 +410,9 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		str_t defines;
 		const char *flags;
 	} intdir_c[] = {
-		[MK_INTDIR_OBJECT] = { STRS("INTDIR"), STRS("DEFINES"), "" },
-		[MK_INTDIR_STATIC] = { STRS("INTDIR_S"), STRS("DEFINES_S"), "" },
-		[MK_INTDIR_SHARED] = { STRS("INTDIR_D"), STRS("DEFINES_D"), " -fPIC" },
+		[MK_INTDIR_OBJECT] = { STRS("INTDIR"), STRS("DEFINES"), " -c" },
+		[MK_INTDIR_STATIC] = { STRS("INTDIR_S"), STRS("DEFINES_S"), " -c" },
+		[MK_INTDIR_SHARED] = { STRS("INTDIR_D"), STRS("DEFINES_D"), " -c -fPIC" },
 	};
 
 	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
@@ -509,8 +509,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		const char *ext;
 		int cov;
 	} src_c[] = {
-		[MK_EXT_ASM] = { STRS("SRC_NASM"), STRS("ASFLAGS"),  "asm", 0 },
-		[MK_EXT_S]   = { STRS("SRC_ASM"),  STRS("ASFLAGS"),  "S",   0 },
+		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),  "asm", 0 },
+		[MK_EXT_S]   = { STRS("SRC_S"),  STRS("ASFLAGS"),  "S",   0 },
 		[MK_EXT_C]   = { STRS("SRC_C"),    STRS("CFLAGS"),   "c",   1 },
 		[MK_EXT_CPP] = { STRS("SRC_CPP"),  STRS("CXXFLAGS"), "cpp", 1 },
 	};
@@ -701,7 +701,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 	if (obj_ext[MK_EXT_ASM] != MAKE_END) {
 		is_flags = 1;
 
-		nasm_config_flags = make_add_act(make, make_create_var(make, STR("ASM_CONFIG_FLAGS"), MAKE_VAR_INST));
+		nasm_config_flags = make_add_act(make, make_create_var(make, STR("NASM_CONFIG_FLAGS"), MAKE_VAR_INST));
 	}
 
 	make_var_t gcc_config_flags = MAKE_END;
@@ -747,16 +747,10 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_add_act(make, make_create_empty(make));
 	}
 
-	if (cov != MAKE_END) {
-		const make_if_t if_cov = make_add_act(make, make_create_if(make, MVAR(coverage), MSTR(STR("true"))));
-		if (nasm_config_flags != MAKE_END) {
-			const make_var_t cov_flags_true = make_if_add_true_act(make, if_cov, make_create_var(make, STR("NASM_CONFIG_FLAGS"), MAKE_VAR_APP));
-			make_var_add_val(make, cov_flags_true, MSTR(STR("--coverage -fprofile-abs-path")));
-		}
-		if (gcc_config_flags != MAKE_END) {
-			const make_var_t cov_flags_true = make_if_add_true_act(make, if_cov, make_create_var(make, STR("GGC_CONFIG_FLAGS"), MAKE_VAR_APP));
-			make_var_add_val(make, cov_flags_true, MSTR(STR("--coverage -fprofile-abs-path")));
-		}
+	if (cov != MAKE_END && gcc_config_flags != MAKE_END) {
+		const make_if_t if_cov		= make_add_act(make, make_create_if(make, MVAR(coverage), MSTR(STR("true"))));
+		const make_var_t cov_flags_true = make_if_add_true_act(make, if_cov, make_create_var(make, STR("GCC_CONFIG_FLAGS"), MAKE_VAR_APP));
+		make_var_add_val(make, cov_flags_true, MSTR(STR("--coverage -fprofile-abs-path")));
 		make_add_act(make, make_create_empty(make));
 	}
 
@@ -773,23 +767,38 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 
 	if (obj_ext[MK_EXT_ASM] != MAKE_END) {
 		const make_if_t if_nasm = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which nasm)"))));
-		make_if_add_true_act(make, if_nasm, make_create_cmd(make, MCMD(STR("sudo apt install nasm -y"))));
+		make_if_add_true_act(make, if_nasm, make_create_cmd(make, MCMD(STR("sudo apt-get install nasm -y"))));
 	}
 
-	if (obj_ext[MK_EXT_S] != MAKE_END || obj_ext[MK_EXT_C] != MAKE_END || obj_ext[MK_EXT_CPP] != MAKE_END) {
+	if (obj_ext[MK_EXT_S] != MAKE_END || obj_ext[MK_EXT_C] != MAKE_END) {
 		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which gcc)"))));
-		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt install gcc -y"))));
+		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt-get install gcc -y"))));
+
+		const make_if_t if_arch = make_rule_add_act(make, check, make_create_if(make, MVAR(arch), MSTR(STR("$(shell uname -m)"))));
+
+		make_if_t if_dpkg = make_if_add_false_act(make, if_arch, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell dpkg -l gcc-multilib)"))));
+		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(STR("sudo apt-get install gcc-multilib -y"))));
+	}
+
+	if (obj_ext[MK_EXT_CPP] != MAKE_END) {
+		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which g++)"))));
+		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt-get install g++ -y"))));
+
+		const make_if_t if_arch = make_rule_add_act(make, check, make_create_if(make, MVAR(arch), MSTR(STR("$(shell uname -m)"))));
+
+		make_if_t if_dpkg = make_if_add_false_act(make, if_arch, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell dpkg -l g++-multilib)"))));
+		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(STR("sudo apt-get install g++-multilib -y"))));
 	}
 
 	if (target[MK_BUILD_FAT12] != MAKE_END) {
 		const make_if_t if_mcopy = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which mcopy)"))));
-		make_if_add_true_act(make, if_mcopy, make_create_cmd(make, MCMD(STR("sudo apt install mtools -y"))));
+		make_if_add_true_act(make, if_mcopy, make_create_cmd(make, MCMD(STR("sudo apt-get install mtools -y"))));
 	}
 
 	if (lcov != MAKE_END) {
 		const make_if_t if_coverage = make_rule_add_act(make, check, make_create_if(make, MVAR(coverage), MSTR(STR("true"))));
 		const make_if_t if_lcov	    = make_if_add_true_act(make, if_coverage, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which lcov)"))));
-		make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt install lcov -y"))));
+		make_if_add_true_act(make, if_lcov, make_create_cmd(make, MCMD(STR("sudo apt-get install lcov -y"))));
 	}
 
 	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
@@ -839,7 +848,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		}
 
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) -shared $(LDFLAGS) $^ -o $@"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) -shared $^ $(LDFLAGS) -o $@"))));
 	}
 
 	if (target[MK_BUILD_BIN] != MAKE_END) {
@@ -855,7 +864,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 				make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_BIN].intdir][s])));
 			}
 
-			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld --oformat binary $(LDFLAGS) $^ -o $@"))));
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld --oformat binary $^ $(LDFLAGS) -o $@"))));
 		} else {
 			const mk_pgen_file_data_t *file;
 			arr_foreach(&gen->files, file)
@@ -894,7 +903,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		}
 
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld $(LDFLAGS) $^ -o $@"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld $^ $(LDFLAGS) -o $@"))));
 	}
 
 	if (target[MK_BUILD_FAT12] != MAKE_END) {
@@ -917,8 +926,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s)%s $< -o $@",
-									  intdir_c[i].defines.data, intdir_c[i].flags))));
+					  make_create_cmd(make, MCMD(strf("@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
+									  intdir_c[i].defines.data))));
 		}
 	}
 
@@ -928,8 +937,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.S"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -c -m$(BITS) $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(%s)%s $< -o $@",
-									  intdir_c[i].defines.data, intdir_c[i].flags))));
+					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
+									  intdir_c[i].flags, intdir_c[i].defines.data))));
 		}
 	}
 
@@ -939,8 +948,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -c -m$(BITS) $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(%s)%s $< -o $@",
-									  intdir_c[i].defines.data, intdir_c[i].flags))));
+					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(%s) $< -o $@",
+									  intdir_c[i].flags, intdir_c[i].defines.data))));
 		}
 	}
 
@@ -950,8 +959,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -c -m$(BITS) $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(%s)%s $< -o $@",
-									  intdir_c[i].defines.data, intdir_c[i].flags))));
+					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(%s) $< -o $@",
+									  intdir_c[i].flags, intdir_c[i].defines.data))));
 		}
 	}
 
@@ -1000,6 +1009,21 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		const make_if_t if_show = make_if_add_true_act(make, if_coverage, make_create_if(make, MVAR(show), MSTR(STR("true"))));
 		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@genhtml -q $(LCOV) -o $(REPDIR)"))));
 		make_if_add_true_act(make, if_show, make_create_cmd(make, MCMD(STR("@open $(REPDIR)index.html"))));
+	}
+
+	if (target[MK_BUILD_EXE] != MAKE_END && is_obj) {
+		const make_rule_t rdebug = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("debug"))), 0));
+		make_rule_add_depend(make, rdebug, MRULE(MSTR(STR("check"))));
+		make_rule_add_depend(make, rdebug, MRULE(MVAR(target[MK_BUILD_EXE])));
+
+		if (gen->run_debug[MK_BUILD_EXE].data) {
+			make_rule_add_act(make, rdebug,
+					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", gen->run_debug[MK_BUILD_EXE].len, gen->run_debug[MK_BUILD_EXE].data))));
+		} else if (gen->run[MK_BUILD_EXE].data) {
+			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(strf("@gdb --args %.*s", gen->run[MK_BUILD_EXE].len, gen->run[MK_BUILD_EXE].data))));
+		} else {
+			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(STR("@gdb --args $(TARGET) $(ARGS)"))));
+		}
 	}
 
 	// clang-format off
@@ -1130,7 +1154,7 @@ static make_t *mk_pgen_remote(const mk_pgen_t *gen, make_t *make)
 
 	if (url != MAKE_END) {
 		const make_if_t if_curl = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which curl)"))));
-		make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(STR("sudo apt install curl -y"))));
+		make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(STR("sudo apt-get install curl -y"))));
 	}
 
 	const str_t *require;
@@ -1138,7 +1162,7 @@ static make_t *mk_pgen_remote(const mk_pgen_t *gen, make_t *make)
 	{
 		make_if_t if_dpkg =
 			make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->len, require->data))));
-		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->len, require->data))));
+		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt-get install %.*s -y", require->len, require->data))));
 	}
 
 	if (dldir != MAKE_END && url != MAKE_END && file != MAKE_END) {

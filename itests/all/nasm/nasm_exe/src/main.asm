@@ -24,8 +24,8 @@ section .text
 _start:
 	; esp[0]: argc
 	; esp[BS]: argv
-	mov AX, SP[0], 
-	lea BX, SP[BS],
+	mov AX, [SP]
+	lea BX, [SP+BS]
 
 	; if argc != 2
 	cmp AX, 2
@@ -48,7 +48,7 @@ get_pc_thunk:
 	call print_string
 
 	; print_string(argv[1])
-	mov CX, BX[BS]
+	mov CX, [BX+BS]
 	call print_string
 
 	; print_string(nl)
@@ -74,7 +74,7 @@ print_string:
 
 	mov edx, ecx
 .find_null:
-	cmp byte edx[0], 0
+	cmp byte [edx], 0
 	je .end_find_null
 	inc edx
 	jmp .find_null

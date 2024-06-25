@@ -246,6 +246,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 			if (proj_runnable(proj)) {
 				add_action(&make, &sln->projects, proj, 0, 1, STR("/run"), 0);
+				add_action(&make, &sln->projects, proj, 0, 1, STR("/debug"), 0);
 			}
 
 			if (proj_coverable(proj)) {
