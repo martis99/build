@@ -39,6 +39,8 @@ static str_t get_action(const proj_t *proj, int shared)
 		return shared ? STR("/shared") : STR("/static");
 	case PROJ_TYPE_BIN:
 		return STR("/bin");
+	case PROJ_TYPE_ELF:
+		return STR("/elf");
 	case PROJ_TYPE_FAT12:
 		return STR("/fat12");
 	default:
@@ -59,7 +61,7 @@ static void add_compile_action(make_t *make, const dict_t *projects, const proj_
 	const proj_dep_t *dep;
 	arr_foreach(&proj->depends, dep)
 	{
-		make_rule_add_depend(make, act, MRULEACT(MSTR(strs(dep->proj->name)), get_action(dep->proj, shared)));
+		make_rule_add_depend(make, act, MRULEACT(MSTR(strs(dep->proj->name)), get_action(dep->proj, dep->link_type == LINK_TYPE_SHARED)));
 	}
 
 	add_child_cmd(make, act, proj, strc(action.data + 1, action.len - 1));
@@ -292,12 +294,9 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		ERR("generating solution: %s failed", cmake_path.path);
 	}
 
+	arr_foreach(&sln->build_order, pproj)
 	{
-		proj_t **pproj;
-		arr_foreach(&sln->build_order, pproj)
-		{
-			ret |= mk_proj_gen(*pproj, &sln->projects, sln->props);
-		}
+		ret |= mk_proj_gen(*(proj_t **)pproj, &sln->projects, sln->props);
 	}
 
 	return ret;

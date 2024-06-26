@@ -1,0 +1,5 @@
+NAME = binf
+TYPE = BIN
+DEPENDS = bin, elf
+FILES = bin, elf
+FILENAME = binf

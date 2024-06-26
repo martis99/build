@@ -85,6 +85,7 @@ typedef struct mk_pgen_s {
 	str_t run[__MK_BUILD_MAX];
 	str_t run_debug[__MK_BUILD_MAX];
 	str_t artifact[__MK_BUILD_MAX];
+	str_t header;
 	arr_t files;
 	str_t size;
 	str_t url;

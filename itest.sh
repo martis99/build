@@ -11,12 +11,12 @@ arch="$3"
 
 ret=0
 
-#$build -S itests/all -D 1 -C 1 -I 1
+$build -S itests -D 1 -C 1 -I 1
 
 check()
 {
 	printf "%s: " "$1"
-	res="$(make -s -C itests/all "$1"/run CONFIG="$config" ARCH="$arch")"
+	res="$(make -s -C itests "$1"/run CONFIG="$config" ARCH="$arch")"
 	if [ "$res" != "$2" ]; then
 		printf "\n"
 		printf "exp: '\033[0;31m%s\033[0m'\n" "$2"
@@ -47,7 +47,8 @@ DLIBCPP: test"
 
 make -s -C itests binutils-2.40/compile ARCH="$arch"
 
-make -s -C itests bin/run CONFIG=Release ARCH="$arch" > qemu.log
-
+make -s -C itests fat12/run CONFIG="$config" ARCH="$arch" > qemu.log
+make -s -C itests binf/bin CONFIG="$config" ARCH="$arch"
+make -s -C itests artifact CONFIG="$config" ARCH="$arch"
 
 exit $ret

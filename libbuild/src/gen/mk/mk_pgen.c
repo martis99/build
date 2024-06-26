@@ -118,6 +118,8 @@ void mk_pgen_free(mk_pgen_t *gen)
 		str_free(&gen->artifact[b]);
 	}
 
+	str_free(&gen->header);
+
 	mk_pgen_file_data_t *file;
 	arr_foreach(&gen->files, file)
 	{
@@ -477,7 +479,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		[MK_BUILD_EXE]	  = { STRS("TARGET"),	    "",     STRS("compile"), MK_INTDIR_OBJECT, STRS("run"),	  STRS("artifact")	 },
 		[MK_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  MK_INTDIR_STATIC, STRS("run_s"),	  STRS("artifact_s")	 },
 		[MK_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  MK_INTDIR_SHARED, STRS("run_d"),	  STRS("artifact_d")	 },
-		[MK_BUILD_BIN]	  = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     MK_INTDIR_OBJECT,  STRS("run_bin"),   STRS("artifact_bin")	 }, 
+		[MK_BUILD_BIN]	  = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     MK_INTDIR_OBJECT, STRS("run_bin"),   STRS("artifact_bin")	 }, 
 		[MK_BUILD_ELF]	  = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     MK_INTDIR_OBJECT, STRS("run_elf"),   STRS("artifact_elf")	 }, 
 		[MK_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __MK_INTDIR_MAX,  STRS("run_fat12"), STRS("artifact_fat12") },
 	};
@@ -890,6 +892,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			const mk_pgen_file_data_t *file;
 			arr_foreach(&gen->files, file)
 			{
+				make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(file->path))));
 				switch (file->ext) {
 				case MK_EXT_BIN:
 					make_rule_add_act(make, rtarget,
@@ -924,11 +927,15 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		}
 
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld $^ $(LDFLAGS) -o $@"))));
+		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) -m$(BITS) -shared -ffreestanding $^ $(LDFLAGS) -o $@"))));
 	}
 
 	if (target[MK_BUILD_FAT12] != MAKE_END) {
 		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_FAT12])), 1));
+
+		if (gen->header.data != NULL) {
+			make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(gen->header))));
+		}
 
 		const mk_pgen_file_data_t *file;
 		arr_foreach(&gen->files, file)
@@ -940,10 +947,14 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 
 		//create empty 1.44MB image (block size = 512, block count = 2880)
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@dd if=/dev/zero of=$@ bs=512 count=2880 status=none"))));
-		//create file system
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
-		//put first binary to the first sector of the disk
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@dd if=$< of=$@ conv=notrunc status=none"))));
+		if (gen->header.data == NULL) {
+			//create file system
+			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
+		} else {
+			//put first binary to the first sector of the disk
+			make_rule_add_act(make, rtarget,
+					  make_create_cmd(make, MCMD(strf("@dd if=%.*s of=$@ conv=notrunc status=none", gen->header.len, gen->header.data))));
+		}
 		//copy files to the image
 		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
 	}
@@ -1066,7 +1077,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 	}
 
 	// clang-format off
-	make_var_t artifact[] = {
+	make_act_t artifact[] = {
 		[MK_BUILD_EXE]	  = MAKE_END,
 		[MK_BUILD_STATIC] = MAKE_END,
 		[MK_BUILD_SHARED] = MAKE_END,
@@ -1075,6 +1086,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		[MK_BUILD_FAT12]  = MAKE_END,
 	};
 
+	int artifacts = 0;
 	// clang-format on
 	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
 		if (target[b] == MAKE_END || gen->artifact[b].data == NULL) {
@@ -1086,7 +1098,23 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_rule_add_depend(make, artifact[b], MRULE(MVAR(target[b])));
 		make_rule_add_act(make, artifact[b], make_create_cmd(make, MCMD(STR("@mkdir -p $(SLNDIR)tmp/artifact/"))));
 		make_rule_add_act(make, artifact[b],
-				  make_create_cmd(make, MCMD(strf("@cp $(TARGET) $(SLNDIR)tmp/artifact/%.*s", gen->artifact[b].len, gen->artifact[b].data))));
+				  make_create_cmd(make, MCMD(strf("@cp $(%.*s) $(SLNDIR)tmp/artifact/%.*s", target_c[b].name.len, target_c[b].name.data,
+								  gen->artifact[b].len, gen->artifact[b].data))));
+
+		if (b != MK_BUILD_EXE) {
+			artifacts = 1;
+		}
+	}
+
+	if (artifacts) {
+		const make_rule_t art = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("artifact"))), 0));
+
+		for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
+			if (artifact[b] == MAKE_END) {
+				continue;
+			}
+			make_rule_add_depend(make, art, MRULE(MSTR(str_cpy(target_c[b].artifact))));
+		}
 	}
 
 	const make_rule_t clean = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));

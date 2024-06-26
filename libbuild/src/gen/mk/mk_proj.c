@@ -322,25 +322,35 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		mk_pgen_add_require(gen, str_cpy(require->val));
 	}
 
+	const prop_t *header = &proj->props[PROJ_PROP_HEADER];
+	if (header->flags & PROP_SET) {
+		proj_t *fproj = NULL;
+		if (dict_get(projects, header->value.val.data, header->value.val.len, (void **)&fproj)) {
+			ERR("project doesn't exist: '%.*s'", (int)header->value.val.len, header->value.val.data);
+		} else {
+			make_expand(&fproj->make);
+			gen->header = str_cpy(make_var_get_expanded(&fproj->make, STR("TARGET_BIN")));
+		}
+	}
+
 	const prop_str_t *fname;
 	arr_foreach(&proj->props[PROJ_PROP_FILES].arr, fname)
 	{
 		proj_t *fproj = NULL;
 		if (dict_get(projects, fname->val.data, fname->val.len, (void **)&fproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)fname->val.len, fname->val.data);
+			ERR("project doesn't exist: '%.*s'", (int)fname->val.len, fname->val.data);
 			continue;
 		}
 
 		make_expand(&fproj->make);
-		str_t mtarget = make_var_get_expanded(&fproj->make, STR("TARGET_BIN"));
 
 		switch (fproj->props[PROJ_PROP_TYPE].mask) {
 		case PROJ_TYPE_BIN:
-			mk_pgen_add_file(gen, str_cpy(mtarget), MK_EXT_BIN);
+			mk_pgen_add_file(gen, str_cpy(make_var_get_expanded(&fproj->make, STR("TARGET_BIN"))), MK_EXT_BIN);
 			break;
 
 		case PROJ_TYPE_ELF:
-			mk_pgen_add_file(gen, str_cpy(mtarget), MK_EXT_ELF);
+			mk_pgen_add_file(gen, str_cpy(make_var_get_expanded(&fproj->make, STR("TARGET_ELF"))), MK_EXT_ELF);
 			break;
 		}
 	}

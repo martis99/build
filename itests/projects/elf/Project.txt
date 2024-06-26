@@ -1,0 +1,5 @@
+NAME = elf
+TYPE = ELF
+LANGS = NASM
+SOURCE = src
+FILENAME = elf

@@ -2,8 +2,5 @@ NAME = bin
 TYPE = BIN
 LANGS = NASM
 SOURCE = src
-FILENAME = boot
+FILENAME = bin
 DEFINES = ARCH=$(ARCH)
-REQUIRE = qemu-system-i386, qemu-system-x86
-RUN = qemu-system-$(ARCH) -nographic -drive format=raw,file=$(TARGET_BIN) -device isa-debug-exit,iobase=0xf4,iosize=0x4 || [ $$? -eq 1 ]
-DRUN = qemu-system-$(ARCH) -s -S -nographic -drive format=raw,file=$(TARGET_BIN) -device isa-debug-exit,iobase=0xf4,iosize=0x4 || [ $$? -eq 1 ]

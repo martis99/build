@@ -36,6 +36,7 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_RUN]	     = { .name = STRS("RUN") },
 	[PROJ_PROP_DRUN]     = { .name = STRS("DRUN") },
 	[PROJ_PROP_PROGRAM]  = { .name = STRS("PROGRAM") },
+	[PROJ_PROP_HEADER]   = { .name = STRS("HEADER") },
 	[PROJ_PROP_FILES]    = { .name = STRS("FILES"), .flags = PPF_ARR },
 	[PROJ_PROP_SIZE]     = { .name = STRS("SIZE") },
 	[PROJ_PROP_FILENAME] = { .name = STRS("FILENAME") },
