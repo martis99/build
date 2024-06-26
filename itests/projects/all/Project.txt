@@ -1,0 +1,8 @@
+NAME = all
+TYPE = EXE
+LANGS = ASM, C, CPP
+SOURCE = src
+DEPENDS = libasm, libcc, libccpp
+DDEPENDS = libasm, libcc, libccpp
+INCLUDES = libasm, libcc, libccpp
+ARGS = test

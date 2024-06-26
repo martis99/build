@@ -34,7 +34,7 @@ static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path
 	}
 }
 
-static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *file, int dynamic)
+static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *file, int shared)
 {
 	const str_t *name = &proj->name;
 	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
@@ -62,7 +62,7 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 	uint lang = langs->mask;
 
 	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET)) {
-		c_fprintf(file, "file(GLOB_RECURSE %.*s%s_SOURCE", name->len, name->data, dynamic ? "_d" : "");
+		c_fprintf(file, "file(GLOB_RECURSE %.*s%s_SOURCE", name->len, name->data, shared ? "_d" : "");
 		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 			const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
 
@@ -131,7 +131,7 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 			first = 0;
 		}
 
-		if (dynamic) {
+		if (shared) {
 			str_t upper = strz(name->len + 1);
 			str_to_upper(*name, &upper);
 			c_fprintf(file, first ? "-D%.*s_BUILD_DLL" : " -D%.*s_BUILD_DLL", (int)upper.len, upper.data);
@@ -142,7 +142,7 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+			if (dep->link_type != LINK_TYPE_SHARED) {
 				continue;
 			}
 
@@ -166,17 +166,17 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 
 	switch (type) {
 	case PROJ_TYPE_LIB:
-		c_fprintf(file, "add_library(%.*s%s %s ${%.*s%s_SOURCE})\n", name->len, name->data, dynamic ? "_d" : "", dynamic ? "SHARED" : "STATIC", name->len,
-			  name->data, dynamic ? "_d" : "");
+		c_fprintf(file, "add_library(%.*s%s %s ${%.*s%s_SOURCE})\n", name->len, name->data, shared ? "_d" : "", shared ? "SHARED" : "STATIC", name->len,
+			  name->data, shared ? "_d" : "");
 
-		if (dynamic && proj->all_depends.cnt > 0) {
+		if (shared && proj->all_depends.cnt > 0) {
 			c_fprintf(file, "target_link_libraries(%.*s_d", name->len, name->data);
 
 			for (uint i = 0; i < proj->all_depends.cnt; i++) {
 				const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
 				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
-					c_fprintf(file, " %.*s%s", dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_DYNAMIC ? "_d" : "");
+					c_fprintf(file, " %.*s%s", dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "_d" : "");
 				}
 
 				if (dep->proj->props[PROJ_PROP_LINK].flags & PROP_SET) {
@@ -240,7 +240,7 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 				const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
 				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
-					c_fprintf(file, " %.*s%s", dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_DYNAMIC ? "_d" : "");
+					c_fprintf(file, " %.*s%s", dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "_d" : "");
 				}
 
 				if (dep->proj->props[PROJ_PROP_LINK].flags & PROP_SET) {
@@ -332,12 +332,12 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 
 	if (!proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C)) {
-			c_fprintf(file, "set_target_properties(%.*s%s PROPERTIES LINKER_LANGUAGE C)\n", name->len, name->data, dynamic ? "_d" : "");
+			c_fprintf(file, "set_target_properties(%.*s%s PROPERTIES LINKER_LANGUAGE C)\n", name->len, name->data, shared ? "_d" : "");
 		}
 	}
 
 	if (proj->rel_dir.len > 0 || (outdir->flags & PROP_SET) || (intdir->flags & PROP_SET)) {
-		c_fprintf(file, "set_target_properties(%.*s%s\n    PROPERTIES\n", name->len, name->data, dynamic ? "_d" : "");
+		c_fprintf(file, "set_target_properties(%.*s%s\n    PROPERTIES\n", name->len, name->data, shared ? "_d" : "");
 
 		if (proj->rel_dir.len > 0) {
 			buf_len = proj->rel_dir.len;
@@ -372,14 +372,14 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 		convert_slash(buf, wdir->val.len);
 		if (wdir->val.len > 0) {
 			c_fprintf(file, "set_property(TARGET %.*s%s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data,
-				  dynamic ? "_d" : "", buf_len - 1, buf);
+				  shared ? "_d" : "", buf_len - 1, buf);
 		}
 	} else {
 		buf_len = proj->rel_dir.len;
 		mem_cpy(buf, sizeof(buf), proj->rel_dir.path, proj->rel_dir.len);
 		convert_slash(buf, proj->rel_dir.len);
 		c_fprintf(file, "set_property(TARGET %.*s%s PROPERTY VS_DEBUGGER_WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}/%.*s\")\n", name->len, name->data,
-			  dynamic ? "_d" : "", proj->rel_dir.len - 1, buf);
+			  shared ? "_d" : "", proj->rel_dir.len - 1, buf);
 	}
 
 #if defined(C_WIN)
@@ -387,7 +387,7 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+			if (dep->link_type != LINK_TYPE_SHARED) {
 				continue;
 			}
 

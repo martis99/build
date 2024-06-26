@@ -137,8 +137,9 @@ static const str_t s_flags[] = {
 };
 
 typedef enum link_type_e {
+	LINK_TYPE_NONE,
 	LINK_TYPE_STATIC,
-	LINK_TYPE_DYNAMIC,
+	LINK_TYPE_SHARED,
 } link_type_t;
 
 typedef struct proj_s {
@@ -153,6 +154,7 @@ typedef struct proj_s {
 	prop_t props[__PROJ_PROP_MAX];
 	char guid[37];
 	char guid2[37];
+	arr_t depends;
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;

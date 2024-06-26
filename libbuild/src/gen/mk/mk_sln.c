@@ -32,59 +32,57 @@ static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, st
 	make_rule_add_act(make, rule, make_create_cmd(make, MCMDCHILD(path, target)));
 }
 
-static void add_action(make_t *make, const dict_t *projects, const proj_t *proj, bool add_depends, bool dep_compile, str_t action, int coverable)
+static str_t get_action(const proj_t *proj, int shared)
+{
+	switch (proj->props[PROJ_PROP_TYPE].mask) {
+	case PROJ_TYPE_LIB:
+		return shared ? STR("/shared") : STR("/static");
+	case PROJ_TYPE_BIN:
+		return STR("/bin");
+	case PROJ_TYPE_FAT12:
+		return STR("/fat12");
+	default:
+		return STR("/compile");
+	}
+}
+
+static void add_compile_action(make_t *make, const dict_t *projects, const proj_t *proj, int shared)
+{
+	str_t action = get_action(proj, shared);
+
+	const make_act_t act = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strs(proj->name)), action), 0));
+
+	if (proj->depends.cnt == 0) {
+		make_rule_add_depend(make, act, MRULE(MSTR(STR("check"))));
+	}
+
+	const proj_dep_t *dep;
+	arr_foreach(&proj->depends, dep)
+	{
+		make_rule_add_depend(make, act, MRULEACT(MSTR(strs(dep->proj->name)), get_action(dep->proj, shared)));
+	}
+
+	add_child_cmd(make, act, proj, strc(action.data + 1, action.len - 1));
+}
+
+static void add_run_action(make_t *make, const dict_t *projects, const proj_t *proj, str_t action)
+{
+	const make_rule_t act = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strs(proj->name)), action), 0));
+
+	make_rule_add_depend(make, act, MRULEACT(MSTR(strs(proj->name)), get_action(proj, 0)));
+
+	add_child_cmd(make, act, proj, strc(action.data + 1, action.len - 1));
+}
+
+static void add_util_action(make_t *make, const dict_t *projects, const proj_t *proj, str_t action, int coverable)
 {
 	const make_rule_t maction = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strs(proj->name)), action), 0));
 	make_rule_add_depend(make, maction, MRULE(MSTR(STR("check"))));
 
-	if (dep_compile) {
-		make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(proj->name)), STR("/compile")));
-	}
-
-	if (add_depends) {
-		const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-		for (uint i = 0; i < depends->cnt; i++) {
-			const prop_str_t *dname = arr_get(depends, i);
-
-			const proj_t *dproj = NULL;
-			if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-				continue;
-			}
-
-			if (coverable == 0 || proj_coverable(dproj)) {
-				if (str_eq(action, STR("/coverage")) || str_eq(action, STR("/coverage_dynamic"))) {
-					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), STR("/coverage_static")));
-				} else if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && (str_eq(action, STR("/compile")) || str_eq(action, STR("/dynamic")))) {
-					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), STR("/static")));
-				} else {
-					if (!(str_eq(action, STR("/clean")) && dproj->props[PROJ_PROP_URL].flags & PROP_SET)) {
-						make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), action));
-					}
-				}
-			}
-		}
-
-		const arr_t *ddepends = &proj->props[PROJ_PROP_DDEPENDS].arr;
-		for (uint i = 0; i < ddepends->cnt; i++) {
-			const prop_str_t *dname = arr_get(ddepends, i);
-
-			const proj_t *dproj = NULL;
-			if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-				continue;
-			}
-
-			if (coverable == 0 || proj_coverable(dproj)) {
-				if (str_eq(action, STR("/coverage")) || str_eq(action, STR("/coverage_static"))) {
-					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), STR("/coverage_dynamic")));
-				} else if (dproj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && (str_eq(action, STR("/compile")) || str_eq(action, STR("/static")))) {
-					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), STR("/dynamic")));
-				} else {
-					make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dproj->name)), action));
-				}
-			}
-		}
+	const proj_dep_t *dep;
+	arr_foreach(&proj->depends, dep)
+	{
+		make_rule_add_depend(make, maction, MRULEACT(MSTR(strs(dep->proj->name)), action));
 	}
 
 	add_child_cmd(make, maction, proj, strc(action.data + 1, action.len - 1));
@@ -210,7 +208,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		{
 			if ((*proj)->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/static")));
-				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/dynamic")));
+				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/shared")));
 
 			} else {
 				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/compile")));
@@ -229,39 +227,30 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	int artifacts = 0;
+	const proj_t **pproj;
+	arr_foreach(&sln->build_order, pproj)
 	{
-		const proj_t **pproj;
-		arr_foreach(&sln->build_order, pproj)
-		{
-			const proj_t *proj = *pproj;
+		const proj_t *proj = *pproj;
 
-			add_action(&make, &sln->projects, proj, 1, 0, STR("/clean"), 0);
+		add_util_action(&make, &sln->projects, proj, STR("/clean"), 0);
 
-			if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				add_action(&make, &sln->projects, proj, 1, 0, STR("/static"), 0);
-				add_action(&make, &sln->projects, proj, 1, 0, STR("/dynamic"), 0);
-			} else {
-				add_action(&make, &sln->projects, proj, 1, 0, STR("/compile"), 0);
-			}
+		add_compile_action(&make, &sln->projects, proj, 0);
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			add_compile_action(&make, &sln->projects, proj, 1);
+		}
 
-			if (proj_runnable(proj)) {
-				add_action(&make, &sln->projects, proj, 0, 1, STR("/run"), 0);
-				add_action(&make, &sln->projects, proj, 0, 1, STR("/debug"), 0);
-			}
+		if (proj_runnable(proj)) {
+			add_run_action(&make, &sln->projects, proj, STR("/run"));
+			add_run_action(&make, &sln->projects, proj, STR("/debug"));
+		}
 
-			if (proj_coverable(proj)) {
-				if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-					add_action(&make, &sln->projects, proj, 1, 0, STR("/coverage_static"), 1);
-					add_action(&make, &sln->projects, proj, 1, 0, STR("/coverage_dynamic"), 1);
-				} else {
-					add_action(&make, &sln->projects, proj, 1, 0, STR("/coverage"), 1);
-				}
-			}
+		if (proj_coverable(proj)) {
+			add_util_action(&make, &sln->projects, proj, STR("/coverage"), 1);
+		}
 
-			if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
-				add_action(&make, &sln->projects, proj, 0, 1, STR("/artifact"), 0);
-				artifacts++;
-			}
+		if (proj->props[PROJ_PROP_ARTIFACT].flags & PROP_SET) {
+			add_run_action(&make, &sln->projects, proj, STR("/artifact"));
+			artifacts++;
 		}
 	}
 

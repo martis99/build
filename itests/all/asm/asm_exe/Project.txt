@@ -1,6 +1,0 @@
-NAME = asm_exe
-TYPE = EXE
-LANGS = ASM
-SOURCE = src
-ARGS = test
-FLAGS = NOSTARTFILES

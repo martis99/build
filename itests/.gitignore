@@ -10,5 +10,7 @@ Makefile
 .vs/
 .vscode/
 /bin/
-
-*.log
+/build/
+/dl/
+/logs/
+/staging/

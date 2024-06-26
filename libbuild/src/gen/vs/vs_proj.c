@@ -159,12 +159,12 @@ static inline size_t print_includes(char *buf, size_t buf_size, const proj_t *pr
 	return len;
 }
 
-static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *proj, const dict_t *projects, int dynamic)
+static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *proj, const dict_t *projects, int shared)
 {
 	size_t len = 0;
 	bool first = 1;
 
-	if (dynamic) {
+	if (shared) {
 		str_t upper = strz(proj->name.len + 1);
 		str_to_upper(proj->name, &upper);
 		len += snprintf(buf == NULL ? buf : buf + len, buf_size, first ? "%.*s_BUILD_DLL" : ";%.*s_BUILD_DLL", (int)upper.len, upper.data);
@@ -175,7 +175,7 @@ static inline size_t print_defines(char *buf, size_t buf_size, const proj_t *pro
 	for (uint i = 0; i < proj->all_depends.cnt; i++) {
 		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-		if (dep->link_type != LINK_TYPE_DYNAMIC) {
+		if (dep->link_type != LINK_TYPE_SHARED) {
 			continue;
 		}
 
@@ -283,7 +283,7 @@ static inline size_t print_depends(char *buf, size_t buf_size, const proj_t *pro
 }
 
 //TODO: Make proj const
-int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, int dynamic)
+int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, int shared)
 {
 	const str_t *name = &proj->name;
 	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
@@ -308,7 +308,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 	if (p_intdir->flags & PROP_SET) {
 		intdir_len = resolve(&p_intdir->value, CSTR(intdir), proj);
-		if (dynamic) {
+		if (shared) {
 			intdir_len = cstr_cat(intdir, sizeof(intdir), intdir_len, CSTR("dll\\"));
 		}
 	}
@@ -357,7 +357,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	xml_add_attr(&xml, xml_globals, STR("Label"), STR("Globals"));
 	xml_add_tag_val(&xml, xml_globals, STR("VCProjectVersion"), STR("16.0"));
 	xml_add_tag_val(&xml, xml_globals, STR("Keyword"), STR("Win32Proj"));
-	xml_add_tag_val(&xml, xml_globals, STR("ProjectGuid"), strf("{%s}", dynamic ? proj->guid2 : proj->guid));
+	xml_add_tag_val(&xml, xml_globals, STR("ProjectGuid"), strf("{%s}", shared ? proj->guid2 : proj->guid));
 	xml_add_tag_val(&xml, xml_globals, STR("RootNamespace"), strs(proj->name));
 	xml_add_tag_val(&xml, xml_globals, STR("WindowsTargetPlatformVersion"), STR("10.0"));
 
@@ -374,7 +374,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 		[PROJ_TYPE_EXE]	    = { CSTR("Application") },
 	};
 
-	if (dynamic) {
+	if (shared) {
 		config_types[PROJ_TYPE_LIB] = (lib_type_t){ CSTR("DynamicLibrary") };
 		config_types[PROJ_TYPE_EXT] = (lib_type_t){ CSTR("DynamicLibrary") };
 	} else {
@@ -527,9 +527,9 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 			}
 
 			if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
-				size_t def_len = print_defines(NULL, 0, proj, projects, dynamic) + 1;
+				size_t def_len = print_defines(NULL, 0, proj, projects, shared) + 1;
 				str_t def_data = strz(def_len);
-				def_data.len   = print_defines((char *)def_data.data, def_data.size, proj, projects, dynamic);
+				def_data.len   = print_defines((char *)def_data.data, def_data.size, proj, projects, shared);
 				xml_add_tag_val(&xml, xml_comp, STR("PreprocessorDefinitions"), def_data);
 			}
 
@@ -610,7 +610,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
 					path_t rel_path = { 0 };
-					if (dep->link_type == LINK_TYPE_DYNAMIC) {
+					if (dep->link_type == LINK_TYPE_SHARED) {
 						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path_d.path, dep->proj->gen_path_d.len, &rel_path);
 					} else {
 						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path.path, dep->proj->gen_path.len, &rel_path);
@@ -622,7 +622,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 					xml_tag_t xml_ref = xml_add_tag(&xml, xml_refs, STR("ProjectReference"));
 					xml_add_attr(&xml, xml_ref, STR("Include"), inc);
 					xml_add_tag_val(&xml, xml_ref, STR("Project"),
-							strf("{%s}", dep->link_type == LINK_TYPE_DYNAMIC ? dep->proj->guid2 : dep->proj->guid));
+							strf("{%s}", dep->link_type == LINK_TYPE_SHARED ? dep->proj->guid2 : dep->proj->guid));
 				}
 			}
 		}
@@ -682,7 +682,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 	for (uint i = 0; i < proj->all_depends.cnt; i++) {
 		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-		if (dep->link_type == LINK_TYPE_DYNAMIC) {
+		if (dep->link_type == LINK_TYPE_SHARED) {
 			dll = 1;
 			break;
 		}
@@ -694,7 +694,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 		for (uint i = 0; i < proj->all_depends.cnt; i++) {
 			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
-			if (dep->link_type != LINK_TYPE_DYNAMIC) {
+			if (dep->link_type != LINK_TYPE_SHARED) {
 				continue;
 			}
 
@@ -716,7 +716,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 		return 1;
 	}
 
-	if ((dynamic ? path_child_s(&gen_path, CSTR("d.vcxproj"), '.') : path_child_s(&gen_path, CSTR("vcxproj"), '.')) == NULL) {
+	if ((shared ? path_child_s(&gen_path, CSTR("d.vcxproj"), '.') : path_child_s(&gen_path, CSTR("vcxproj"), '.')) == NULL) {
 		return 1;
 	}
 

@@ -165,16 +165,25 @@ void proj_print(proj_t *proj)
 
 	props_print(proj->props, s_proj_props, sizeof(s_proj_props));
 
+	const proj_dep_t *dep;
+	const proj_t **dproj;
+
 	INFP("%s", "    Depends:");
-	for (uint i = 0; i < proj->all_depends.cnt; i++) {
-		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
-		INFP("        '%.*s' (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_DYNAMIC ? "dynamic" : "static");
+	arr_foreach(&proj->depends, dep)
+	{
+		INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
+	}
+
+	INFP("%s", "    All depends:");
+	arr_foreach(&proj->all_depends, dep)
+	{
+		INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
 	}
 
 	INFP("%s", "    Includes:");
-	for (uint i = 0; i < proj->includes.cnt; i++) {
-		const proj_t *dproj = *(proj_t **)arr_get(&proj->includes, i);
-		INFP("        '%.*s'", (int)dproj->name.len, dproj->name.data);
+	arr_foreach(&proj->includes, dproj)
+	{
+		INFP("        %.*s", (int)(*dproj)->name.len, (*dproj)->name.data);
 	}
 
 	INFF();
@@ -194,6 +203,7 @@ int proj_coverable(const proj_t *proj)
 void proj_free(proj_t *proj)
 {
 	props_free(proj->props, s_proj_props, sizeof(s_proj_props));
+	arr_free(&proj->depends);
 	arr_free(&proj->all_depends);
 	arr_free(&proj->includes);
 }

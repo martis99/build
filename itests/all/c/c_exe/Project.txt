@@ -1,5 +1,0 @@
-NAME = c_exe
-TYPE = EXE
-LANGS = C
-SOURCE = src
-ARGS = test

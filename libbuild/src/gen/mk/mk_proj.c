@@ -186,13 +186,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		str_t rel = strc(iproj->rel_dir.path, iproj->rel_dir.len);
 
-		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
-
-			for (uint i = 0; i < includes->cnt; i++) {
-				const prop_str_t *include = arr_get(includes, i);
-				mk_pgen_add_include(gen, resolve_path(rel, include->val, &buf));
-			}
+		arr_foreach(&iproj->props[PROJ_PROP_INCLUDE].arr, include)
+		{
+			mk_pgen_add_include(gen, resolve(resolve_path(rel, include->val, &buf), &buf, iproj));
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
@@ -224,7 +220,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const proj_dep_t *dep;
 	arr_foreach(&proj->all_depends, dep)
 	{
-		if (dep->link_type != LINK_TYPE_DYNAMIC) {
+		if (dep->link_type != LINK_TYPE_SHARED) {
 			continue;
 		}
 
@@ -263,7 +259,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			if (doutdir->flags & PROP_SET) {
 				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
 
-				if (dep->link_type == LINK_TYPE_DYNAMIC) {
+				if (dep->link_type == LINK_TYPE_SHARED) {
 					mk_pgen_add_dlib(gen, strs(dep->proj->name));
 					mk_pgen_add_dlib_dir(gen, buf);
 				} else {
@@ -323,7 +319,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const prop_str_t *require;
 	arr_foreach(&proj->props[PROJ_PROP_REQUIRE].arr, require)
 	{
-		mk_pgen_add_require(gen, require->val);
+		mk_pgen_add_require(gen, str_cpy(require->val));
 	}
 
 	const prop_str_t *fname;
@@ -336,15 +332,15 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 
 		make_expand(&fproj->make);
-		str_t mtarget = make_var_get_expanded(&fproj->make, STR("TARGET"));
+		str_t mtarget = make_var_get_expanded(&fproj->make, STR("TARGET_BIN"));
 
 		switch (fproj->props[PROJ_PROP_TYPE].mask) {
 		case PROJ_TYPE_BIN:
-			mk_pgen_add_file(gen, mtarget, MK_EXT_BIN);
+			mk_pgen_add_file(gen, str_cpy(mtarget), MK_EXT_BIN);
 			break;
 
 		case PROJ_TYPE_ELF:
-			mk_pgen_add_file(gen, mtarget, MK_EXT_ELF);
+			mk_pgen_add_file(gen, str_cpy(mtarget), MK_EXT_ELF);
 			break;
 		}
 	}
@@ -356,111 +352,56 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 	if (run->flags & PROP_SET) {
-		mk_pgen_set_run(gen, run->value.val, gen->builds);
+		mk_pgen_set_run(gen, str_cpy(resolve(run->value.val, &buf, proj)), gen->builds);
 	}
 
 	const prop_t *drun = &proj->props[PROJ_PROP_DRUN];
 	if (drun->flags & PROP_SET) {
-		mk_pgen_set_run_debug(gen, drun->value.val, gen->builds);
+		mk_pgen_set_run_debug(gen, str_cpy(resolve(drun->value.val, &buf, proj)), gen->builds);
 	}
 
 	return 0;
 }
 
-static int gen_url(const proj_t *proj, make_t *make)
+static int gen_url(const proj_t *proj, mk_pgen_t *gen)
 {
-	const str_t *name	 = &proj->name;
-	const prop_str_t *url	 = &proj->props[PROJ_PROP_URL].value;
-	const prop_str_t *format = &proj->props[PROJ_PROP_FORMAT].value;
-	const prop_str_t *config = &proj->props[PROJ_PROP_CONFIG].value;
-	const prop_str_t *target = &proj->props[PROJ_PROP_TARGET].value;
-	const prop_t *requires	 = &proj->props[PROJ_PROP_REQUIRE];
+	char buf_d[P_MAX_PATH] = { 0 };
 
-	const make_var_t murl = make_add_act(make, make_create_var(make, STR("URL"), MAKE_VAR_INST));
-	make_var_add_val(make, murl, MSTR(strs(url->val)));
+	str_t buf = strb(buf_d, sizeof(buf_d), 0);
 
-	const make_var_t mname = make_add_act(make, make_create_var(make, STR("NAME"), MAKE_VAR_INST));
-	make_var_add_val(make, mname, MSTR(strs(*name)));
+	gen->name = str_cpy(proj->name);
 
-	const make_var_t mformat = make_add_act(make, make_create_var(make, STR("FORMAT"), MAKE_VAR_INST));
-	make_var_add_val(make, mformat, MSTR(strs(format->val)));
-
-	const make_var_t mfile = make_add_act(make, make_create_var(make, STR("FILE"), MAKE_VAR_INST));
-	make_var_add_val(make, mfile, MSTR(STR("$(NAME).$(FORMAT)")));
-
-	const make_var_t dldir = make_add_act(make, make_create_var(make, STR("DLDIR"), MAKE_VAR_INST));
-	make_var_add_val(make, dldir, MSTR(STR("$(SLNDIR)dl/$(FILE)/")));
-
-	const make_var_t srcdir = make_add_act(make, make_create_var(make, STR("SRCDIR"), MAKE_VAR_INST));
-	make_var_add_val(make, srcdir, MSTR(STR("$(SLNDIR)staging/$(NAME)/")));
-
-	const make_var_t biulddir = make_add_act(make, make_create_var(make, STR("BUILDDIR"), MAKE_VAR_INST));
-	make_var_add_val(make, biulddir, MSTR(STR("$(SLNDIR)build/$(ARCH)/$(NAME)/")));
-
-	const make_var_t logdir = make_add_act(make, make_create_var(make, STR("LOGDIR"), MAKE_VAR_INST));
-	make_var_add_val(make, logdir, MSTR(STR("$(SLNDIR)logs/$(ARCH)/$(NAME)/")));
-
-	make_add_act(make, make_create_empty(make));
-
-	const make_rule_t all = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("all"))), 0));
-	make_rule_add_depend(make, all, MRULE(MSTR(STR("compile"))));
-
-	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
-
-	const make_if_t if_curl = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which curl)"))));
-	make_if_add_true_act(make, if_curl, make_create_cmd(make, MCMD(STR("sudo apt install curl -y"))));
-
-	if (requires->flags & PROP_SET) {
-		for (uint i = 0; i < requires->arr.cnt; i++) {
-			const prop_str_t *require = arr_get(&requires->arr, i);
-
-			make_if_t if_dpkg = make_rule_add_act(
-				make, check, make_create_if(make, MSTR(str_null()), MSTR(strf("$(shell dpkg -l %.*s)", require->val.len, require->val.data))));
-			make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt install %.*s -y", require->val.len, require->val.data))));
-		}
+	if (proj->props[PROJ_PROP_URL].flags & PROP_SET) {
+		gen->url = str_cpy(proj->props[PROJ_PROP_URL].value.val);
 	}
 
-	const make_rule_t rdldir = make_add_act(make, make_create_rule(make, MRULE(MVAR(dldir)), 1));
-	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-	make_rule_add_act(make, rdldir, make_create_cmd(make, MCMD(STR("@cd $(@D) && curl -O $(URL)$(FILE)"))));
+	if (proj->props[PROJ_PROP_FORMAT].flags & PROP_SET) {
+		gen->format = str_cpy(proj->props[PROJ_PROP_FORMAT].value.val);
+	}
 
-	const make_rule_t rsrcdir = make_add_act(make, make_create_rule(make, MRULEACT(MVAR(srcdir), STR("done")), 1));
-	make_rule_add_depend(make, rsrcdir, MRULE(MVAR(dldir)));
-	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(SLNDIR)staging"))));
-	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@tar xf $(DLDIR) -C $(SLNDIR)staging"))));
-	make_rule_add_act(make, rsrcdir, make_create_cmd(make, MCMD(STR("@touch $(SRCDIR)done"))));
+	if (proj->props[PROJ_PROP_OUTDIR].flags & PROP_SET) {
+		gen->outdir = str_cpy(resolve(proj->props[PROJ_PROP_OUTDIR].value.val, &buf, proj));
+	}
 
-	const make_rule_t routdir = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")), 1));
-	make_rule_add_depend(make, routdir, MRULEACT(MVAR(srcdir), STR("done")));
-	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)"))));
-	make_rule_add_act(
-		make, routdir,
-		make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && $(SRCDIR)configure --target=$(ARCH)-elf --prefix=$(OUTDIR) %.*s 2>&1 | tee $(LOGDIR)configure.log",
-						config->val.len, config->val.data))));
-	make_rule_add_act(make, routdir,
-			  make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s 2>&1 | tee $(LOGDIR)make.log", target->val.len, target->val.data))));
-	make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@touch $(OUTDIR)$(NAME)"))));
+	const prop_str_t *require;
+	arr_foreach(&proj->props[PROJ_PROP_REQUIRE].arr, require)
+	{
+		mk_pgen_add_require(gen, str_cpy(require->val));
+	}
 
-	const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("compile"))), 0));
-	make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
-	make_rule_add_depend(make, compile, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")));
+	if (proj->props[PROJ_PROP_CONFIG].flags & PROP_SET) {
+		gen->config = str_cpy(proj->props[PROJ_PROP_CONFIG].value.val);
+	}
 
-	make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("clean"))), 0));
+	if (proj->props[PROJ_PROP_TARGET].flags & PROP_SET) {
+		gen->targets = str_cpy(proj->props[PROJ_PROP_TARGET].value.val);
+	}
 
 	return 0;
 }
 
 int mk_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 {
-	const str_t *name = &proj->name;
-	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
-
-	const prop_t *url = &proj->props[PROJ_PROP_URL];
-
-	char buf_d[P_MAX_PATH] = { 0 };
-
-	str_t buf = strb(buf_d, sizeof(buf_d), 0);
-
 	int ret = 0;
 
 	path_t gen_path = { 0 };
@@ -481,8 +422,8 @@ int mk_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 
 	make_init(&proj->make, 8, 8, 8);
 
-	if (url->flags & PROP_SET) {
-		gen_url(proj, &proj->make);
+	if (proj->props[PROJ_PROP_URL].flags & PROP_SET) {
+		gen_url(proj, &gen);
 	} else {
 		gen_source(proj, projects, sln_props, &gen);
 	}

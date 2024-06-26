@@ -1,0 +1,7 @@
+NAME = binutils-2.40
+URL = http://ftp.gnu.org/gnu/binutils/
+FORMAT = tar.gz
+CONFIG = --enable-interwork --enable-multilib --disable-nls --disable-werror
+TARGET = all install
+REQUIRE = gcc
+EXPORT = TLD = $(OUTDIR)bin/$(ARCH)-elf-ld

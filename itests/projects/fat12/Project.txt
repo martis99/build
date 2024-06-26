@@ -1,0 +1,8 @@
+NAME = fat12
+TYPE = FAT12
+DEPENDS = bin
+FILES = bin, bin
+FILENAME = floppy
+REQUIRE = qemu-system-i386, qemu-system-x86
+RUN = qemu-system-$(ARCH) -nographic -drive format=raw,file=$(TARGET_BIN) -device isa-debug-exit,iobase=0xf4,iosize=0x4 || [ $$? -eq 1 ]
+DRUN = qemu-system-$(ARCH) -s -S -nographic -drive format=raw,file=$(TARGET_BIN) -device isa-debug-exit,iobase=0xf4,iosize=0x4 || [ $$? -eq 1 ]

@@ -1,0 +1,5 @@
+NAME = cpp
+TYPE = EXE
+LANGS = CPP
+SOURCE = src
+ARGS = test

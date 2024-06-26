@@ -113,7 +113,7 @@ int vc_proj_gen_build(const proj_t *proj, const prop_t *sln_props, json_t *json,
 {
 	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 		add_tasks(proj, sln_props, "static", json, tasks);
-		add_tasks(proj, sln_props, "dynamic", json, tasks);
+		add_tasks(proj, sln_props, "shared", json, tasks);
 	} else {
 		add_tasks(proj, sln_props, "compile", json, tasks);
 	}

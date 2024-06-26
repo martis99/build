@@ -1,0 +1,4 @@
+NAME = build
+CONFIGS = Debug, Release
+ARCHS = x86_64, i386
+DIRS = projects

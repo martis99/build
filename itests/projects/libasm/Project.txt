@@ -1,0 +1,6 @@
+NAME = libasm
+TYPE = LIB
+LANGS = ASM
+SOURCE = src
+INCLUDE = include
+ARGS = test

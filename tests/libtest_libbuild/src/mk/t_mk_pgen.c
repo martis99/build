@@ -6,19 +6,19 @@
 #include "test.h"
 
 #define EXE_VARS                                                   \
-	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"     \
-	"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n" \
+	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"     \
+	"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
 	"TARGET := $(OUTDIR)test\n"                                \
 	"ARGS :=\n"
 
 #define STATIC_VARS                                                  \
-	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"       \
-	"INTDIR_S := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n" \
+	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"INTDIR_S := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
 	"TARGET_S := $(OUTDIR)test.a\n"
 
 #define SHARED_VARS                                                  \
-	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"       \
-	"INTDIR_D := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n" \
+	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"INTDIR_D := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
 	"TARGET_D := $(OUTDIR)test.so\n"
 
 #define ASM_EXE_VARS                                    \
@@ -238,7 +238,7 @@
 #define TARGET_CPP_D                              \
 	"$(TARGET_D): $(OBJ_CPP_D)\n"             \
 	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) $^ $(LDFLAGS) -shared -o $@\n" \
+	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define ASM_O                                                                                    \
@@ -307,10 +307,10 @@
 	"\t@$(TCC) -m$(BITS) -c $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_S) $< -o $@\n" \
 	"\n"
 
-#define CPP_DO                                                                                          \
-	"$(INTDIR_D)%.o: %.cpp\n"                                                                       \
-	"\t@mkdir -p $(@D)\n"                                                                           \
-	"\t@$(TCC) -m$(BITS) -fPIC $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_D) $< -o $@\n" \
+#define CPP_DO                                                                                             \
+	"$(INTDIR_D)%.o: %.cpp\n"                                                                          \
+	"\t@mkdir -p $(@D)\n"                                                                              \
+	"\t@$(TCC) -m$(BITS) -c -fPIC $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(DEFINES_D) $< -o $@\n" \
 	"\n"
 
 #define RUN_EXE                             \
@@ -714,8 +714,8 @@ TEST(t_mk_pgen_args)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -727,8 +727,8 @@ TEST(t_mk_pgen_args)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"TARGET := $(OUTDIR)test\n"
 			"ARGS := -D\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
@@ -746,6 +746,43 @@ TEST(t_mk_pgen_args)
 			"" C_O ""
 			"" RUN_EXE ""
 			"" CLEAN_EXE_C "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_require)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	mk_pgen_add_require(&gen, STRH("package"));
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "RM += -r\n"
+			"\n"
+			".PHONY: all check clean\n"
+			"\n"
+			"all:\n"
+			"\n"
+			"check:\n"
+			"ifeq (, $(shell dpkg -l package))\n"
+			"\tsudo apt-get install package -y\n"
+			"endif\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM)\n"
+			"\n");
 
 	make_free(&make);
 	mk_pgen_free(&gen);
@@ -799,8 +836,8 @@ TEST(t_mk_pgen_includes)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 	mk_pgen_add_include(&gen, STR("src/"));
@@ -810,8 +847,8 @@ TEST(t_mk_pgen_includes)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
 			"\n"
@@ -843,8 +880,8 @@ TEST(t_mk_pgen_flags)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 	mk_pgen_add_flag(&gen, STR("-Wall"), F_MK_EXT_C);
@@ -854,8 +891,8 @@ TEST(t_mk_pgen_flags)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
 			"\n"
@@ -887,8 +924,8 @@ TEST(t_mk_pgen_ldflags)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_EXE;
@@ -943,9 +980,9 @@ TEST(t_mk_pgen_coverage_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
-	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_EXE;
@@ -956,9 +993,9 @@ TEST(t_mk_pgen_coverage_exe)
 
 	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
-			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/\n"
 			"TARGET := $(OUTDIR)test\n"
 			"ARGS :=\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
@@ -1031,8 +1068,8 @@ TEST(t_mk_pgen_coverage_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
-	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1040,8 +1077,8 @@ TEST(t_mk_pgen_coverage_static)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "INTDIR_S := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
-			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/\n"
+	EXPECT_STR(buf, "INTDIR_S := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C_S := $(patsubst %.c, $(INTDIR_S)%.o, $(SRC_C))\n"
 			"COV := $(patsubst %.c, $(COVDIR)%.gcno, $(SRC_C))\n"
@@ -1078,8 +1115,8 @@ TEST(t_mk_pgen_coverage_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
-	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	gen.covdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1087,8 +1124,8 @@ TEST(t_mk_pgen_coverage_shared)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "INTDIR_D := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
-			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/cov/\n"
+	EXPECT_STR(buf, "INTDIR_D := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"COVDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C_D := $(patsubst %.c, $(INTDIR_D)%.o, $(SRC_C))\n"
 			"COV := $(patsubst %.c, $(COVDIR)%.gcno, $(SRC_C))\n"
@@ -1125,8 +1162,8 @@ TEST(t_mk_pgen_defines_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1172,8 +1209,8 @@ TEST(t_mk_pgen_defines_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1217,8 +1254,8 @@ TEST(t_mk_pgen_defines_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1262,8 +1299,8 @@ TEST(t_mk_pgen_run)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1312,8 +1349,8 @@ TEST(t_mk_pgen_run_debug)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1369,8 +1406,8 @@ TEST(t_mk_pgen_run_run_debug)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1427,8 +1464,8 @@ TEST(t_mk_pgen_artifact)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1478,8 +1515,8 @@ TEST(t_mk_pgen_bin_obj)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1490,8 +1527,8 @@ TEST(t_mk_pgen_bin_obj)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"TARGET_BIN := $(OUTDIR)test.bin\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
@@ -1529,8 +1566,8 @@ TEST(t_mk_pgen_bin_files)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_BIN;
@@ -1544,8 +1581,8 @@ TEST(t_mk_pgen_bin_files)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"TARGET_BIN := $(OUTDIR)test.bin\n"
 			"\n"
 			"RM += -r\n"
@@ -1585,8 +1622,8 @@ TEST(t_mk_pgen_elf)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -1597,8 +1634,8 @@ TEST(t_mk_pgen_elf)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"TARGET_ELF := $(OUTDIR)test.elf\n"
 			"SRC_C := $(shell find src/ -name '*.c')\n"
 			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
@@ -1636,8 +1673,8 @@ TEST(t_mk_pgen_fat12)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_FAT12;
@@ -1651,8 +1688,8 @@ TEST(t_mk_pgen_fat12)
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/\n"
-			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
 			"TARGET_FAT12 := $(OUTDIR)test.img\n"
 			"\n"
 			"RM += -r\n"
@@ -1695,8 +1732,8 @@ TEST(t_mk_pgen_configs)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_config(&gen, STRH("Debug"));
 	mk_pgen_add_config(&gen, STRH("Release"));
@@ -1742,8 +1779,8 @@ TEST(t_mk_pgen_nasm_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_ASM);
 
@@ -1785,8 +1822,8 @@ TEST(t_mk_pgen_nasm_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_ASM);
 
@@ -1826,8 +1863,8 @@ TEST(t_mk_pgen_nasm_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_ASM);
 
@@ -1867,8 +1904,8 @@ TEST(t_mk_pgen_asm_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
 
@@ -1910,8 +1947,8 @@ TEST(t_mk_pgen_asm_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
 
@@ -1951,8 +1988,8 @@ TEST(t_mk_pgen_asm_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_S);
 
@@ -1992,8 +2029,8 @@ TEST(t_mk_pgen_c_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -2035,8 +2072,8 @@ TEST(t_mk_pgen_c_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -2076,8 +2113,8 @@ TEST(t_mk_pgen_c_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
 
@@ -2117,8 +2154,8 @@ TEST(t_mk_pgen_cpp_exe)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_CPP);
 
@@ -2160,8 +2197,8 @@ TEST(t_mk_pgen_cpp_static)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_CPP);
 
@@ -2201,8 +2238,8 @@ TEST(t_mk_pgen_cpp_shared)
 	make_t make = { 0 };
 	make_init(&make, 8, 8, 8);
 
-	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/");
-	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(PLATFORM)/test/int/");
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_CPP);
 
@@ -2247,22 +2284,22 @@ TEST(t_mk_pgen_url)
 	gen.format  = STRH("tar.gz");
 	gen.config  = STRH("--disable-nls");
 	gen.targets = STRH("all-gcc");
-	gen.outdir  = STRH("$(SLNDIR)bin/$(PLATFORM)/test/");
+	gen.outdir  = STRH("$(SLNDIR)bin/$(ARCH)/test/");
 	mk_pgen_add_require(&gen, STRH("g++"));
 
 	mk_pgen(&gen, &make);
 
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(PLATFORM)/test/\n"
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(ARCH)/test/\n"
 			"URL := http://ftp.gnu.org/gnu/gcc/gcc-13.1.0/\n"
 			"NAME := gcc-13.1.0\n"
 			"FORMAT := tar.gz\n"
 			"FILE := $(NAME).$(FORMAT)\n"
-			"DLDIR := $(SLNDIR)dl/$(FILE)/\n"
+			"DLPATH := $(SLNDIR)dl/$(FILE)\n"
 			"SRCDIR := $(SLNDIR)staging/$(NAME)/\n"
-			"BUILDDIR := $(SLNDIR)build/$(PLATFORM)/$(NAME)/\n"
-			"LOGDIR := $(SLNDIR)logs/$(PLATFORM)/$(NAME)/\n"
+			"BUILDDIR := $(SLNDIR)build/$(ARCH)/$(NAME)/\n"
+			"LOGDIR := $(SLNDIR)logs/$(ARCH)/$(NAME)/\n"
 			"\n"
 			".PHONY: all check compile clean\n"
 			"\n"
@@ -2276,18 +2313,18 @@ TEST(t_mk_pgen_url)
 			"\tsudo apt-get install g++ -y\n"
 			"endif\n"
 			"\n"
-			"$(DLDIR):\n"
+			"$(DLPATH):\n"
 			"\t@mkdir -p $(@D)\n"
 			"\t@cd $(@D) && curl -O $(URL)$(FILE)\n"
 			"\n"
-			"$(SRCDIR)done: $(DLDIR)\n"
+			"$(SRCDIR)done: $(DLPATH)\n"
 			"\t@mkdir -p $(SLNDIR)staging\n"
-			"\t@tar xf $(DLDIR) -C $(SLNDIR)staging\n"
+			"\t@tar xf $(DLPATH) -C $(SLNDIR)staging\n"
 			"\t@touch $(SRCDIR)done\n"
 			"\n"
 			"$(OUTDIR)$(NAME): $(SRCDIR)done\n"
 			"\t@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)\n"
-			"\t@cd $(BUILDDIR) && $(SRCDIR)configure --target=$(PLATFORM)-elf --prefix=$(OUTDIR) --disable-nls 2>&1 | tee $(LOGDIR)configure.log\n"
+			"\t@cd $(BUILDDIR) && $(SRCDIR)configure --target=$(ARCH)-elf --prefix=$(OUTDIR) --disable-nls 2>&1 | tee $(LOGDIR)configure.log\n"
 			"\t@cd $(BUILDDIR) && make all-gcc 2>&1 | tee $(LOGDIR)make.log\n"
 			"\t@touch $(OUTDIR)$(NAME)\n"
 			"\n"
@@ -2323,6 +2360,7 @@ STEST(t_mk_pgen)
 	RUN(t_mk_pgen_add_require);
 	RUN(t_mk_pgen_empty);
 	RUN(t_mk_pgen_args);
+	RUN(t_mk_pgen_require);
 	RUN(t_mk_pgen_headers);
 	RUN(t_mk_pgen_includes);
 	RUN(t_mk_pgen_flags);

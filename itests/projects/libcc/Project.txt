@@ -1,0 +1,6 @@
+NAME = libcc
+TYPE = LIB
+LANGS = C
+SOURCE = src
+INCLUDE = include
+ARGS = test

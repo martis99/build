@@ -1,5 +1,0 @@
-NAME = all_exe
-TYPE = EXE
-LANGS = ASM, C, CPP
-SOURCE = src
-ARGS = test

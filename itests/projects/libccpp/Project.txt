@@ -1,0 +1,6 @@
+NAME = libccpp
+TYPE = LIB
+LANGS = CPP
+SOURCE = src
+INCLUDE = include
+ARGS = test

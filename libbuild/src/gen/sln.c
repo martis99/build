@@ -71,86 +71,87 @@ static int read_dir(path_t *path, const char *folder, void *priv)
 	return ret;
 }
 
-static int proj_eq_name(const void *proj, const void *name)
+static int proj_name_eq(const void *raw1, const void *raw2)
 {
-	return str_eq((*(const proj_t **)proj)->name, *(const str_t *)name);
+	const proj_dep_t *dep1 = raw1;
+	const str_t *name2     = raw2;
+	return str_eq(dep1->proj->name, *name2);
 }
 
-static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
+static int proj_dep_eq(const void *raw1, const void *raw2)
 {
-	const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-	for (uint i = 0; i < depends->cnt; i++) {
-		const prop_str_t *dname = arr_get(depends, i);
-
-		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-			continue;
-		}
-
-		get_all_depends(arr, dproj, projects);
-
-		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
-			proj_dep_t dep = {
-				.proj	   = dproj,
-				.link_type = LINK_TYPE_STATIC,
-			};
-			arr_app(arr, &dep);
-		}
-	}
-
-	const arr_t *ddepends = &proj->props[PROJ_PROP_DDEPENDS].arr;
-	for (uint i = 0; i < ddepends->cnt; i++) {
-		const prop_str_t *dname = arr_get(ddepends, i);
-
-		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-			continue;
-		}
-
-		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
-			proj_dep_t dep = {
-				.proj	   = dproj,
-				.link_type = LINK_TYPE_DYNAMIC,
-			};
-			arr_app(arr, &dep);
-		}
-	}
+	const proj_dep_t *dep1 = raw1;
+	const proj_dep_t *dep2 = raw2;
+	return dep1->link_type == dep2->link_type && str_eq(dep1->proj->name, dep2->proj->name);
 }
 
 static void calculate_depends(proj_t *proj, sln_t *sln)
 {
-	arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-	if (depends->cap == 0) {
+	if (proj->props[PROJ_PROP_DEPENDS].arr.cnt + proj->props[PROJ_PROP_DDEPENDS].arr.cnt == 0) {
 		return;
 	}
 
-	arr_init(&proj->all_depends, depends->cap * 2, sizeof(proj_dep_t));
-	get_all_depends(&proj->all_depends, proj, &sln->projects);
+	arr_init(&proj->depends, proj->props[PROJ_PROP_DEPENDS].arr.cnt + proj->props[PROJ_PROP_DDEPENDS].arr.cnt, sizeof(proj_dep_t));
 
-	for (uint i = 0; i < proj->all_depends.cnt; i++) {
-		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+	const prop_str_t *name;
+	arr_foreach(&proj->props[PROJ_PROP_DEPENDS].arr, name)
+	{
+		const proj_t *dproj = NULL;
+		if (dict_get(&sln->projects, name->val.data, name->val.len, (void **)&dproj)) {
+			ERR("project doesn't exist: '%.*s'", (int)name->val.len, name->val.data);
+			continue;
+		}
 
-		const arr_t *depend = &dep->proj->props[PROJ_PROP_DEPEND].arr;
-		for (uint i = 0; i < depend->cnt; i++) {
-			const prop_str_t *dpname = arr_get(depend, i);
+		proj_dep_t dep = {
+			.proj	   = dproj,
+			.link_type = LINK_TYPE_STATIC,
+		};
 
-			const proj_t *dpproj = NULL;
-			if (dict_get(&sln->projects, dpname->val.data, dpname->val.len, (void **)&dpproj)) {
-				ERR("project doesn't exists: '%.*s'", (int)dpname->val.len, dpname->val.data);
-				continue;
-			}
-
-			if (arr_index_cmp(&proj->all_depends, &dpname->val, proj_eq_name) == -1) {
-				proj_dep_t dep = {
-					.proj	   = dpproj,
-					.link_type = LINK_TYPE_STATIC,
-				};
-				arr_app(&proj->all_depends, &dep);
-			}
+		if (arr_index_cmp(&proj->depends, &dep, proj_dep_eq) == ARR_END) {
+			arr_app(&proj->depends, &dep);
 		}
 	}
+
+	arr_foreach(&proj->props[PROJ_PROP_DDEPENDS].arr, name)
+	{
+		const proj_t *dproj = NULL;
+		if (dict_get(&sln->projects, name->val.data, name->val.len, (void **)&dproj)) {
+			ERR("project doesn't exists: '%.*s'", (int)name->val.len, name->val.data);
+			continue;
+		}
+
+		proj_dep_t dep = {
+			.proj	   = dproj,
+			.link_type = LINK_TYPE_SHARED,
+		};
+
+		if (arr_index_cmp(&proj->depends, &dep, proj_dep_eq) == -1) {
+			arr_app(&proj->depends, &dep);
+		}
+	}
+}
+
+static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
+{
+	const proj_dep_t *dep;
+	arr_foreach(&proj->depends, dep)
+	{
+		get_all_depends(arr, dep->proj, projects);
+
+		if (arr_index_cmp(arr, dep, proj_dep_eq) == -1) {
+			arr_app(arr, dep);
+		}
+	}
+}
+
+static void calculate_all_depends(proj_t *proj, sln_t *sln)
+{
+	if (proj->depends.cnt == 0) {
+		return;
+	}
+
+	arr_init(&proj->all_depends, proj->depends.cnt * 2, sizeof(proj_dep_t));
+	get_all_depends(&proj->all_depends, proj, &sln->projects);
 }
 
 static void get_all_includes(arr_t *arr, const proj_t *proj, dict_t *projects)
@@ -161,13 +162,13 @@ static void get_all_includes(arr_t *arr, const proj_t *proj, dict_t *projects)
 
 		const proj_t *iproj = NULL;
 		if (dict_get(projects, iname->val.data, iname->val.len, (void **)&iproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)iname->val.len, iname->val.data);
+			ERR("project doesn't exist: '%.*s'", (int)iname->val.len, iname->val.data);
 			continue;
 		}
 
 		get_all_includes(arr, iproj, projects);
 
-		if (arr_index_cmp(arr, &iname->val, proj_eq_name) == -1) {
+		if (arr_index_cmp(arr, &iname->val, proj_name_eq) == -1) {
 			arr_app(arr, &iproj);
 		}
 	}
@@ -186,41 +187,15 @@ static void calculate_includes(proj_t *proj, sln_t *sln)
 
 static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projects)
 {
-	const arr_t *depends = &proj->props[PROJ_PROP_DEPENDS].arr;
-	for (uint i = 0; i < depends->cnt; i++) {
-		const prop_str_t *dname = arr_get(depends, i);
-
-		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-			continue;
-		}
-
-		calculate_build_older(arr, dproj, projects);
-
-		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
-			arr_app(arr, &dproj);
+	const proj_dep_t *dep;
+	arr_foreach(&proj->all_depends, dep)
+	{
+		if (arr_index_cmp(arr, &dep->proj->name, proj_name_eq) == -1) {
+			arr_app(arr, &dep->proj);
 		}
 	}
 
-	const arr_t *ddepends = &proj->props[PROJ_PROP_DDEPENDS].arr;
-	for (uint i = 0; i < ddepends->cnt; i++) {
-		const prop_str_t *dname = arr_get(ddepends, i);
-
-		const proj_t *dproj = NULL;
-		if (dict_get(projects, dname->val.data, dname->val.len, (void **)&dproj)) {
-			ERR("project doesn't exists: '%.*s'", (int)dname->val.len, dname->val.data);
-			continue;
-		}
-
-		calculate_build_older(arr, dproj, projects);
-
-		if (arr_index_cmp(arr, &dname->val, proj_eq_name) == -1) {
-			arr_app(arr, &dproj);
-		}
-	}
-
-	if (arr_index_cmp(arr, &proj->name, proj_eq_name) == -1) {
+	if (arr_index_cmp(arr, &proj->name, proj_name_eq) == -1) {
 		arr_app(arr, &proj);
 	}
 }
@@ -295,6 +270,11 @@ int sln_read(sln_t *sln, const path_t *path)
 	dict_foreach(&sln->projects, pair)
 	{
 		calculate_depends(pair->value, sln);
+	}
+
+	dict_foreach(&sln->projects, pair)
+	{
+		calculate_all_depends(pair->value, sln);
 	}
 
 	dict_foreach(&sln->projects, pair)

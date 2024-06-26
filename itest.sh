@@ -11,7 +11,7 @@ arch="$3"
 
 ret=0
 
-$build -S itests/all -D 1 -C 1 -I 1
+#$build -S itests/all -D 1 -C 1 -I 1
 
 check()
 {
@@ -27,15 +27,27 @@ check()
 	fi
 }
 
-check "asm_exe" "ASM: test"
-check "asmc_exe" "ASMC: test"
-check "nasm_exe" "NASM: test"
-check "nasmc_exe" "NASMC: test"
-check "c_exe" "C: test"
-check "cpp_exe" "CPP: test"
-check "all_exe" "
+check "asm" "ASM: test"
+check "asmc" "ASMC: test"
+check "nasm" "NASM: test"
+check "nasmc" "NASMC: test"
+check "c" "C: test"
+check "cpp" "CPP: test"
+
+check "all" "
 ASM: test
+LIBASM: test
+DLIBASM: test
 C: test
-CPP: test"
+LIBC: test
+DLIBC: test
+CPP: test
+LIBCPP: test
+DLIBCPP: test"
+
+make -s -C itests binutils-2.40/compile ARCH="$arch"
+
+make -s -C itests bin/run CONFIG=Release ARCH="$arch" > qemu.log
+
 
 exit $ret
