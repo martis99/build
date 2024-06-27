@@ -1,169 +1,13 @@
 #include "cm_proj.h"
 
+#include "gen/mk/mk_pgen.h"
+#include "gen/sln.h"
 #include "gen/var.h"
 
 #include "common.h"
-
-static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
-{
-	size_t buf_len;
-
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("${CMAKE_SOURCE_DIR}/"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name.data, proj->name.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(Configuration)"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), CSTR("${CMAKE_VS_PLATFORM_NAME}"), NULL);
-	convert_slash(buf, buf_size);
-
-	return buf_len;
-}
-
-static inline void print_rel_path(FILE *fp, const proj_t *proj, const char *path, size_t path_len)
-{
-	char path_b[P_MAX_PATH] = { 0 };
-	mem_cpy(path_b, sizeof(path_b), path, path_len);
-	convert_slash(path_b, path_len);
-	char rel_path[P_MAX_PATH] = { 0 };
-	mem_cpy(rel_path, sizeof(rel_path), proj->rel_dir.path, proj->rel_dir.len);
-	convert_slash(rel_path, proj->rel_dir.len);
-
-	if (cstr_eqn(path_b, path_len, CSTR("${CMAKE_SOURCE_DIR}"), 19)) {
-		c_fprintf(fp, "%.*s", path_len, path_b);
-	} else {
-		c_fprintf(fp, "${CMAKE_SOURCE_DIR}/%.*s/%.*s", proj->rel_dir.len, rel_path, path_len, path_b);
-	}
-}
-
+/*
 static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *file, int shared)
 {
-	const str_t *name = &proj->name;
-	proj_type_t type  = proj->props[PROJ_PROP_TYPE].mask;
-
-	const prop_t *langs   = &proj->props[PROJ_PROP_LANGS];
-	const prop_t *charset = &proj->props[PROJ_PROP_CHARSET];
-	const prop_t *flags   = &proj->props[PROJ_PROP_FLAGS];
-	const prop_t *outdir  = &proj->props[PROJ_PROP_OUTDIR];
-	const prop_t *intdir  = &proj->props[PROJ_PROP_INTDIR];
-
-	char enclude[P_MAX_PATH] = { 0 };
-	char buf[P_MAX_PATH]	 = { 0 };
-
-	size_t enclude_len;
-	size_t buf_len;
-
-	if (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-		mem_cpy(enclude, sizeof(enclude), proj->props[PROJ_PROP_ENCLUDE].value.val.data, proj->props[PROJ_PROP_ENCLUDE].value.val.len);
-		enclude_len = proj->props[PROJ_PROP_ENCLUDE].value.val.len;
-		convert_slash(enclude, enclude_len);
-	}
-
-	int ret = 0;
-
-	uint lang = langs->mask;
-
-	if ((proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) || (proj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET)) {
-		c_fprintf(file, "file(GLOB_RECURSE %.*s%s_SOURCE", name->len, name->data, shared ? "_d" : "");
-		if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-			const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
-
-			for (uint i = 0; i < sources->cnt; i++) {
-				prop_str_t *source = arr_get(sources, i);
-				mem_cpy(buf, sizeof(buf), source->val.data, source->val.len);
-				buf_len = source->val.len;
-				convert_slash(buf, source->val.len);
-
-				if (lang & (1 << LANG_NASM)) {
-					c_fprintf(file, " %.*s*.nasm", buf_len, buf, buf_len, buf);
-				}
-				if (lang & (1 << LANG_ASM)) {
-					c_fprintf(file, " %.*s*.asm", buf_len, buf, buf_len, buf);
-				}
-				if ((lang & (1 << LANG_NASM)) || (lang & (1 << LANG_ASM))) {
-					c_fprintf(file, " %.*s*.inc", buf_len, buf);
-				}
-				if (lang & (1 << LANG_C)) {
-					c_fprintf(file, " %.*s*.c", buf_len, buf);
-				}
-				if ((lang & (1 << LANG_C)) || (lang & (1 << LANG_CPP))) {
-					c_fprintf(file, " %.*s*.h", buf_len, buf);
-				}
-				if (lang & (1 << LANG_CPP)) {
-					c_fprintf(file, " %.*s*.cpp %.*s*.hpp", buf_len, buf, buf_len, buf);
-				}
-			}
-		}
-
-		if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
-
-			for (uint i = 0; i < includes->cnt; i++) {
-				prop_str_t *include = arr_get(includes, i);
-				buf_len		    = include->val.len;
-				mem_cpy(buf, sizeof(buf), include->val.data, include->val.len);
-				convert_slash(buf, include->val.len);
-
-				if ((lang & (1 << LANG_NASM) || (lang & (1 << LANG_ASM)))) {
-					c_fprintf(file, " %.*s*.inc", buf_len, buf);
-				}
-				if ((lang & (1 << LANG_C)) || (lang & (1 << LANG_CPP))) {
-					c_fprintf(file, " %.*s*.h", buf_len, buf);
-				}
-				if (lang & (1 << LANG_CPP)) {
-					c_fprintf(file, " %.*s*.hpp", buf_len, buf);
-				}
-			}
-		}
-
-		c_fprintf(file, ")\n\n");
-	}
-
-	if ((proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) || charset->mask == CHARSET_UNICODE) {
-		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
-
-		if (defines->cnt > 0 || charset->mask == CHARSET_UNICODE) {
-			c_fprintf(file, "add_definitions(");
-		}
-
-		int first = 1;
-
-		if (charset->mask == CHARSET_UNICODE) {
-			c_fprintf(file, first ? "-DUNICODE -D_UNICODE" : " -DUNICODE -D_UNICODE");
-			first = 0;
-		}
-
-		if (shared) {
-			str_t upper = strz(name->len + 1);
-			str_to_upper(*name, &upper);
-			c_fprintf(file, first ? "-D%.*s_BUILD_DLL" : " -D%.*s_BUILD_DLL", (int)upper.len, upper.data);
-			first = 0;
-			str_free(&upper);
-		}
-
-		for (uint i = 0; i < proj->all_depends.cnt; i++) {
-			const proj_dep_t *dep = arr_get(&proj->all_depends, i);
-
-			if (dep->link_type != LINK_TYPE_SHARED) {
-				continue;
-			}
-
-			str_t upper = strz(dep->proj->name.len + 1);
-			str_to_upper(dep->proj->name, &upper);
-			c_fprintf(file, first ? "-D%.*s_DLL" : " -D%.*s_DLL", (int)upper.len, upper.data);
-			first = 0;
-			str_free(&upper);
-		}
-
-		for (uint i = 0; i < defines->cnt; i++) {
-			const prop_str_t *define = arr_get(defines, i);
-			c_fprintf(file, first ? "-D%.*s" : " -D%.*s", define->val.len, define->val.data);
-			first = 0;
-		}
-
-		if (!first) {
-			c_fprintf(file, ")\n\n");
-		}
-	}
-
 	switch (type) {
 	case PROJ_TYPE_LIB:
 		c_fprintf(file, "add_library(%.*s%s %s ${%.*s%s_SOURCE})\n", name->len, name->data, shared ? "_d" : "", shared ? "SHARED" : "STATIC", name->len,
@@ -421,6 +265,303 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 done:
 	return ret;
 }
+*/
+typedef struct mk_pgen_header_data_s {
+	str_t dir;
+	mk_pgen_header_ext_t exts;
+} mk_pgen_header_data_t;
+
+typedef struct mk_pgen_src_data_s {
+	str_t dir;
+	mk_pgen_src_ext_t exts;
+} mk_pgen_src_data_t;
+
+typedef struct mk_pgen_file_data_s {
+	str_t path;
+	mk_pgen_file_ext_t ext;
+} mk_pgen_file_data_t;
+
+//TODO: Resolve when reading config file
+static str_t resolve_path(str_t rel, str_t path, str_t *buf)
+{
+	if (str_eqn(path, STR("$(SLN_DIR)"), 9)) {
+		str_cpyd(path, buf);
+		return *buf;
+	}
+
+	buf->len = 0;
+	str_cat(buf, STR("$(SLN_DIR)"));
+	str_cat(buf, rel);
+	str_cat(buf, path);
+	return *buf;
+}
+
+static str_t resolve(str_t str, str_t *buf, const proj_t *proj)
+{
+	str_cpyd(str, buf);
+	str_replace(buf, STR("$(SLN_DIR)"), STR("$(CMAKE_SOURCE_DIR)"));
+	str_replace(buf, STR("$(PROJ_DIR)"), strc(proj->rel_dir.path, proj->rel_dir.len));
+	str_replace(buf, STR("$(PROJ_NAME)"), strc(proj->name.data, proj->name.len));
+	str_replace(buf, STR("$(CONFIG)"), STR("$(Configuration)"));
+	str_replace(buf, STR("$(ARCH)"), STR("${CMAKE_VS_PLATFORM_NAME}"));
+	convert_slash((char *)buf->data, buf->len);
+	return *buf;
+}
+
+static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
+{
+	static const char *header_ext[] = {
+		[MK_EXT_INC] = "inc",
+		[MK_EXT_H]   = "h",
+		[MK_EXT_HPP] = "hpp",
+	};
+
+	// clang-format off
+	static struct {
+		str_t name;
+		str_t flags;
+		const char *ext;
+		int cov;
+	} src_c[] = {
+		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),  "asm", 0 },
+		[MK_EXT_S]   = { STRS("SRC_S"),  STRS("ASFLAGS"),  "S",   0 },
+		[MK_EXT_C]   = { STRS("SRC_C"),    STRS("CFLAGS"),   "c",   1 },
+		[MK_EXT_CPP] = { STRS("SRC_CPP"),  STRS("CXXFLAGS"), "cpp", 1 },
+	};
+
+	static struct {
+		str_t postfix;
+	} target_c[] = {
+		[MK_BUILD_EXE]	  = { STRS("")},
+		[MK_BUILD_STATIC] = { STRS("_s")},
+		[MK_BUILD_SHARED] = { STRS("_d")},
+		[MK_BUILD_ELF]	  = { STRS("")},
+		[MK_BUILD_BIN]	  = { STRS("")},
+		[MK_BUILD_FAT12]  = { STRS("")},
+	};
+	// clang-format on
+
+	int src[__MK_SRC_MAX]	   = { 0 };
+	int target[__MK_BUILD_MAX] = { 0 };
+
+	int is_src = 0;
+
+	if (gen->headers.cnt > 0 || gen->srcs.cnt > 0) {
+		dprintf(dst, "file(GLOB_RECURSE %.*s_SOURCE", gen->name.len, gen->name.data);
+
+		const mk_pgen_header_data_t *header;
+		arr_foreach(&gen->headers, header)
+		{
+			for (mk_pgen_header_ext_t ext = 0; ext < __MK_HEADER_MAX; ext++) {
+				if ((header->exts & (1 << ext)) == 0) {
+					continue;
+				}
+
+				dprintf(dst, " %.*s*.%s", header->dir.len, header->dir.data, header_ext[ext]);
+			}
+		}
+
+		const mk_pgen_src_data_t *data;
+		arr_foreach(&gen->srcs, data)
+		{
+			for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
+				if ((data->exts & (1 << s)) == 0) {
+					continue;
+				}
+
+				is_src = 1;
+				src[s] = 1;
+				dprintf(dst, " %.*s*.%s", data->dir.len, data->dir.data, src_c[s].ext);
+			}
+		}
+
+		dprintf(dst, ")\n\n");
+	}
+
+	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
+		if ((gen->builds & (1 << b)) == 0) {
+			continue;
+		}
+
+		switch (b) {
+		case MK_BUILD_EXE:
+			if (is_src) {
+				dprintf(dst, "add_executable(%.*s%.*s ${%.*s_SOURCE})\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data, gen->name.len, gen->name.data);
+				target[b] = 1;
+			}
+			break;
+		case MK_BUILD_STATIC:
+			if (is_src) {
+				dprintf(dst, "add_library(%.*s%.*s STATIC ${%.*s_SOURCE})\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data, gen->name.len, gen->name.data);
+				target[b] = 1;
+			}
+			break;
+		case MK_BUILD_SHARED:
+			if (is_src) {
+				dprintf(dst, "add_library(%.*s%.*s SHARED ${%.*s_SOURCE})\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data, gen->name.len, gen->name.data);
+				target[b] = 1;
+			}
+			break;
+		default:
+			break;
+		}
+
+		for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
+			if (target[b] && gen->defines[i].len > 0) {
+				dprintf(dst, "add_definitions(%.*s)\n", gen->defines[i].len, gen->defines[i].data);
+			}
+		}
+
+		if (target[b]) {
+			if (src[MK_EXT_CPP]) {
+				dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES LINKER_LANGUAGE CXX)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data);
+			} else if (src[MK_EXT_C]) {
+				dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES LINKER_LANGUAGE C)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data);
+			} else if (src[MK_EXT_S]) {
+				dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES LINKER_LANGUAGE ASM)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data);
+			}
+		}
+	}
+}
+
+static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, FILE *file, int shared)
+{
+	mk_pgen_t lgen = { 0 };
+	mk_pgen_init(&lgen);
+
+	mk_pgen_t *gen = &lgen;
+
+	char buf_d[P_MAX_PATH] = { 0 };
+
+	str_t buf = strb(buf_d, sizeof(buf_d), 0);
+
+	int ret = 0;
+
+	const str_t *filename = &proj->name;
+
+	const prop_t *pfilename = &proj->props[PROJ_PROP_FILENAME];
+	if (pfilename->flags & PROP_SET) {
+		filename = &pfilename->value.val;
+	}
+	gen->name = str_cpy(*filename);
+
+	switch (proj->props[PROJ_PROP_TYPE].mask) {
+	case PROJ_TYPE_EXE:
+		gen->builds = F_MK_BUILD_EXE;
+		break;
+	case PROJ_TYPE_BIN:
+		gen->builds = F_MK_BUILD_BIN;
+		break;
+	case PROJ_TYPE_ELF:
+		gen->builds = F_MK_BUILD_ELF;
+		break;
+	case PROJ_TYPE_FAT12:
+		gen->builds = F_MK_BUILD_FAT12;
+		break;
+	case PROJ_TYPE_LIB:
+		gen->builds = F_MK_BUILD_STATIC | F_MK_BUILD_SHARED;
+		break;
+	case PROJ_TYPE_EXT:
+		break;
+	}
+
+	const prop_t *outdir = &proj->props[PROJ_PROP_OUTDIR];
+	if (outdir->flags & PROP_SET) {
+		gen->outdir = str_cpy(resolve(outdir->value.val, &buf, proj));
+		switch (proj->props[PROJ_PROP_TYPE].mask) {
+		case PROJ_TYPE_EXE: {
+			str_t c = strn(buf.data, buf.len, buf.len + 5);
+			str_cat(&c, STR("cov/"));
+			gen->covdir = c;
+			break;
+		}
+		default:
+			break;
+		}
+	}
+
+	if (proj->props[PROJ_PROP_SOURCE].arr.cnt > 0) {
+		const prop_t *intdir = &proj->props[PROJ_PROP_INTDIR];
+		if (intdir->flags & PROP_SET) {
+			resolve(intdir->value.val, &buf, proj);
+			switch (proj->props[PROJ_PROP_TYPE].mask) {
+			case PROJ_TYPE_EXE:
+			case PROJ_TYPE_BIN:
+			case PROJ_TYPE_ELF:
+				gen->intdir[MK_INTDIR_OBJECT] = str_cpy(buf);
+				break;
+			case PROJ_TYPE_LIB: {
+				resolve(intdir->value.val, &buf, proj);
+				str_t s = strn(buf.data, buf.len, buf.len + 8);
+				str_cat(&s, STR("static/"));
+				gen->intdir[MK_INTDIR_STATIC] = s;
+
+				str_t d = strn(buf.data, buf.len, buf.len + 8);
+				str_cat(&d, STR("shared/"));
+				gen->intdir[MK_INTDIR_SHARED] = d;
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+
+	const prop_str_t *config;
+	arr_foreach(&sln_props[SLN_PROP_CONFIGS].arr, config)
+	{
+		mk_pgen_add_config(gen, strs(config->val));
+	}
+
+	uint lang = proj->props[PROJ_PROP_LANGS].mask;
+	const prop_str_t *include;
+	arr_foreach(&proj->props[PROJ_PROP_INCLUDE].arr, include)
+	{
+		int exts = 0;
+		exts |= lang & (1 << LANG_NASM) ? F_MK_EXT_INC : 0;
+		exts |= lang & (1 << LANG_ASM) ? F_MK_EXT_INC : 0;
+		exts |= lang & (1 << LANG_C) || lang & (1 << LANG_CPP) ? F_MK_EXT_H : 0;
+		exts |= lang & (1 << LANG_CPP) ? F_MK_EXT_HPP : 0;
+
+		if (exts) {
+			mk_pgen_add_header(gen, strs(include->val), exts);
+		}
+	}
+
+	const prop_str_t *source;
+	arr_foreach(&proj->props[PROJ_PROP_SOURCE].arr, source)
+	{
+		int headers = 0;
+		headers |= lang & (1 << LANG_NASM) ? F_MK_EXT_INC : 0;
+		headers |= lang & (1 << LANG_ASM) ? F_MK_EXT_INC : 0;
+		headers |= lang & (1 << LANG_C) || lang & (1 << LANG_CPP) ? F_MK_EXT_H : 0;
+		headers |= lang & (1 << LANG_CPP) ? F_MK_EXT_HPP : 0;
+
+		if (headers) {
+			mk_pgen_add_header(gen, strs(source->val), headers);
+		}
+
+		int srcs = 0;
+		srcs |= lang & (1 << LANG_NASM) ? F_MK_EXT_ASM : 0;
+		srcs |= lang & (1 << LANG_ASM) ? F_MK_EXT_S : 0;
+		srcs |= lang & (1 << LANG_C) ? F_MK_EXT_C : 0;
+		srcs |= lang & (1 << LANG_CPP) ? F_MK_EXT_CPP : 0;
+
+		if (srcs) {
+			mk_pgen_add_src(gen, strs(source->val), srcs);
+		}
+	}
+
+	cm_pgen(gen, PRINT_DST_FILE(file));
+
+	mk_pgen_free(&lgen);
+}
 
 int cm_proj_gen(const proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 {
@@ -446,11 +587,7 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const prop_t *sln_pr
 
 	MSG("generating project: %s", gen_path.path);
 
-	cm_proj_gen_proj(proj, projects, sln_props, file, 0);
-	if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-		c_fprintf(file, "\n");
-		cm_proj_gen_proj(proj, projects, sln_props, file, 1);
-	}
+	cm_proj_gen_proj2(proj, projects, sln_props, file, 0);
 
 	file_close(file);
 	if (ret == 0) {
@@ -461,3 +598,4 @@ int cm_proj_gen(const proj_t *proj, const dict_t *projects, const prop_t *sln_pr
 
 	return ret;
 }
+//467
