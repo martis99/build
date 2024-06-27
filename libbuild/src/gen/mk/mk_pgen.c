@@ -46,12 +46,17 @@ mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
 	}
 
 	gen->ldflags = strz(16);
+	gen->depends = strz(16);
 
 	if (arr_init(&gen->files, 2, sizeof(mk_pgen_file_data_t)) == NULL) {
 		return NULL;
 	}
 
 	if (arr_init(&gen->requires, 1, sizeof(str_t)) == NULL) {
+		return NULL;
+	}
+
+	if (arr_init(&gen->copyfiles, 1, sizeof(str_t)) == NULL) {
 		return NULL;
 	}
 
@@ -105,6 +110,7 @@ void mk_pgen_free(mk_pgen_t *gen)
 	}
 
 	str_free(&gen->ldflags);
+	str_free(&gen->depends);
 
 	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
 		str_free(&gen->run[b]);
@@ -142,6 +148,17 @@ void mk_pgen_free(mk_pgen_t *gen)
 
 	str_free(&gen->config);
 	str_free(&gen->targets);
+
+	str_t *copyfile;
+	arr_foreach(&gen->copyfiles, copyfile)
+	{
+		str_free(copyfile);
+	}
+	arr_free(&gen->copyfiles);
+
+	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
+		str_free(&gen->lib[i]);
+	}
 }
 
 //TODO: Add ability to set config name independent from config settings
@@ -260,46 +277,49 @@ void mk_pgen_add_ldflag(mk_pgen_t *gen, str_t ldflag)
 	str_cat(&gen->ldflags, ldflag);
 }
 
-void mk_pgen_add_slib(mk_pgen_t *gen, str_t lib)
+void mk_pgen_add_slib(mk_pgen_t *gen, str_t dir, str_t lib)
 {
 	if (gen == NULL) {
 		return;
 	}
 
-	str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
-	str_cat(&gen->ldflags, lib);
-	str_cat(&gen->ldflags, STR(".a"));
+	if (gen->depends.len > 0) {
+		str_cat(&gen->depends, STR(" "));
+	}
+
+	if (dir.data) {
+		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -L") : STR("-L"));
+		str_cat(&gen->ldflags, dir);
+
+		str_cat(&gen->depends, dir);
+	}
+
+	if (lib.data) {
+		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
+		str_cat(&gen->ldflags, lib);
+		str_cat(&gen->ldflags, STR(".a"));
+
+		str_cat(&gen->depends, lib);
+		str_cat(&gen->depends, STR(".a"));
+	}
 }
 
-void mk_pgen_add_dlib(mk_pgen_t *gen, str_t lib)
+void mk_pgen_add_dlib(mk_pgen_t *gen, str_t dir, str_t lib)
 {
 	if (gen == NULL) {
 		return;
 	}
 
-	str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
-	str_cat(&gen->ldflags, lib);
-	str_cat(&gen->ldflags, STR(".so"));
-}
-
-void mk_pgen_add_slib_dir(mk_pgen_t *gen, str_t lib)
-{
-	if (gen == NULL) {
-		return;
+	if (dir.data) {
+		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -Wl,-rpath,") : STR("-Wl,-rpath,"));
+		str_cat(&gen->ldflags, dir);
 	}
 
-	str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -L") : STR("-L"));
-	str_cat(&gen->ldflags, lib);
-}
-
-void mk_pgen_add_dlib_dir(mk_pgen_t *gen, str_t lib)
-{
-	if (gen == NULL) {
-		return;
+	if (lib.data) {
+		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
+		str_cat(&gen->ldflags, lib);
+		str_cat(&gen->ldflags, STR(".so"));
 	}
-
-	str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -Wl,-rpath,") : STR("-Wl,-rpath,"));
-	str_cat(&gen->ldflags, lib);
 }
 
 void mk_pgen_set_run(mk_pgen_t *gen, str_t run, int build)
@@ -367,6 +387,24 @@ uint mk_pgen_add_require(mk_pgen_t *gen, str_t require)
 	}
 
 	*data = require;
+
+	return id;
+}
+
+uint mk_pgen_add_copyfile(mk_pgen_t *gen, str_t path)
+{
+	if (gen == NULL) {
+		return MK_REQUIRE_END;
+	}
+
+	uint id = arr_add(&gen->copyfiles);
+
+	str_t *data = arr_get(&gen->copyfiles, id);
+	if (data == NULL) {
+		return MK_REQUIRE_END;
+	}
+
+	*data = path;
 
 	return id;
 }
@@ -463,8 +501,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		[MK_BUILD_EXE]	  = MAKE_END,
 		[MK_BUILD_STATIC] = MAKE_END,
 		[MK_BUILD_SHARED] = MAKE_END,
-		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_ELF]	  = MAKE_END,
+		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_FAT12]  = MAKE_END,
 	};
 
@@ -475,13 +513,15 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		mk_pgen_intdir_type_t intdir;
 		str_t run;
 		str_t artifact;
+		str_t cmdl;
+		str_t cmdr;
 	} target_c[] = {
-		[MK_BUILD_EXE]	  = { STRS("TARGET"),	    "",     STRS("compile"), MK_INTDIR_OBJECT, STRS("run"),	  STRS("artifact")	 },
-		[MK_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  MK_INTDIR_STATIC, STRS("run_s"),	  STRS("artifact_s")	 },
-		[MK_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  MK_INTDIR_SHARED, STRS("run_d"),	  STRS("artifact_d")	 },
-		[MK_BUILD_BIN]	  = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     MK_INTDIR_OBJECT, STRS("run_bin"),   STRS("artifact_bin")	 }, 
-		[MK_BUILD_ELF]	  = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     MK_INTDIR_OBJECT, STRS("run_elf"),   STRS("artifact_elf")	 }, 
-		[MK_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __MK_INTDIR_MAX,  STRS("run_fat12"), STRS("artifact_fat12") },
+		[MK_BUILD_EXE]	  = { STRS("TARGET"),	    "",     STRS("compile"), MK_INTDIR_OBJECT, STRS("run"),	  STRS("artifact"),	  STRS("@$(TCC) -m$(BITS)"),			    STRS(" $(LDFLAGS) -o $@")},
+		[MK_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  MK_INTDIR_STATIC, STRS("run_s"),	  STRS("artifact_s"),	  STRS("@ar rcs $@"),				    STRS("")},
+		[MK_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  MK_INTDIR_SHARED, STRS("run_d"),	  STRS("artifact_d"),	  STRS("@$(TCC) -m$(BITS) -shared"),		    STRS(" $(LDFLAGS) -o $@")},
+		[MK_BUILD_ELF]	  = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     MK_INTDIR_OBJECT, STRS("run_elf"),   STRS("artifact_elf"),	  STRS("@$(TCC) -m$(BITS) -shared -ffreestanding"), STRS(" $(LDFLAGS) -o $@")}, 
+		[MK_BUILD_BIN]	  = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     MK_INTDIR_OBJECT, STRS("run_bin"),   STRS("artifact_bin"),	  STRS(""),					    STRS("")}, 
+		[MK_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __MK_INTDIR_MAX,  STRS("run_fat12"), STRS("artifact_fat12"), STRS(""),					    STRS("")},
 	};
 	// clang-format on
 
@@ -561,12 +601,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		},
 	};
 
-	make_var_t obj_ext[] = {
-		[MK_EXT_ASM] = MAKE_END,
-		[MK_EXT_S]   = MAKE_END,
-		[MK_EXT_C]   = MAKE_END,
-		[MK_EXT_CPP] = MAKE_END,
-	};
+	int obj_ext[__MK_SRC_MAX]	= { 0 };
+	int obj_intdir[__MK_INTDIR_MAX] = { 0 };
 
 	static struct {
 		str_t name;
@@ -606,15 +642,17 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 			is_vars = 1;
 			is_obj	= 1;
 
-			obj_ext[s] = obj[i][s] = make_add_act(make, make_create_var(make, obj_ext_c[i][s].name, MAKE_VAR_INST));
+			obj_intdir[i] = 1;
+			obj_ext[s]    = 1;
+
+			obj[i][s] = make_add_act(make, make_create_var(make, obj_ext_c[i][s].name, MAKE_VAR_INST));
 			make_var_add_val(make, obj[i][s],
 					 MSTR(strf("$(patsubst %%.%s, $(%s)%%.%s, $(%s))", src_c[s].ext, intdir_c[i].name.data,
 						   s == MK_EXT_ASM && target[MK_BUILD_BIN] != MAKE_END ? "bin" : "o", src_c[s].name.data)));
 		}
 	}
 
-	int asm_bin = target[MK_BUILD_BIN] != MAKE_END && obj_ext[MK_EXT_ASM] != MAKE_END && obj_ext[MK_EXT_S] == MAKE_END && obj_ext[MK_EXT_C] == MAKE_END &&
-		      obj_ext[MK_EXT_CPP] == MAKE_END;
+	int asm_bin = target[MK_BUILD_BIN] != MAKE_END && obj_ext[MK_EXT_ASM] && !obj_ext[MK_EXT_S] && !obj_ext[MK_EXT_C] && !obj_ext[MK_EXT_CPP];
 
 	make_var_t cov = MAKE_END;
 	for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
@@ -667,7 +705,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 	};
 
 	for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
-		if (obj_ext[s] == MAKE_END || gen->flags[s].len == 0) {
+		if (!obj_ext[s] || gen->flags[s].len == 0) {
 			continue;
 		}
 
@@ -684,7 +722,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 	};
 
 	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-		if (target[i] == MAKE_END || gen->defines[i].len == 0) {
+		if (intdir[i] == MAKE_END || gen->defines[i].len == 0) {
 			continue;
 		}
 
@@ -694,25 +732,24 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_var_add_val(make, defines[i], MSTR(str_cpy(gen->defines[i])));
 	}
 
-	make_var_t ldflags = MAKE_END;
 	if (is_obj) {
 		is_flags = 1;
 
-		ldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_INST));
+		const make_var_t ldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_INST));
 		if (gen->ldflags.len > 0) {
 			make_var_add_val(make, ldflags, MSTR(str_cpy(gen->ldflags)));
 		}
 	}
 
 	make_var_t nasm_config_flags = MAKE_END;
-	if (obj_ext[MK_EXT_ASM] != MAKE_END) {
+	if (obj_ext[MK_EXT_ASM]) {
 		is_flags = 1;
 
 		nasm_config_flags = make_add_act(make, make_create_var(make, STR("NASM_CONFIG_FLAGS"), MAKE_VAR_INST));
 	}
 
 	make_var_t gcc_config_flags = MAKE_END;
-	if (obj_ext[MK_EXT_S] != MAKE_END || obj_ext[MK_EXT_C] != MAKE_END || obj_ext[MK_EXT_CPP] != MAKE_END) {
+	if (obj_ext[MK_EXT_S] || obj_ext[MK_EXT_C] || obj_ext[MK_EXT_CPP]) {
 		is_flags = 1;
 
 		gcc_config_flags = make_add_act(make, make_create_var(make, STR("GCC_CONFIG_FLAGS"), MAKE_VAR_INST));
@@ -739,7 +776,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_add_act(make, make_create_empty(make));
 	}
 
-	int is_debug = is_config(gen, STR("Debug"));
+	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && is_config(gen, STR("Debug"));
 
 	if (is_debug) {
 		const make_if_t if_config = make_add_act(make, make_create_if(make, MVAR(config), MSTR(STR("Debug"))));
@@ -776,12 +813,12 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 
 	const make_rule_t check = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("check"))), 0));
 
-	if (obj_ext[MK_EXT_ASM] != MAKE_END) {
+	if (obj_ext[MK_EXT_ASM]) {
 		const make_if_t if_nasm = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which nasm)"))));
 		make_if_add_true_act(make, if_nasm, make_create_cmd(make, MCMD(STR("sudo apt-get install nasm -y"))));
 	}
 
-	if (obj_ext[MK_EXT_S] != MAKE_END || obj_ext[MK_EXT_C] != MAKE_END) {
+	if (obj_ext[MK_EXT_S] || obj_ext[MK_EXT_C]) {
 		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which gcc)"))));
 		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt-get install gcc -y"))));
 
@@ -791,7 +828,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(STR("sudo apt-get install gcc-multilib -y"))));
 	}
 
-	if (obj_ext[MK_EXT_CPP] != MAKE_END) {
+	if (obj_ext[MK_EXT_CPP]) {
 		const make_if_t if_gcc = make_rule_add_act(make, check, make_create_if(make, MSTR(str_null()), MSTR(STR("$(shell which g++)"))));
 		make_if_add_true_act(make, if_gcc, make_create_cmd(make, MCMD(STR("sudo apt-get install g++ -y"))));
 
@@ -820,198 +857,232 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt-get install %.*s -y", require->len, require->data))));
 	}
 
+	make_rule_t copyfiles = MAKE_END;
+	if (gen->copyfiles.cnt > 0) {
+		copyfiles = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("copyfiles"))), 0));
+
+		const str_t *copyfile;
+		arr_foreach(&gen->copyfiles, copyfile)
+		{
+			make_rule_add_act(make, copyfiles, make_create_cmd(make, MCMD(strf("@cp %.*s .", copyfile->len, copyfile->data))));
+		}
+	}
+
 	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
-		if (target[b] != MAKE_END) {
-			const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(target_c[b].act)), 0));
-			make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
-			make_rule_add_depend(make, compile, MRULE(MVAR(target[b])));
+		if (target[b] == MAKE_END) {
+			continue;
 		}
+
+		const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(target_c[b].act)), 0));
+		make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
+		if (copyfiles != MAKE_END) {
+			make_rule_add_depend(make, compile, MRULE(MSTR(STR("copyfiles"))));
+		}
+		make_rule_add_depend(make, compile, MRULE(MVAR(target[b])));
 	}
 
-	if (target[MK_BUILD_EXE] != MAKE_END && ldflags != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_EXE])), 1));
-		for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
-			if (obj[target_c[MK_BUILD_EXE].intdir][s] == MAKE_END) {
-				continue;
-			}
+	// clang-format off
+	make_rule_t target_rule[] = {
+		[MK_BUILD_EXE]	  = MAKE_END,
+		[MK_BUILD_STATIC] = MAKE_END,
+		[MK_BUILD_SHARED] = MAKE_END,
+		[MK_BUILD_ELF]	  = MAKE_END,
+		[MK_BUILD_BIN]	  = MAKE_END,
+		[MK_BUILD_FAT12]  = MAKE_END,
+	};
+	// clang-format on
 
-			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_EXE].intdir][s])));
+	for (mk_pgen_build_type_t b = MK_BUILD_EXE; b <= MK_BUILD_ELF; b++) {
+		if (target[b] == MAKE_END) {
+			continue;
 		}
 
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@"))));
-	}
+		str_t lib = gen->lib[target_c[b].intdir];
 
-	if (target[MK_BUILD_STATIC] != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_STATIC])), 1));
-		for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
-			if (obj[target_c[MK_BUILD_STATIC].intdir][s] == MAKE_END) {
-				continue;
-			}
-
-			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_STATIC].intdir][s])));
+		if (obj_intdir[target_c[b].intdir] || lib.data) {
+			target_rule[b] = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[b])), 1));
+			make_rule_add_act(make, target_rule[b], make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 		}
 
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@ar rcs $@ $^"))));
-	}
+		if (obj_intdir[target_c[b].intdir]) {
+			str_t cmd = strz(128);
+			str_cat(&cmd, target_c[b].cmdl);
 
-	if (target[MK_BUILD_SHARED] != MAKE_END && ldflags != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_SHARED])), 1));
-		for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
-			if (obj[target_c[MK_BUILD_SHARED].intdir][s] == MAKE_END) {
-				continue;
+			for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
+				if (obj[target_c[b].intdir][s] == MAKE_END) {
+					continue;
+				}
+
+				make_rule_add_depend(make, target_rule[b], MRULE(MVAR(obj[target_c[b].intdir][s])));
+
+				str_cat(&cmd, STR(" $("));
+				str_cat(&cmd, obj_ext_c[target_c[b].intdir][s].name);
+				str_cat(&cmd, STR(")"));
 			}
 
-			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_SHARED].intdir][s])));
+			if (gen->depends.len > 0) {
+				make_rule_add_depend(make, target_rule[b], MRULE(MSTR(str_cpy(gen->depends))));
+			}
+
+			str_cat(&cmd, target_c[b].cmdr);
+			make_rule_add_act(make, target_rule[b], make_create_cmd(make, MCMD(cmd)));
 		}
 
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) -m$(BITS) -shared $^ $(LDFLAGS) -o $@"))));
+		if (lib.data) {
+			make_rule_add_depend(make, target_rule[b], MRULE(MSTR(strf("%.*s%s", lib.len, lib.data, target_c[b].ext))));
+			make_rule_add_act(make, target_rule[b], make_create_cmd(make, MCMD(strf("@cp %.*s%s $@", lib.len, lib.data, target_c[b].ext))));
+		}
 	}
 
 	if (target[MK_BUILD_BIN] != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_BIN])), 1));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		target_rule[MK_BUILD_BIN] = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_BIN])), 1));
+		make_rule_add_act(make, target_rule[MK_BUILD_BIN], make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 
-		if (ldflags != MAKE_END) {
+		if (obj_intdir[target_c[MK_BUILD_BIN].intdir]) {
+			str_t cmd = strz(128);
+			if (asm_bin) {
+				str_cat(&cmd, STR("@cat"));
+			} else {
+				str_cat(&cmd, STR("@$(TLD) -Tlinker.ld --oformat binary"));
+			}
+
 			for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
 				if (obj[target_c[MK_BUILD_BIN].intdir][s] == MAKE_END) {
 					continue;
 				}
 
-				make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_BIN].intdir][s])));
+				make_rule_add_depend(make, target_rule[MK_BUILD_BIN], MRULE(MVAR(obj[target_c[MK_BUILD_BIN].intdir][s])));
+
+				str_cat(&cmd, STR(" $("));
+				str_cat(&cmd, obj_ext_c[target_c[MK_BUILD_BIN].intdir][s].name);
+				str_cat(&cmd, STR(")"));
 			}
 
 			if (asm_bin) {
-				make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@cat $^ > $@"))));
+				str_cat(&cmd, STR(" > $@"));
 			} else {
-				make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TLD) -Tlinker.ld --oformat binary $^ $(LDFLAGS) -o $@"))));
+				str_cat(&cmd, STR(" $(LDFLAGS) -o $@"));
 			}
+
+			make_rule_add_act(make, target_rule[MK_BUILD_BIN], make_create_cmd(make, MCMD(cmd)));
 		} else {
 			const mk_pgen_file_data_t *file;
 			arr_foreach(&gen->files, file)
 			{
-				make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(file->path))));
+				make_rule_add_depend(make, target_rule[MK_BUILD_BIN], MRULE(MSTR(str_cpy(file->path))));
 				switch (file->ext) {
 				case MK_EXT_BIN:
-					make_rule_add_act(make, rtarget,
+					make_rule_add_act(make, target_rule[MK_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@dd if=%.*s status=none >> $@", file->path.len, file->path.data))));
 					break;
 
 				case MK_EXT_ELF:
-					make_rule_add_act(make, rtarget,
+					make_rule_add_act(make, target_rule[MK_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@objcopy -O binary -j .text %.*s %.*s.bin", file->path.len, file->path.data,
 											  file->path.len, file->path.data))));
-					make_rule_add_act(make, rtarget,
+					make_rule_add_act(make, target_rule[MK_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@dd if=%.*s.bin status=none >> $@", file->path.len, file->path.data))));
 					break;
 				}
 			}
 
 			if (gen->size.data) {
-				make_rule_add_act(make, rtarget,
+				make_rule_add_act(make, target_rule[MK_BUILD_BIN],
 						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", gen->size.len, gen->size.data))));
 			}
 		}
 	}
 
-	if (target[MK_BUILD_ELF] != MAKE_END && ldflags != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_ELF])), 1));
-		for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
-			if (obj[target_c[MK_BUILD_ELF].intdir][s] == MAKE_END) {
-				continue;
-			}
-
-			make_rule_add_depend(make, rtarget, MRULE(MVAR(obj[target_c[MK_BUILD_ELF].intdir][s])));
-		}
-
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@$(TCC) -m$(BITS) -shared -ffreestanding $^ $(LDFLAGS) -o $@"))));
-	}
-
 	if (target[MK_BUILD_FAT12] != MAKE_END) {
-		make_var_t rtarget = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_FAT12])), 1));
+		target_rule[MK_BUILD_FAT12] = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[MK_BUILD_FAT12])), 1));
 
 		if (gen->header.data != NULL) {
-			make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(gen->header))));
+			make_rule_add_depend(make, target_rule[MK_BUILD_FAT12], MRULE(MSTR(str_cpy(gen->header))));
 		}
 
 		const mk_pgen_file_data_t *file;
 		arr_foreach(&gen->files, file)
 		{
-			make_rule_add_depend(make, rtarget, MRULE(MSTR(str_cpy(file->path))));
+			make_rule_add_depend(make, target_rule[MK_BUILD_FAT12], MRULE(MSTR(str_cpy(file->path))));
 		}
 
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, target_rule[MK_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 
 		//create empty 1.44MB image (block size = 512, block count = 2880)
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@dd if=/dev/zero of=$@ bs=512 count=2880 status=none"))));
+		make_rule_add_act(make, target_rule[MK_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@dd if=/dev/zero of=$@ bs=512 count=2880 status=none"))));
 		if (gen->header.data == NULL) {
 			//create file system
-			make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
+			make_rule_add_act(make, target_rule[MK_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
 		} else {
 			//put first binary to the first sector of the disk
-			make_rule_add_act(make, rtarget,
+			make_rule_add_act(make, target_rule[MK_BUILD_FAT12],
 					  make_create_cmd(make, MCMD(strf("@dd if=%.*s of=$@ conv=notrunc status=none", gen->header.len, gen->header.data))));
 		}
 		//copy files to the image
-		make_rule_add_act(make, rtarget, make_create_cmd(make, MCMD(STR("@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
+		make_rule_add_act(make, target_rule[MK_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
 	}
 
 	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-		if (obj[i][MK_EXT_ASM] != MAKE_END) {
-			if (asm_bin) {
-				const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.bin", intdir_c[i].name.data))), 1));
-				make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
-				make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-
-				make_rule_add_act(make, int_o,
-						  make_create_cmd(make, MCMD(strf("@nasm -fbin $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
-										  intdir_c[i].defines.data))));
-			} else {
-				const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
-				make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
-				make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-
-				make_rule_add_act(make, int_o,
-						  make_create_cmd(make, MCMD(strf("@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
-										  intdir_c[i].defines.data))));
-			}
+		if (obj[i][MK_EXT_ASM] == MAKE_END) {
+			continue;
 		}
-	}
 
-	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-		if (obj[i][MK_EXT_S] != MAKE_END) {
-			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
-			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.S"))));
+		if (asm_bin) {
+			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.bin", intdir_c[i].name.data))), 1));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+
+			make_rule_add_act(
+				make, int_o,
+				make_create_cmd(make, MCMD(strf("@nasm -fbin $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@", intdir_c[i].defines.data))));
+		} else {
+			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
+			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+
 			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
-									  intdir_c[i].flags, intdir_c[i].defines.data))));
+					  make_create_cmd(make, MCMD(strf("@nasm -felf$(BITS) $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@",
+									  intdir_c[i].defines.data))));
 		}
 	}
 
 	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-		if (obj[i][MK_EXT_C] != MAKE_END) {
-			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
-			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
-			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(%s) $< -o $@",
-									  intdir_c[i].flags, intdir_c[i].defines.data))));
+		if (obj[i][MK_EXT_S] == MAKE_END) {
+			continue;
 		}
+
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.S"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o,
+				  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@", intdir_c[i].flags,
+								  intdir_c[i].defines.data))));
 	}
 
 	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-		if (obj[i][MK_EXT_CPP] != MAKE_END) {
-			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
-			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
-			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
-			make_rule_add_act(make, int_o,
-					  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(%s) $< -o $@",
-									  intdir_c[i].flags, intdir_c[i].defines.data))));
+		if (obj[i][MK_EXT_C] == MAKE_END) {
+			continue;
 		}
+
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.c"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o,
+				  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CFLAGS) $(%s) $< -o $@", intdir_c[i].flags,
+								  intdir_c[i].defines.data))));
+	}
+
+	for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
+		if (obj[i][MK_EXT_CPP] == MAKE_END) {
+			continue;
+		}
+
+		const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
+		make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.cpp"))));
+		make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
+		make_rule_add_act(make, int_o,
+				  make_create_cmd(make, MCMD(strf("@$(TCC) -m$(BITS)%s $(INCLUDES) $(GCC_CONFIG_FLAGS) $(CXXFLAGS) $(%s) $< -o $@", intdir_c[i].flags,
+								  intdir_c[i].defines.data))));
 	}
 
 	// clang-format off
@@ -1019,8 +1090,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		[MK_BUILD_EXE]	  = MAKE_END,
 		[MK_BUILD_STATIC] = MAKE_END,
 		[MK_BUILD_SHARED] = MAKE_END,
-		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_ELF]	  = MAKE_END,
+		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_FAT12]  = MAKE_END,
 	};
 	// clang-format on
@@ -1081,8 +1152,8 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		[MK_BUILD_EXE]	  = MAKE_END,
 		[MK_BUILD_STATIC] = MAKE_END,
 		[MK_BUILD_SHARED] = MAKE_END,
-		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_ELF]	  = MAKE_END,
+		[MK_BUILD_BIN]	  = MAKE_END,
 		[MK_BUILD_FAT12]  = MAKE_END,
 	};
 

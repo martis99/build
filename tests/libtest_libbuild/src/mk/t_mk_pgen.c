@@ -5,21 +5,31 @@
 #include "mem.h"
 #include "test.h"
 
-#define EXE_VARS                                                   \
+#define BIN_VARS                                               \
 	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"     \
 	"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
-	"TARGET := $(OUTDIR)test\n"                                \
+	"TARGET_BIN := $(OUTDIR)test.bin\n"
+
+#define EXE_VARS                                               \
+	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"     \
+	"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
+	"TARGET := $(OUTDIR)test\n"                            \
 	"ARGS :=\n"
 
-#define STATIC_VARS                                                  \
+#define STATIC_VARS                                              \
 	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
 	"INTDIR_S := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
 	"TARGET_S := $(OUTDIR)test.a\n"
 
-#define SHARED_VARS                                                  \
+#define SHARED_VARS                                              \
 	"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
 	"INTDIR_D := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n" \
 	"TARGET_D := $(OUTDIR)test.so\n"
+
+#define ASM_BIN_VARS                                    \
+	BIN_VARS                                        \
+	"SRC_ASM := $(shell find src/ -name '*.asm')\n" \
+	"OBJ_ASM := $(patsubst %.asm, $(INTDIR)%.bin, $(SRC_ASM))\n"
 
 #define ASM_EXE_VARS                                    \
 	EXE_VARS                                        \
@@ -169,76 +179,88 @@
 	"endif\n"                                  \
 	"\n"
 
-#define TARGET_ASM                                  \
-	"$(TARGET): $(OBJ_ASM)\n"                   \
-	"\t@mkdir -p $(@D)\n"                       \
-	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_ASM_BIN                \
+	"$(TARGET_BIN): $(OBJ_ASM)\n" \
+	"\t@mkdir -p $(@D)\n"         \
+	"\t@cat $(OBJ_ASM) > $@\n"    \
+	"\n"
+
+#define TARGET_ASM_EXE                                      \
+	"$(TARGET): $(OBJ_ASM)\n"                           \
+	"\t@mkdir -p $(@D)\n"                               \
+	"\t@$(TCC) -m$(BITS) $(OBJ_ASM) $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_ASM_S                  \
 	"$(TARGET_S): $(OBJ_ASM_S)\n" \
 	"\t@mkdir -p $(@D)\n"         \
-	"\t@ar rcs $@ $^\n"           \
+	"\t@ar rcs $@ $(OBJ_ASM_S)\n" \
 	"\n"
 
-#define TARGET_ASM_D                              \
-	"$(TARGET_D): $(OBJ_ASM_D)\n"             \
-	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_ASM_D                                                  \
+	"$(TARGET_D): $(OBJ_ASM_D)\n"                                 \
+	"\t@mkdir -p $(@D)\n"                                         \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_ASM_D) $(LDFLAGS) -o $@\n" \
 	"\n"
 
-#define TARGET_S                                    \
-	"$(TARGET): $(OBJ_S)\n"                     \
-	"\t@mkdir -p $(@D)\n"                       \
-	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_S                                          \
+	"$(TARGET): $(OBJ_S)\n"                           \
+	"\t@mkdir -p $(@D)\n"                             \
+	"\t@$(TCC) -m$(BITS) $(OBJ_S) $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_S_S                  \
 	"$(TARGET_S): $(OBJ_S_S)\n" \
 	"\t@mkdir -p $(@D)\n"       \
-	"\t@ar rcs $@ $^\n"         \
+	"\t@ar rcs $@ $(OBJ_S_S)\n" \
 	"\n"
 
-#define TARGET_S_D                                \
-	"$(TARGET_D): $(OBJ_S_D)\n"               \
-	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_S_D                                                  \
+	"$(TARGET_D): $(OBJ_S_D)\n"                                 \
+	"\t@mkdir -p $(@D)\n"                                       \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_S_D) $(LDFLAGS) -o $@\n" \
 	"\n"
 
-#define TARGET_C                                    \
-	"$(TARGET): $(OBJ_C)\n"                     \
-	"\t@mkdir -p $(@D)\n"                       \
-	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_C                                          \
+	"$(TARGET): $(OBJ_C)\n"                           \
+	"\t@mkdir -p $(@D)\n"                             \
+	"\t@$(TCC) -m$(BITS) $(OBJ_C) $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_C_S                  \
 	"$(TARGET_S): $(OBJ_C_S)\n" \
 	"\t@mkdir -p $(@D)\n"       \
-	"\t@ar rcs $@ $^\n"         \
+	"\t@ar rcs $@ $(OBJ_C_S)\n" \
 	"\n"
 
-#define TARGET_C_D                                \
-	"$(TARGET_D): $(OBJ_C_D)\n"               \
-	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_C_D                                                  \
+	"$(TARGET_D): $(OBJ_C_D)\n"                                 \
+	"\t@mkdir -p $(@D)\n"                                       \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_C_D) $(LDFLAGS) -o $@\n" \
 	"\n"
 
-#define TARGET_CPP                                  \
-	"$(TARGET): $(OBJ_CPP)\n"                   \
-	"\t@mkdir -p $(@D)\n"                       \
-	"\t@$(TCC) -m$(BITS) $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_CPP                                         \
+	"$(TARGET): $(OBJ_CPP)\n"                          \
+	"\t@mkdir -p $(@D)\n"                              \
+	"\t@$(TCC) -m$(BITS) $(OBJ_CPP) $(LDFLAGS) -o $@\n" \
 	"\n"
 
 #define TARGET_CPP_S                  \
 	"$(TARGET_S): $(OBJ_CPP_S)\n" \
 	"\t@mkdir -p $(@D)\n"         \
-	"\t@ar rcs $@ $^\n"           \
+	"\t@ar rcs $@ $(OBJ_CPP_S)\n" \
 	"\n"
 
-#define TARGET_CPP_D                              \
-	"$(TARGET_D): $(OBJ_CPP_D)\n"             \
-	"\t@mkdir -p $(@D)\n"                     \
-	"\t@$(TCC) -shared $^ $(LDFLAGS) -o $@\n" \
+#define TARGET_CPP_D                                                  \
+	"$(TARGET_D): $(OBJ_CPP_D)\n"                                 \
+	"\t@mkdir -p $(@D)\n"                                         \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_CPP_D) $(LDFLAGS) -o $@\n" \
+	"\n"
+
+#define ASM_BIN                                                                           \
+	"$(INTDIR)%.bin: %.asm\n"                                                         \
+	"\t@mkdir -p $(@D)\n"                                                             \
+	"\t@nasm -fbin $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(DEFINES) $< -o $@\n" \
 	"\n"
 
 #define ASM_O                                                                                    \
@@ -319,6 +341,11 @@
 	"\n"                                \
 	"debug: check $(TARGET)\n"          \
 	"\t@gdb --args $(TARGET) $(ARGS)\n" \
+	"\n"
+
+#define CLEAN_BIN_ASM                         \
+	"clean:\n"                            \
+	"\t@$(RM) $(TARGET_BIN) $(OBJ_ASM)\n" \
 	"\n"
 
 #define CLEAN_EXE_ASM                     \
@@ -535,11 +562,11 @@ TEST(t_mk_pgen_add_slib)
 	mk_pgen_t gen = { 0 };
 	mk_pgen_init(&gen);
 
-	mk_pgen_add_slib(NULL, str_null());
-	mk_pgen_add_slib(&gen, STR("a"));
-	mk_pgen_add_slib(&gen, STR("b"));
+	mk_pgen_add_slib(NULL, str_null(), str_null());
+	mk_pgen_add_slib(&gen, STR("libs/"), str_null());
+	mk_pgen_add_slib(&gen, str_null(), STR("a"));
 
-	EXPECT_STRN(gen.ldflags.data, "-l:a.a -l:b.a", 11);
+	EXPECT_STRN(gen.ldflags.data, "-Llibs/ -l:a.a", 14);
 
 	mk_pgen_free(&gen);
 
@@ -553,47 +580,11 @@ TEST(t_mk_pgen_add_dlib)
 	mk_pgen_t gen = { 0 };
 	mk_pgen_init(&gen);
 
-	mk_pgen_add_dlib(NULL, str_null());
-	mk_pgen_add_dlib(&gen, STR("a"));
-	mk_pgen_add_dlib(&gen, STR("b"));
+	mk_pgen_add_dlib(NULL, str_null(), str_null());
+	mk_pgen_add_dlib(&gen, STR("libs/"), str_null());
+	mk_pgen_add_dlib(&gen, str_null(), STR("a"));
 
-	EXPECT_STRN(gen.ldflags.data, "-l:a.so -l:b.so", 13);
-
-	mk_pgen_free(&gen);
-
-	END;
-}
-
-TEST(t_mk_pgen_add_slib_dir)
-{
-	START;
-
-	mk_pgen_t gen = { 0 };
-	mk_pgen_init(&gen);
-
-	mk_pgen_add_slib_dir(NULL, str_null());
-	mk_pgen_add_slib_dir(&gen, STR("libs/a"));
-	mk_pgen_add_slib_dir(&gen, STR("libs/b"));
-
-	EXPECT_STRN(gen.ldflags.data, "-Llibs/a -Llibs/b", 17);
-
-	mk_pgen_free(&gen);
-
-	END;
-}
-
-TEST(t_mk_pgen_add_dlib_dir)
-{
-	START;
-
-	mk_pgen_t gen = { 0 };
-	mk_pgen_init(&gen);
-
-	mk_pgen_add_dlib_dir(NULL, str_null());
-	mk_pgen_add_dlib_dir(&gen, STR("libs/a"));
-	mk_pgen_add_dlib_dir(&gen, STR("libs/b"));
-
-	EXPECT_STRN(gen.ldflags.data, "-Wl,-rpath,libs/a -Wl,-rpath,libs/b", 35);
+	EXPECT_STRN(gen.ldflags.data, "-Wl,-rpath,libs/ -l:a.so", 24);
 
 	mk_pgen_free(&gen);
 
@@ -653,6 +644,7 @@ TEST(t_mk_pgen_add_file)
 
 	END;
 }
+
 TEST(t_mk_pgen_add_require)
 {
 	START;
@@ -666,6 +658,25 @@ TEST(t_mk_pgen_add_require)
 	EXPECT_EQ(mk_pgen_add_require(&gen, str_null()), MK_FILE_END);
 	mem_oom(0);
 	EXPECT_EQ(mk_pgen_add_require(&gen, STRH("g++")), 1);
+
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_add_copyfile)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	EXPECT_EQ(mk_pgen_add_copyfile(NULL, str_null()), MK_FILE_END);
+	EXPECT_EQ(mk_pgen_add_copyfile(&gen, str_null()), 0);
+	mem_oom(1);
+	EXPECT_EQ(mk_pgen_add_copyfile(&gen, str_null()), MK_FILE_END);
+	mem_oom(0);
+	EXPECT_EQ(mk_pgen_add_copyfile(&gen, STRH("lib.so")), 1);
 
 	mk_pgen_free(&gen);
 
@@ -782,6 +793,107 @@ TEST(t_mk_pgen_require)
 			"\n"
 			"clean:\n"
 			"\t@$(RM)\n"
+			"\n");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_lib_empty)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_STATIC | F_MK_BUILD_SHARED;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"TARGET_S := $(OUTDIR)test.a\n"
+			"TARGET_D := $(OUTDIR)test.so\n"
+			"\n"
+			"RM += -r\n"
+			"\n"
+			".PHONY: all check static shared clean\n"
+			"\n"
+			"all: static shared\n"
+			"\n"
+			"check:\n"
+			"\n"
+			"static: check $(TARGET_S)\n"
+			"\n"
+			"shared: check $(TARGET_D)\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM) $(TARGET_S) $(TARGET_D)\n"
+			"\n");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_lib_ext)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_STATIC | F_MK_BUILD_SHARED;
+
+	gen.lib[MK_INTDIR_STATIC] = STRH("extlib");
+	gen.lib[MK_INTDIR_SHARED] = STRH("extlib");
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"TARGET_S := $(OUTDIR)test.a\n"
+			"TARGET_D := $(OUTDIR)test.so\n"
+			"\n"
+			"RM += -r\n"
+			"\n"
+			".PHONY: all check static shared clean\n"
+			"\n"
+			"all: static shared\n"
+			"\n"
+			"check:\n"
+			"\n"
+			"static: check $(TARGET_S)\n"
+			"\n"
+			"shared: check $(TARGET_D)\n"
+			"\n"
+			"$(TARGET_S): extlib.a\n"
+			"\t@mkdir -p $(@D)\n"
+			"\t@cp extlib.a $@\n"
+			"\n"
+			"$(TARGET_D): extlib.so\n"
+			"\t@mkdir -p $(@D)\n"
+			"\t@cp extlib.so $@\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM) $(TARGET_S) $(TARGET_D)\n"
 			"\n");
 
 	make_free(&make);
@@ -1289,6 +1401,52 @@ TEST(t_mk_pgen_defines_shared)
 	END;
 }
 
+TEST(t_mk_pgen_copyfiles)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+
+	mk_pgen_add_copyfile(&gen, STRH("lib.so"));
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_STATIC;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" C_STATIC_VARS ""
+			"" CONFIG ""
+			".PHONY: all check copyfiles static clean\n"
+			"\n"
+			"all: static\n"
+			"\n"
+			"" C_CHECK ""
+			"copyfiles:\n"
+			"\t@cp lib.so .\n"
+			"\n"
+			"static: check copyfiles $(TARGET_S)\n"
+			"\n"
+			"" TARGET_C_S ""
+			"" C_SO ""
+			"" CLEAN_EXE_C_S "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
 TEST(t_mk_pgen_run)
 {
 	START;
@@ -1454,7 +1612,7 @@ TEST(t_mk_pgen_run_run_debug)
 	END;
 }
 
-TEST(t_mk_pgen_artifact)
+TEST(t_mk_pgen_artifact_exe)
 {
 	START;
 
@@ -1505,6 +1663,57 @@ TEST(t_mk_pgen_artifact)
 	END;
 }
 
+TEST(t_mk_pgen_artifact_lib)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_STATIC;
+
+	gen.artifact[MK_BUILD_STATIC] = STRH("test");
+
+	mk_pgen(&gen, &make);
+
+	char buf[2048] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" C_STATIC_VARS ""
+			"" CONFIG ""
+			".PHONY: all check static artifact_s artifact clean\n"
+			"\n"
+			"all: static\n"
+			"\n"
+			"" C_CHECK ""
+			"static: check $(TARGET_S)\n"
+			"\n"
+			"" TARGET_C_S ""
+			"" C_SO ""
+			"artifact_s: check $(TARGET_S)\n"
+			"\t@mkdir -p $(SLNDIR)tmp/artifact/\n"
+			"\t@cp $(TARGET_S) $(SLNDIR)tmp/artifact/test\n"
+			"\n"
+			"artifact: artifact_s\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM) $(TARGET_S) $(SLNDIR)tmp/artifact/test $(OBJ_C_S)\n"
+			"\n");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
 TEST(t_mk_pgen_bin_obj)
 {
 	START;
@@ -1543,7 +1752,7 @@ TEST(t_mk_pgen_bin_obj)
 			"\n"
 			"$(TARGET_BIN): $(OBJ_C)\n"
 			"\t@mkdir -p $(@D)\n"
-			"\t@$(TLD) -Tlinker.ld --oformat binary $^ $(LDFLAGS) -o $@\n"
+			"\t@$(TLD) -Tlinker.ld --oformat binary $(OBJ_C) $(LDFLAGS) -o $@\n"
 			"\n"
 			"" C_O ""
 			"clean:\n"
@@ -1595,7 +1804,7 @@ TEST(t_mk_pgen_bin_files)
 			"\n"
 			"bin: check $(TARGET_BIN)\n"
 			"\n"
-			"$(TARGET_BIN):\n"
+			"$(TARGET_BIN): file.bin file.elf\n"
 			"\t@mkdir -p $(@D)\n"
 			"\t@dd if=file.bin status=none >> $@\n"
 			"\t@objcopy -O binary -j .text file.elf file.elf.bin\n"
@@ -1650,7 +1859,7 @@ TEST(t_mk_pgen_elf)
 			"\n"
 			"$(TARGET_ELF): $(OBJ_C)\n"
 			"\t@mkdir -p $(@D)\n"
-			"\t@$(TLD) -Tlinker.ld $^ $(LDFLAGS) -o $@\n"
+			"\t@$(TCC) -m$(BITS) -shared -ffreestanding $(OBJ_C) $(LDFLAGS) -o $@\n"
 			"\n"
 			"" C_O ""
 			"clean:\n"
@@ -1705,11 +1914,68 @@ TEST(t_mk_pgen_fat12)
 			"\n"
 			"fat12: check $(TARGET_FAT12)\n"
 			"\n"
-			"$(TARGET_FAT12):\n"
+			"$(TARGET_FAT12): file.bin file.elf\n"
 			"\t@mkdir -p $(@D)\n"
 			"\t@dd if=/dev/zero of=$@ bs=512 count=2880 status=none\n"
 			"\t@mkfs.fat -F12 -n \"NBOS\" $@\n"
-			"\t@dd if=$< of=$@ conv=notrunc status=none\n"
+			"\t@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\"\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM) $(TARGET_FAT12)\n"
+			"\n");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
+TEST(t_mk_pgen_fat12_header)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_FAT12;
+
+	gen.header = STRH("file.bin");
+	mk_pgen_add_file(&gen, STRH("file.elf"), MK_EXT_ELF);
+
+	gen.size = STRH("1024");
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"TARGET_FAT12 := $(OUTDIR)test.img\n"
+			"\n"
+			"RM += -r\n"
+			"\n"
+			".PHONY: all check fat12 clean\n"
+			"\n"
+			"all: fat12\n"
+			"\n"
+			"check:\n"
+			"ifeq (, $(shell which mcopy))\n"
+			"\tsudo apt-get install mtools -y\n"
+			"endif\n"
+			"\n"
+			"fat12: check $(TARGET_FAT12)\n"
+			"\n"
+			"$(TARGET_FAT12): file.bin file.elf\n"
+			"\t@mkdir -p $(@D)\n"
+			"\t@dd if=/dev/zero of=$@ bs=512 count=2880 status=none\n"
+			"\t@dd if=file.bin of=$@ conv=notrunc status=none\n"
 			"\t@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\"\n"
 			"\n"
 			"clean:\n"
@@ -1769,6 +2035,54 @@ TEST(t_mk_pgen_configs)
 	END;
 }
 
+TEST(t_mk_pgen_nasm_bin)
+{
+	START;
+
+	mk_pgen_t gen = { 0 };
+	mk_pgen_init(&gen);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	gen.outdir		     = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+
+	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_ASM);
+
+	mk_pgen_add_config(&gen, STRH("Debug"));
+
+	gen.name   = STRH("test");
+	gen.builds = F_MK_BUILD_BIN;
+
+	mk_pgen(&gen, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" ASM_BIN_VARS ""
+			"\n"
+			"" CONFIG_NASM ""
+			"ifeq ($(CONFIG), Debug)\n"
+			"NASM_CONFIG_FLAGS += -g\n"
+			"endif\n"
+			"\n"
+			".PHONY: all check bin clean\n"
+			"\n"
+			"all: bin\n"
+			"\n"
+			"" ASM_CHECK ""
+			"bin: check $(TARGET_BIN)\n"
+			"\n"
+			"" TARGET_ASM_BIN ""
+			"" ASM_BIN ""
+			"" CLEAN_BIN_ASM "");
+
+	make_free(&make);
+	mk_pgen_free(&gen);
+
+	END;
+}
+
 TEST(t_mk_pgen_nasm_exe)
 {
 	START;
@@ -1784,6 +2098,8 @@ TEST(t_mk_pgen_nasm_exe)
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_ASM);
 
+	mk_pgen_add_config(&gen, STRH("Debug"));
+
 	gen.name   = STRH("test");
 	gen.builds = F_MK_BUILD_EXE;
 
@@ -1794,6 +2110,10 @@ TEST(t_mk_pgen_nasm_exe)
 	EXPECT_STR(buf, "" ASM_EXE_VARS ""
 			"\n"
 			"" CONFIG_NASM ""
+			"ifeq ($(CONFIG), Debug)\n"
+			"NASM_CONFIG_FLAGS += -g -F dwarf\n"
+			"endif\n"
+			"\n"
 			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
@@ -1801,7 +2121,7 @@ TEST(t_mk_pgen_nasm_exe)
 			"" ASM_CHECK ""
 			"compile: check $(TARGET)\n"
 			"\n"
-			"" TARGET_ASM ""
+			"" TARGET_ASM_EXE ""
 			"" ASM_O ""
 			"" RUN_EXE ""
 			"" CLEAN_EXE_ASM "");
@@ -2352,15 +2672,16 @@ STEST(t_mk_pgen)
 	RUN(t_mk_pgen_add_ldflag);
 	RUN(t_mk_pgen_add_slib);
 	RUN(t_mk_pgen_add_dlib);
-	RUN(t_mk_pgen_add_slib_dir);
-	RUN(t_mk_pgen_add_dlib_dir);
 	RUN(t_mk_pgen_set_run);
 	RUN(t_mk_pgen_set_run_debug);
 	RUN(t_mk_pgen_add_file);
 	RUN(t_mk_pgen_add_require);
+	RUN(t_mk_pgen_add_copyfile);
 	RUN(t_mk_pgen_empty);
 	RUN(t_mk_pgen_args);
 	RUN(t_mk_pgen_require);
+	RUN(t_mk_pgen_lib_empty);
+	RUN(t_mk_pgen_lib_ext);
 	RUN(t_mk_pgen_headers);
 	RUN(t_mk_pgen_includes);
 	RUN(t_mk_pgen_flags);
@@ -2371,15 +2692,19 @@ STEST(t_mk_pgen)
 	RUN(t_mk_pgen_defines_exe);
 	RUN(t_mk_pgen_defines_static);
 	RUN(t_mk_pgen_defines_shared);
+	RUN(t_mk_pgen_copyfiles);
 	RUN(t_mk_pgen_run);
 	RUN(t_mk_pgen_run_debug);
 	RUN(t_mk_pgen_run_run_debug);
-	RUN(t_mk_pgen_artifact);
+	RUN(t_mk_pgen_artifact_exe);
+	RUN(t_mk_pgen_artifact_lib);
 	RUN(t_mk_pgen_bin_obj);
 	RUN(t_mk_pgen_bin_files);
 	RUN(t_mk_pgen_elf);
 	RUN(t_mk_pgen_fat12);
+	RUN(t_mk_pgen_fat12_header);
 	RUN(t_mk_pgen_configs);
+	RUN(t_mk_pgen_nasm_bin);
 	RUN(t_mk_pgen_nasm_exe);
 	RUN(t_mk_pgen_nasm_static);
 	RUN(t_mk_pgen_nasm_shared);

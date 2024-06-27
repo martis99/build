@@ -86,28 +86,30 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	const prop_t *intdir = &proj->props[PROJ_PROP_INTDIR];
-	if (intdir->flags & PROP_SET) {
-		resolve(intdir->value.val, &buf, proj);
-		switch (proj->props[PROJ_PROP_TYPE].mask) {
-		case PROJ_TYPE_EXE:
-		case PROJ_TYPE_BIN:
-		case PROJ_TYPE_ELF:
-			gen->intdir[MK_INTDIR_OBJECT] = str_cpy(buf);
-			break;
-		case PROJ_TYPE_LIB: {
+	if (proj->props[PROJ_PROP_SOURCE].arr.cnt > 0) {
+		const prop_t *intdir = &proj->props[PROJ_PROP_INTDIR];
+		if (intdir->flags & PROP_SET) {
 			resolve(intdir->value.val, &buf, proj);
-			str_t s = strn(buf.data, buf.len, buf.len + 8);
-			str_cat(&s, STR("static/"));
-			gen->intdir[MK_INTDIR_STATIC] = s;
+			switch (proj->props[PROJ_PROP_TYPE].mask) {
+			case PROJ_TYPE_EXE:
+			case PROJ_TYPE_BIN:
+			case PROJ_TYPE_ELF:
+				gen->intdir[MK_INTDIR_OBJECT] = str_cpy(buf);
+				break;
+			case PROJ_TYPE_LIB: {
+				resolve(intdir->value.val, &buf, proj);
+				str_t s = strn(buf.data, buf.len, buf.len + 8);
+				str_cat(&s, STR("static/"));
+				gen->intdir[MK_INTDIR_STATIC] = s;
 
-			str_t d = strn(buf.data, buf.len, buf.len + 8);
-			str_cat(&d, STR("shared/"));
-			gen->intdir[MK_INTDIR_SHARED] = d;
-			break;
-		}
-		default:
-			break;
+				str_t d = strn(buf.data, buf.len, buf.len + 8);
+				str_cat(&d, STR("shared/"));
+				gen->intdir[MK_INTDIR_SHARED] = d;
+				break;
+			}
+			default:
+				break;
+			}
 		}
 	}
 
@@ -248,8 +250,10 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
+	str_t rpath = STR(".");
+
 	for (int i = proj->all_depends.cnt - 1; i >= 0; i--) {
-		const proj_dep_t *dep = arr_get(&proj->all_depends, i);
+		proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
 		str_t rel = strc(dep->proj->rel_dir.path, dep->proj->rel_dir.len);
 
@@ -260,11 +264,13 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
 
 				if (dep->link_type == LINK_TYPE_SHARED) {
-					mk_pgen_add_dlib(gen, strs(dep->proj->name));
-					mk_pgen_add_dlib_dir(gen, buf);
+					mk_pgen_add_dlib(gen, rpath, dep->proj->name);
+					rpath = str_null();
+
+					make_expand(&((proj_t *)dep->proj)->make);
+					mk_pgen_add_copyfile(gen, str_cpy(make_var_get_expanded(&dep->proj->make, STR("TARGET_D"))));
 				} else {
-					mk_pgen_add_slib(gen, strs(dep->proj->name));
-					mk_pgen_add_slib_dir(gen, buf);
+					mk_pgen_add_slib(gen, buf, strs(dep->proj->name));
 				}
 			}
 		}
@@ -273,13 +279,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
 		{
 			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
-			mk_pgen_add_dlib_dir(gen, buf);
+			mk_pgen_add_dlib(gen, buf, str_null());
 		}
 
+		//TODO: Not needed anymore? Replaced with LIB
 		const prop_str_t *link;
 		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
 		{
-			mk_pgen_add_dlib(gen, link->val);
+			mk_pgen_add_dlib(gen, str_null(), link->val);
 		}
 	}
 
@@ -322,6 +329,22 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		mk_pgen_add_require(gen, str_cpy(require->val));
 	}
 
+	const prop_t *lib = &proj->props[PROJ_PROP_LIB];
+	if (lib->flags & PROP_SET) {
+		gen->lib[MK_INTDIR_STATIC] = str_cpy(resolve(lib->value.val, &buf, proj));
+	}
+
+	const prop_t *dlib = &proj->props[PROJ_PROP_DLIB];
+	if (dlib->flags & PROP_SET) {
+		gen->lib[MK_INTDIR_SHARED] = str_cpy(resolve(dlib->value.val, &buf, proj));
+	}
+
+	const prop_str_t *copyfile;
+	arr_foreach(&proj->props[PROJ_PROP_COPYFILES].arr, copyfile)
+	{
+		mk_pgen_add_copyfile(gen, str_cpy(resolve(copyfile->val, &buf, proj)));
+	}
+
 	const prop_t *header = &proj->props[PROJ_PROP_HEADER];
 	if (header->flags & PROP_SET) {
 		proj_t *fproj = NULL;
@@ -348,7 +371,6 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		case PROJ_TYPE_BIN:
 			mk_pgen_add_file(gen, str_cpy(make_var_get_expanded(&fproj->make, STR("TARGET_BIN"))), MK_EXT_BIN);
 			break;
-
 		case PROJ_TYPE_ELF:
 			mk_pgen_add_file(gen, str_cpy(make_var_get_expanded(&fproj->make, STR("TARGET_ELF"))), MK_EXT_ELF);
 			break;

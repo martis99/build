@@ -1,8 +1,12 @@
 *.sln
 *.vcxproj
 *.user
-*.lib
 *.pdb
+*.log
+*.a
+*.so
+*.lib
+*.dll
 
 CMakeLists.txt
 Makefile
@@ -10,5 +14,3 @@ Makefile
 .vs/
 .vscode/
 /bin/
-
-*.log

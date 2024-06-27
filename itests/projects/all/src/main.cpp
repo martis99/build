@@ -4,6 +4,7 @@
 #include "libasm.h"
 #include "libcc.h"
 #include "libccpp.hpp"
+#include "extlib.h"
 
 #include <iostream>
 
@@ -48,6 +49,14 @@ int main(int argc, char **argv)
 	}
 
 	if (dlibccpp_args(argc, argv)) {
+		ret = 1;
+	}
+
+	if (extlib_args(argc, argv)) {
+		ret = 1;
+	}
+
+	if (dextlib_args(argc, argv)) {
 		ret = 1;
 	}
 

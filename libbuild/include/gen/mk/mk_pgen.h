@@ -56,8 +56,8 @@ typedef enum mk_pgen_build_type_e {
 	MK_BUILD_EXE,
 	MK_BUILD_STATIC,
 	MK_BUILD_SHARED,
-	MK_BUILD_BIN,
 	MK_BUILD_ELF,
+	MK_BUILD_BIN,
 	MK_BUILD_FAT12,
 	__MK_BUILD_MAX,
 } mk_pgen_build_type_t;
@@ -65,8 +65,8 @@ typedef enum mk_pgen_build_type_e {
 #define F_MK_BUILD_EXE	  (1 << MK_BUILD_EXE)
 #define F_MK_BUILD_STATIC (1 << MK_BUILD_STATIC)
 #define F_MK_BUILD_SHARED (1 << MK_BUILD_SHARED)
-#define F_MK_BUILD_BIN	  (1 << MK_BUILD_BIN)
 #define F_MK_BUILD_ELF	  (1 << MK_BUILD_ELF)
+#define F_MK_BUILD_BIN	  (1 << MK_BUILD_BIN)
 #define F_MK_BUILD_FAT12  (1 << MK_BUILD_FAT12)
 
 typedef struct mk_pgen_s {
@@ -82,6 +82,7 @@ typedef struct mk_pgen_s {
 	str_t flags[__MK_SRC_MAX];
 	str_t defines[__MK_INTDIR_MAX];
 	str_t ldflags;
+	str_t depends;
 	str_t run[__MK_BUILD_MAX];
 	str_t run_debug[__MK_BUILD_MAX];
 	str_t artifact[__MK_BUILD_MAX];
@@ -94,6 +95,8 @@ typedef struct mk_pgen_s {
 	arr_t requires;
 	str_t config;
 	str_t targets;
+	arr_t copyfiles;
+	str_t lib[__MK_INTDIR_MAX];
 } mk_pgen_t;
 
 mk_pgen_t *mk_pgen_init(mk_pgen_t *gen);
@@ -106,14 +109,13 @@ void mk_pgen_add_include(mk_pgen_t *gen, str_t dir);
 void mk_pgen_add_flag(mk_pgen_t *gen, str_t flag, int exts);
 void mk_pgen_add_define(mk_pgen_t *gen, str_t define, int intdirs);
 void mk_pgen_add_ldflag(mk_pgen_t *gen, str_t ldflag);
-void mk_pgen_add_slib(mk_pgen_t *gen, str_t lib);
-void mk_pgen_add_dlib(mk_pgen_t *gen, str_t lib);
-void mk_pgen_add_slib_dir(mk_pgen_t *gen, str_t lib);
-void mk_pgen_add_dlib_dir(mk_pgen_t *gen, str_t lib);
+void mk_pgen_add_slib(mk_pgen_t *gen, str_t dir, str_t lib);
+void mk_pgen_add_dlib(mk_pgen_t *gen, str_t dir, str_t lib);
 void mk_pgen_set_run(mk_pgen_t *gen, str_t run, int builds);
 void mk_pgen_set_run_debug(mk_pgen_t *gen, str_t run, int builds);
 uint mk_pgen_add_file(mk_pgen_t *gen, str_t path, int ext);
 uint mk_pgen_add_require(mk_pgen_t *gen, str_t require);
+uint mk_pgen_add_copyfile(mk_pgen_t *gen, str_t path);
 
 make_t *mk_pgen(const mk_pgen_t *gen, make_t *make);
 

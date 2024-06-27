@@ -1,5 +1,5 @@
-NAME = libasm
+NAME = extlib
 TYPE = LIB
-LANGS = ASM
+LANGS = C
 SOURCE = src
 INCLUDE = include

@@ -1,17 +1,17 @@
 #!/bin/sh
 
-if [ "$#" -ne 3 ]; then
-	echo "Usage: $0 <build_path> <config> <arch>"
+if [ "$#" -ne 2 ]; then
+	echo "Usage: $0 <Debug/Release> <x86_64/i386>"
 	exit 1
 fi
 
-build="$1"
-config="$2"
-arch="$3"
+config="$1"
+arch="$2"
 
 ret=0
 
-$build -S itests -D 1 -C 1 -I 1
+#make -s build/compile CONFIG="$config" PLATFORM=x64
+#./bin/"$config"-x64/build/build -S itests -D 1 -C 1 -I 1
 
 check()
 {
@@ -43,7 +43,9 @@ LIBC: test
 DLIBC: test
 CPP: test
 LIBCPP: test
-DLIBCPP: test"
+DLIBCPP: test
+EXTLIB: test
+DEXTLIB: test"
 
 make -s -C itests binutils-2.40/compile ARCH="$arch"
 
