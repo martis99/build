@@ -221,7 +221,8 @@ typedef struct mk_pgen_file_data_s {
 typedef struct mk_pgen_lib_data_s {
 	str_t dir;
 	str_t name;
-	mk_pgen_intdir_type_t link_type;
+	mk_pgen_link_type_t link_type;
+	mk_pgen_lib_type_t lib_type;
 } mk_pgen_lib_data_t;
 
 //TODO: Resolve when reading config file
@@ -245,7 +246,8 @@ static str_t resolve(str_t str, str_t *buf, const proj_t *proj)
 	str_replace(buf, STR("$(SLN_DIR)"), STR("${CMAKE_SOURCE_DIR}/"));
 	str_replace(buf, STR("$(PROJ_DIR)"), strc(proj->rel_dir.path, proj->rel_dir.len));
 	str_replace(buf, STR("$(PROJ_NAME)"), strc(proj->name.data, proj->name.len));
-	str_replace(buf, STR("$(CONFIG)"), STR("$(Configuration)"));
+	//str_replace(buf, STR("$(CONFIG)"), STR("$(Configuration)"));
+	str_replace(buf, STR("$(CONFIG)"), STR("Debug"));
 	str_replace(buf, STR("$(ARCH)"), STR("${CMAKE_VS_PLATFORM_NAME}"));
 	convert_slash((char *)buf->data, buf->len);
 	return *buf;
@@ -266,23 +268,28 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 		const char *ext;
 		int cov;
 	} src_c[] = {
-		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),  "asm", 0 },
-		[MK_EXT_S]   = { STRS("SRC_S"),  STRS("ASFLAGS"),  "S",   0 },
-		[MK_EXT_C]   = { STRS("SRC_C"),    STRS("CFLAGS"),   "c",   1 },
-		[MK_EXT_CPP] = { STRS("SRC_CPP"),  STRS("CXXFLAGS"), "cpp", 1 },
+		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),   "nasm", 0 },
+		[MK_EXT_S]   = { STRS("SRC_S"),  STRS("ASFLAGS"),    "S",    0 },
+		[MK_EXT_C]   = { STRS("SRC_C"),    STRS("CFLAGS"),   "c",    1 },
+		[MK_EXT_CPP] = { STRS("SRC_CPP"),  STRS("CXXFLAGS"), "cpp",  1 },
 	};
 
 	static struct {
 		str_t postfix;
+		mk_pgen_intdir_type_t intdir;
 	} target_c[] = {
-		[MK_BUILD_EXE]	  = { STRS("")},
-		[MK_BUILD_STATIC] = { STRS("_s")},
-		[MK_BUILD_SHARED] = { STRS("_d")},
-		[MK_BUILD_ELF]	  = { STRS("")},
-		[MK_BUILD_BIN]	  = { STRS("")},
-		[MK_BUILD_FAT12]  = { STRS("")},
+		[MK_BUILD_EXE]	  = { STRS(""),	   MK_INTDIR_OBJECT },
+		[MK_BUILD_STATIC] = { STRS("_s"),  MK_INTDIR_STATIC },
+		[MK_BUILD_SHARED] = { STRS("_d"),  MK_INTDIR_SHARED },
+		[MK_BUILD_ELF]	  = { STRS(""),	   MK_INTDIR_OBJECT },
+		[MK_BUILD_BIN]	  = { STRS(""),	   MK_INTDIR_OBJECT },
+		[MK_BUILD_FAT12]  = { STRS(""),	   __MK_INTDIR_MAX  },
 	};
 	// clang-format on
+
+	char buf_d[P_MAX_PATH] = { 0 };
+
+	str_t buf = strb(buf_d, sizeof(buf_d), 0);
 
 	int src[__MK_SRC_MAX]	   = { 0 };
 	int target[__MK_BUILD_MAX] = { 0 };
@@ -339,6 +346,11 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 				dprintf(dst, "add_library(%.*s%.*s STATIC ${%.*s_SOURCE})\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
 					target_c[b].postfix.data, gen->name.len, gen->name.data);
 				target[b] = 1;
+			} else {
+				dprintf(dst, "add_custom_target(%.*s%.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+				target[b] = 1;
+				/*dprintf(dst, "add_library(%.*s%.*s STATIC IMPORTED)\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+				target[b] = 1;*/
 			}
 			break;
 		case MK_BUILD_SHARED:
@@ -346,17 +358,71 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 				dprintf(dst, "add_library(%.*s%.*s SHARED ${%.*s_SOURCE})\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
 					target_c[b].postfix.data, gen->name.len, gen->name.data);
 				target[b] = 1;
+			} else {
+				dprintf(dst, "add_custom_target(%.*s%.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+				target[b] = 1;
+				/*dprintf(dst, "add_library(%.*s%.*s SHARED IMPORTED)\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+				target[b] = 1;*/
 			}
 			break;
 		default:
 			break;
 		}
 
-		for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
-			if (target[b] && gen->defines[i].len > 0) {
-				dprintf(dst, "target_compile_definitions(%.*s%.*s PRIVATE %.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
-					target_c[b].postfix.data, gen->defines[i].len, gen->defines[i].data);
+		if (target[b] && gen->copyfiles.cnt > 0) {
+			const str_t *copyfile;
+			arr_foreach(&gen->copyfiles, copyfile)
+			{
+				/*pathv_t outputdir = { .path = copyfile->data, .len = copyfile->len };
+
+				str_t output = { 0 };
+				pathv_get_dir(outputdir, &output);
+
+				dprintf(dst,
+					"add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/%.*s\n"
+					"\tCOMMAND ${CMAKE_COMMAND} -E copy_if_different %.*s ${CMAKE_CURRENT_SOURCE_DIR}\n"
+					//"\tCOMMENT \"Copying files from %.*s to ${CMAKE_CURRENT_SOURCE_DIR}\"\n"
+					")\n",
+					output.len, output.data, copyfile->len, copyfile->data
+					//, copyfile->len, copyfile->data
+				);
+				dprintf(dst, "add_custom_target(copy_files_%.*s%.*s_%d ALL DEPENDS %.*s)\n\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data, _i, copyfile->len, copyfile->data);*/
+
+				dprintf(dst,
+					"add_custom_command(TARGET %.*s%.*s PRE_BUILD\n"
+					"\tCOMMAND ${CMAKE_COMMAND} -E copy_if_different %.*s ${CMAKE_CURRENT_SOURCE_DIR}\n"
+					")\n",
+					gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data, copyfile->len, copyfile->data);
 			}
+		}
+
+		if (target[b] && (gen->depends.cnt > 0 /* || gen->copyfiles.cnt > 0*/)) {
+			dprintf(dst, "add_dependencies(%.*s%.*s", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+
+			const str_t *depend;
+			arr_foreach(&gen->depends, depend)
+			{
+				dprintf(dst, " %.*s", depend->len, depend->data);
+			}
+
+			/*const str_t *copyfile;
+			arr_foreach(&gen->copyfiles, copyfile)
+			{
+				dprintf(dst, " copy_files_%.*s%.*s_%d", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data, _i);
+			}*/
+
+			dprintf(dst, ")\n");
+		}
+
+		/*if (target[b] && !is_src) {
+			dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES IMPORTED_LOCATION %.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+				target_c[b].postfix.data, gen->lib[target_c[b].intdir].len, gen->lib[target_c[b].intdir].data);
+		}*/
+
+		if (target[b] && is_src && gen->defines[target_c[b].intdir].len > 0) {
+			dprintf(dst, "target_compile_definitions(%.*s%.*s PRIVATE %.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+				target_c[b].postfix.data, gen->defines[target_c[b].intdir].len, gen->defines[target_c[b].intdir].data);
 		}
 
 		/*if (target[b]) {
@@ -372,7 +438,7 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 			}
 		}*/
 
-		if (target[b] && gen->includes.cnt > 0) {
+		if (target[b] && is_src && gen->includes.cnt > 0) {
 			dprintf(dst, "target_include_directories(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
 
 			const str_t *include;
@@ -384,20 +450,61 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 			dprintf(dst, ")\n");
 		}
 
-		if (target[b] && gen->libs.cnt > 0) {
-			dprintf(dst, "target_link_libraries(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+		if (target[b] && is_src && gen->libs.cnt > 0) {
+			dprintf(dst, "target_link_directories(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
 
 			const mk_pgen_lib_data_t *lib;
 			arr_foreach(&gen->libs, lib)
 			{
 				if (lib->link_type == MK_INTDIR_SHARED) {
-					dprintf(dst, " %.*s%.*s", lib->name.len, lib->name.data, target_c[MK_BUILD_SHARED].postfix.len, target_c[MK_BUILD_SHARED].postfix.data);
+					dprintf(dst, " %.*s", lib->dir.len, lib->dir.data);
 				} else {
-					dprintf(dst, " %.*s%.*s", lib->name.len, lib->name.data, target_c[MK_BUILD_STATIC].postfix.len, target_c[MK_BUILD_STATIC].postfix.data);
+					dprintf(dst, " %.*s", lib->dir.len, lib->dir.data);
 				}
 			}
 
 			dprintf(dst, ")\n");
+		}
+
+		if (target[b] && is_src && gen->libs.cnt > 0) {
+			dprintf(dst, "target_link_libraries(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+
+			const mk_pgen_lib_data_t *lib;
+			arr_foreach(&gen->libs, lib)
+			{
+				if (lib->lib_type == MK_LIB_INT) {
+					if (lib->link_type == MK_LINK_SHARED) {
+						dprintf(dst, " %.*s_d", lib->name.len, lib->name.data);
+					} else {
+						dprintf(dst, " %.*s_s", lib->name.len, lib->name.data);
+					}
+				} else {
+					if (lib->link_type == MK_LINK_SHARED) {
+						dprintf(dst, " -l:%.*s.so", lib->name.len, lib->name.data);
+					} else {
+						dprintf(dst, " -l:%.*s.a", lib->name.len, lib->name.data);
+					}
+				}
+			}
+
+			dprintf(dst, ")\n");
+		}
+
+		if (target[b] && is_src && gen->ldflags.len > 0) {
+			dprintf(dst, "target_link_options(%.*s%.*s PRIVATE %.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data,
+				gen->ldflags.len, gen->ldflags.data);
+		}
+
+		if (target[b] && gen->outdir.data) {
+			dprintf(dst, "set_target_properties(%.*s%.*s\n\tPROPERTIES\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+
+			dprintf(dst, "\tARCHIVE_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
+			dprintf(dst, "\tLIBRARY_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
+			dprintf(dst, "\tRUNTIME_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
+			dprintf(dst, "\tOUTPUT_NAME %.*s\n", gen->name.len, gen->name.data);
+			dprintf(dst, "\tPREFIX \"\"\n");
+
+			dprintf(dst, "\n)\n");
 		}
 	}
 }
@@ -594,7 +701,7 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 	const proj_dep_t *dep;
 	arr_foreach(&proj->all_depends, dep)
 	{
-		if (dep->link_type != LINK_TYPE_SHARED) {
+		if (dep->link_type != LINK_TYPE_SHARED || !(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
 			continue;
 		}
 
@@ -628,18 +735,32 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 		str_t rel = strc(dep->proj->rel_dir.path, dep->proj->rel_dir.len);
 
 		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
+			if (dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
+				const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
 
-			if (doutdir->flags & PROP_SET) {
-				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
+				if (doutdir->flags & PROP_SET) {
+					resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
 
-				if (dep->link_type == LINK_TYPE_SHARED) {
-					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_INTDIR_SHARED);
+					if (dep->link_type == LINK_TYPE_SHARED) {
+						mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_LINK_SHARED, MK_LIB_INT);
+						mk_pgen_add_copyfile(gen, str_cpy(resolve(strf("%.*s%.*s.so", doutdir->value.val.len, doutdir->value.val.data,
+											       dep->proj->name.len, dep->proj->name.data),
+											  &buf, dep->proj)));
+					} else {
+						mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_LINK_STATIC, MK_LIB_INT);
+					}
+				}
+			} else {
+				const prop_t *lib = &dep->proj->props[PROJ_PROP_LIB];
+				if (dep->link_type == LINK_TYPE_STATIC && lib->flags & PROP_SET) {
+					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
+					mk_pgen_add_lib(gen, str_cpy(buf), strs(lib->value.val), MK_LINK_STATIC, MK_LIB_EXT);
+				}
 
-					make_expand(&((proj_t *)dep->proj)->make);
-					mk_pgen_add_copyfile(gen, str_cpy(make_var_get_expanded(&dep->proj->make, STR("TARGET_D"))));
-				} else {
-					mk_pgen_add_lib(gen, str_cpy(buf), strs(dep->proj->name), MK_INTDIR_STATIC);
+				const prop_t *dlib = &dep->proj->props[PROJ_PROP_DLIB];
+				if (dep->link_type == LINK_TYPE_SHARED && dlib->flags & PROP_SET) {
+					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
+					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dlib->value.val), MK_LINK_SHARED, MK_LIB_EXT);
 				}
 			}
 		}
@@ -648,14 +769,36 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
 		{
 			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
-			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_INTDIR_SHARED);
+			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_LINK_SHARED, MK_LIB_EXT);
 		}
 
 		//TODO: Not needed anymore? Replaced with LIB
 		const prop_str_t *link;
 		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
 		{
-			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_INTDIR_SHARED);
+			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_LINK_SHARED, MK_LIB_EXT);
+		}
+	}
+
+	arr_foreach(&proj->depends, dep)
+	{
+		if (!(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
+			if (dep->link_type == LINK_TYPE_STATIC) {
+				mk_pgen_add_depend(gen, strf("%.*s_s", dep->proj->name.len, dep->proj->name.data));
+			} else {
+				mk_pgen_add_depend(gen, strf("%.*s_d", dep->proj->name.len, dep->proj->name.data));
+			}
+		}
+	}
+
+	if (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
+		arr_foreach(&proj->depends, dep)
+		{
+			if (dep->link_type == LINK_TYPE_STATIC) {
+				mk_pgen_add_depend(gen, strf("%.*s_s", dep->proj->name.len, dep->proj->name.data));
+			} else {
+				mk_pgen_add_depend(gen, strf("%.*s_d", dep->proj->name.len, dep->proj->name.data));
+			}
 		}
 	}
 
@@ -690,6 +833,32 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 		if (flags->mask & (1 << FLAG_GLX)) {
 			mk_pgen_add_ldflag(gen, STR("-lGLX"));
 		}
+	}
+
+	const prop_str_t *require;
+	arr_foreach(&proj->props[PROJ_PROP_REQUIRE].arr, require)
+	{
+		mk_pgen_add_require(gen, str_cpy(require->val));
+	}
+
+	str_t rel = strc(proj->rel_dir.path, proj->rel_dir.len);
+
+	const prop_t *lib = &proj->props[PROJ_PROP_LIB];
+	if (lib->flags & PROP_SET) {
+		resolve(resolve_path(rel, lib->value.val, &buf), &buf, proj);
+		gen->lib[MK_INTDIR_STATIC] = strf("%.*s.a", buf.len, buf.data);
+	}
+
+	const prop_t *dlib = &proj->props[PROJ_PROP_DLIB];
+	if (dlib->flags & PROP_SET) {
+		resolve(resolve_path(rel, dlib->value.val, &buf), &buf, proj);
+		gen->lib[MK_INTDIR_SHARED] = strf("%.*s.so", buf.len, buf.data);
+	}
+
+	const prop_str_t *copyfile;
+	arr_foreach(&proj->props[PROJ_PROP_COPYFILES].arr, copyfile)
+	{
+		mk_pgen_add_copyfile(gen, str_cpy(resolve(copyfile->val, &buf, proj)));
 	}
 
 	cm_pgen(gen, PRINT_DST_FILE(file));

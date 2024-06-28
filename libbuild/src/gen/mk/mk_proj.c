@@ -222,7 +222,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const proj_dep_t *dep;
 	arr_foreach(&proj->all_depends, dep)
 	{
-		if (dep->link_type != LINK_TYPE_SHARED) {
+		if (dep->link_type != LINK_TYPE_SHARED || !(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
 			continue;
 		}
 
@@ -256,18 +256,32 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		str_t rel = strc(dep->proj->rel_dir.path, dep->proj->rel_dir.len);
 
 		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
+			if (dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
+				const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
 
-			if (doutdir->flags & PROP_SET) {
-				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
+				if (doutdir->flags & PROP_SET) {
+					resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
 
-				if (dep->link_type == LINK_TYPE_SHARED) {
-					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_INTDIR_SHARED);
+					if (dep->link_type == LINK_TYPE_SHARED) {
+						mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_LINK_SHARED, MK_LIB_INT);
+						mk_pgen_add_copyfile(gen, str_cpy(resolve(strf("%.*s%.*s.so", doutdir->value.val.len, doutdir->value.val.data,
+											       dep->proj->name.len, dep->proj->name.data),
+											  &buf, dep->proj)));
+					} else {
+						mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_LINK_STATIC, MK_LIB_INT);
+					}
+				}
+			} else {
+				const prop_t *lib = &dep->proj->props[PROJ_PROP_LIB];
+				if (dep->link_type == LINK_TYPE_STATIC && lib->flags & PROP_SET) {
+					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
+					mk_pgen_add_lib(gen, str_cpy(buf), strs(lib->value.val), MK_LINK_STATIC, MK_LIB_EXT);
+				}
 
-					make_expand(&((proj_t *)dep->proj)->make);
-					mk_pgen_add_copyfile(gen, str_cpy(make_var_get_expanded(&dep->proj->make, STR("TARGET_D"))));
-				} else {
-					mk_pgen_add_lib(gen, str_cpy(buf), strs(dep->proj->name), MK_INTDIR_STATIC);
+				const prop_t *dlib = &dep->proj->props[PROJ_PROP_DLIB];
+				if (dep->link_type == LINK_TYPE_SHARED && dlib->flags & PROP_SET) {
+					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
+					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dlib->value.val), MK_LINK_SHARED, MK_LIB_EXT);
 				}
 			}
 		}
@@ -276,14 +290,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
 		{
 			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
-			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_INTDIR_SHARED);
+			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_LINK_SHARED, MK_LIB_EXT);
 		}
 
 		//TODO: Not needed anymore? Replaced with LIB
 		const prop_str_t *link;
 		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
 		{
-			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_INTDIR_SHARED);
+			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_LINK_SHARED, MK_LIB_EXT);
 		}
 	}
 

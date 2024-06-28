@@ -52,6 +52,16 @@ typedef enum mk_pgen_intdir_type_e {
 #define F_MK_INTDIR_STATIC (1 << MK_INTDIR_STATIC)
 #define F_MK_INTDIR_SHARED (1 << MK_INTDIR_SHARED)
 
+typedef enum mk_pgen_link_type_e {
+	MK_LINK_STATIC,
+	MK_LINK_SHARED,
+} mk_pgen_link_type_t;
+
+typedef enum mk_pgen_lib_type_e {
+	MK_LIB_INT,
+	MK_LIB_EXT,
+} mk_pgen_lib_type_t;
+
 typedef enum mk_pgen_build_type_e {
 	MK_BUILD_EXE,
 	MK_BUILD_STATIC,
@@ -82,6 +92,8 @@ typedef struct mk_pgen_s {
 	str_t flags[__MK_SRC_MAX];
 	str_t defines[__MK_INTDIR_MAX];
 	arr_t libs;
+	arr_t libdirs;
+	arr_t depends;
 	str_t ldflags;
 	str_t run[__MK_BUILD_MAX];
 	str_t run_debug[__MK_BUILD_MAX];
@@ -109,7 +121,8 @@ uint mk_pgen_add_include(mk_pgen_t *gen, str_t dir);
 void mk_pgen_add_flag(mk_pgen_t *gen, str_t flag, int exts);
 void mk_pgen_add_define(mk_pgen_t *gen, str_t define, int intdirs);
 void mk_pgen_add_ldflag(mk_pgen_t *gen, str_t ldflag);
-uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_intdir_type_t link_type);
+uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_link_type_t link_type, mk_pgen_lib_type_t lib_type);
+uint mk_pgen_add_depend(mk_pgen_t *gen, str_t depend);
 void mk_pgen_set_run(mk_pgen_t *gen, str_t run, int builds);
 void mk_pgen_set_run_debug(mk_pgen_t *gen, str_t run, int builds);
 uint mk_pgen_add_file(mk_pgen_t *gen, str_t path, int ext);

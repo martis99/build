@@ -24,7 +24,47 @@ section .text
 _start:
 	; esp[0]: argc
 	; esp[BS]: argv
+%ifidn __OUTPUT_FORMAT__, bin
 	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, ith
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, srec
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, aout
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, aoutb
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, coff
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, elf32
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, elf64
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, elfx32
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, as86
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, obj
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, win32
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, win64
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, ieee
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, macho32
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, macho64
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, dbg
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, elf
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, macho
+	mov AX, [SP]
+%elifidn __OUTPUT_FORMAT__, win
+	mov AX, [SP]
+%endif
 	lea BX, [SP+BS]
 
 	; if argc != 2

@@ -40,16 +40,20 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\n", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR);
 
-	/*c_fprintf(file, "if(NOT CMAKE_NASM_COMPILER)\n"
-			"  set(CMAKE_NASM_COMPILER \"nasm\")\n"
-			"endif()\n\n");*/
+	c_fprintf(
+		file,
+		"set(CMAKE_ASM_CREATE_SHARED_LIBRARY \"<CMAKE_LINKER> -shared ${extra_flags} <CMAKE_ASM_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>\")\n");
+	c_fprintf(file, "set(CMAKE_ASM_NASM_OBJECT_FORMAT \"elf64\")\n");
+	c_fprintf(
+		file,
+		"set(CMAKE_ASM_NASM_LINK_EXECUTABLE \"<CMAKE_ASM_COMPILER> <FLAGS> <CMAKE_ASM_NASM_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>\")\n");
 
-	c_fprintf(file, "project(\"%.*s\" LANGUAGES", name->val.len, name->val.data);
+	c_fprintf(file, "\nproject(\"%.*s\" LANGUAGES", name->val.len, name->val.data);
 
 	// clang-format off
 	const char *langs[] = {
 		[LANG_NONE]    = "",
-		[LANG_NASM]    = " NASM",
+		[LANG_NASM]    = " ASM_NASM",
 		[LANG_ASM]     = " ASM",
 		[LANG_C]       = " C",
 		[LANG_CPP]     = " CXX",
@@ -57,21 +61,12 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 	// clang-format on
 
 	for (int i = 0; i < __LANG_MAX; i++) {
-		if (i != LANG_NASM) {
-			c_fprintf(file, langs[i]);
-		}
+		c_fprintf(file, langs[i]);
 	}
-	c_fprintf(file, ")\n");
-
-	c_fprintf(
-		file,
-		"if(NOT CMAKE_ASM_CREATE_SHARED_LIBRARY)\n"
-		"  set(CMAKE_ASM_CREATE_SHARED_LIBRARY\n"
-		"      \"<CMAKE_LINKER> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS_<CONFIG>> <CMAKE_SHARED_LIBRARY_LINK_C_FLAGS> <CMAKE_SHARED_LIBRARY_LINK_C_FLAGS_<CONFIG>> <LANGUAGE_COMPILE_FLAGS> <CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG> <CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG_<CONFIG>> <LINK_LIBRARIES> <CMAKE_ASM_OUTPUT_FILE_FLAG><TARGET> <OBJECTS> <CMAKE_ASM_LINK_FLAGS> <LINK_FLAGS> <LINK_PATH> <LINK_LIBRARIES>\")\n"
-		"endif()\n\n");
+	c_fprintf(file, ")\n\n");
 
 	if (sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) {
-		c_fprintf(file, "\nset(CMAKE_CONFIGURATION_TYPES \"");
+		c_fprintf(file, "set(CMAKE_CONFIGURATION_TYPES \"");
 
 		const arr_t *configs = &sln->props[SLN_PROP_CONFIGS].arr;
 		int first	     = 0;

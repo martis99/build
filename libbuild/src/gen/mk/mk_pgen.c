@@ -20,7 +20,8 @@ typedef struct mk_pgen_file_data_s {
 typedef struct mk_pgen_lib_data_s {
 	str_t dir;
 	str_t name;
-	mk_pgen_intdir_type_t link_type;
+	mk_pgen_link_type_t link_type;
+	mk_pgen_lib_type_t lib_type;
 } mk_pgen_lib_data_t;
 
 mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
@@ -54,6 +55,10 @@ mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
 	}
 
 	if (arr_init(&gen->libs, 1, sizeof(mk_pgen_lib_data_t)) == NULL) {
+		return NULL;
+	}
+
+	if (arr_init(&gen->depends, 1, sizeof(str_t)) == NULL) {
 		return NULL;
 	}
 
@@ -133,6 +138,13 @@ void mk_pgen_free(mk_pgen_t *gen)
 		str_free(&lib->name);
 	}
 	arr_free(&gen->libs);
+
+	str_t *depend;
+	arr_foreach(&gen->depends, depend)
+	{
+		str_free(depend);
+	}
+	arr_free(&gen->depends);
 
 	str_free(&gen->ldflags);
 
@@ -309,7 +321,7 @@ void mk_pgen_add_ldflag(mk_pgen_t *gen, str_t ldflag)
 	str_cat(&gen->ldflags, ldflag);
 }
 
-uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_intdir_type_t link_type)
+uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_link_type_t link_type, mk_pgen_lib_type_t lib_type)
 {
 	if (gen == NULL) {
 		return MK_SRC_END;
@@ -326,7 +338,26 @@ uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_intdir_type_
 		.dir	   = dir,
 		.name	   = name,
 		.link_type = link_type,
+		.lib_type  = lib_type,
 	};
+
+	return id;
+}
+
+uint mk_pgen_add_depend(mk_pgen_t *gen, str_t depend)
+{
+	if (gen == NULL) {
+		return MK_SRC_END;
+	}
+
+	uint id = arr_add(&gen->depends);
+
+	str_t *data = arr_get(&gen->depends, id);
+	if (data == NULL) {
+		return MK_SRC_END;
+	}
+
+	*data = depend;
 
 	return id;
 }
@@ -560,10 +591,10 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		const char *ext;
 		int cov;
 	} src_c[] = {
-		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),  "asm", 0 },
-		[MK_EXT_S]   = { STRS("SRC_S"),  STRS("ASFLAGS"),  "S",   0 },
-		[MK_EXT_C]   = { STRS("SRC_C"),    STRS("CFLAGS"),   "c",   1 },
-		[MK_EXT_CPP] = { STRS("SRC_CPP"),  STRS("CXXFLAGS"), "cpp", 1 },
+		[MK_EXT_ASM] = { STRS("SRC_ASM"), STRS("ASFLAGS"),  "nasm", 0 },
+		[MK_EXT_S]   = { STRS("SRC_S"),   STRS("ASFLAGS"),  "S",    0 },
+		[MK_EXT_C]   = { STRS("SRC_C"),   STRS("CFLAGS"),   "c",    1 },
+		[MK_EXT_CPP] = { STRS("SRC_CPP"), STRS("CXXFLAGS"), "cpp",  1 },
 	};
 	// clang-format on
 
@@ -1082,7 +1113,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 
 		if (asm_bin) {
 			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.bin", intdir_c[i].name.data))), 1));
-			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.nasm"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 
 			make_rule_add_act(
@@ -1090,7 +1121,7 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 				make_create_cmd(make, MCMD(strf("@nasm -fbin $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@", intdir_c[i].defines.data))));
 		} else {
 			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
-			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.asm"))));
+			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.nasm"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
 
 			make_rule_add_act(make, int_o,

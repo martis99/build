@@ -136,7 +136,9 @@ static void get_all_depends(arr_t *arr, const proj_t *proj, dict_t *projects)
 	const proj_dep_t *dep;
 	arr_foreach(&proj->depends, dep)
 	{
-		get_all_depends(arr, dep->proj, projects);
+		if (dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
+			get_all_depends(arr, dep->proj, projects);
+		}
 
 		if (arr_index_cmp(arr, dep, proj_dep_eq) == -1) {
 			arr_app(arr, dep);
