@@ -175,12 +175,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	arr_foreach(&proj->props[PROJ_PROP_SOURCE].arr, source)
 	{
-		mk_pgen_add_include(gen, resolve(source->val, &buf, proj));
+		mk_pgen_add_include(gen, str_cpy(resolve(source->val, &buf, proj)));
 	}
 
 	arr_foreach(&proj->props[PROJ_PROP_INCLUDE].arr, include)
 	{
-		mk_pgen_add_include(gen, resolve(include->val, &buf, proj));
+		mk_pgen_add_include(gen, str_cpy(resolve(include->val, &buf, proj)));
 	}
 
 	for (uint i = 0; i < proj->includes.cnt; i++) {
@@ -190,11 +190,11 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		arr_foreach(&iproj->props[PROJ_PROP_INCLUDE].arr, include)
 		{
-			mk_pgen_add_include(gen, resolve(resolve_path(rel, include->val, &buf), &buf, iproj));
+			mk_pgen_add_include(gen, str_cpy(resolve(resolve_path(rel, include->val, &buf), &buf, iproj)));
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			mk_pgen_add_include(gen, resolve(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf), &buf, iproj));
+			mk_pgen_add_include(gen, str_cpy(resolve(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf), &buf, iproj)));
 		}
 	}
 
@@ -250,8 +250,6 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
-	str_t rpath = STR(".");
-
 	for (int i = proj->all_depends.cnt - 1; i >= 0; i--) {
 		proj_dep_t *dep = arr_get(&proj->all_depends, i);
 
@@ -264,13 +262,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
 
 				if (dep->link_type == LINK_TYPE_SHARED) {
-					mk_pgen_add_dlib(gen, rpath, dep->proj->name);
-					rpath = str_null();
+					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_INTDIR_SHARED);
 
 					make_expand(&((proj_t *)dep->proj)->make);
 					mk_pgen_add_copyfile(gen, str_cpy(make_var_get_expanded(&dep->proj->make, STR("TARGET_D"))));
 				} else {
-					mk_pgen_add_slib(gen, buf, strs(dep->proj->name));
+					mk_pgen_add_lib(gen, str_cpy(buf), strs(dep->proj->name), MK_INTDIR_STATIC);
 				}
 			}
 		}
@@ -279,14 +276,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
 		{
 			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
-			mk_pgen_add_dlib(gen, buf, str_null());
+			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_INTDIR_SHARED);
 		}
 
 		//TODO: Not needed anymore? Replaced with LIB
 		const prop_str_t *link;
 		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
 		{
-			mk_pgen_add_dlib(gen, str_null(), link->val);
+			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_INTDIR_SHARED);
 		}
 	}
 

@@ -17,6 +17,12 @@ typedef struct mk_pgen_file_data_s {
 	mk_pgen_file_ext_t ext;
 } mk_pgen_file_data_t;
 
+typedef struct mk_pgen_lib_data_s {
+	str_t dir;
+	str_t name;
+	mk_pgen_intdir_type_t link_type;
+} mk_pgen_lib_data_t;
+
 mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
 {
 	if (gen == NULL) {
@@ -35,7 +41,9 @@ mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
 		return NULL;
 	}
 
-	gen->includes = strz(64);
+	if (arr_init(&gen->includes, 1, sizeof(str_t)) == NULL) {
+		return NULL;
+	}
 
 	for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
 		gen->flags[s] = strz(16);
@@ -45,8 +53,11 @@ mk_pgen_t *mk_pgen_init(mk_pgen_t *gen)
 		gen->defines[i] = strz(16);
 	}
 
+	if (arr_init(&gen->libs, 1, sizeof(mk_pgen_lib_data_t)) == NULL) {
+		return NULL;
+	}
+
 	gen->ldflags = strz(16);
-	gen->depends = strz(16);
 
 	if (arr_init(&gen->files, 2, sizeof(mk_pgen_file_data_t)) == NULL) {
 		return NULL;
@@ -99,7 +110,13 @@ void mk_pgen_free(mk_pgen_t *gen)
 	arr_free(&gen->srcs);
 
 	str_free(&gen->args);
-	str_free(&gen->includes);
+
+	str_t *include;
+	arr_foreach(&gen->includes, include)
+	{
+		str_free(include);
+	}
+	arr_free(&gen->includes);
 
 	for (mk_pgen_src_ext_t s = 0; s < __MK_SRC_MAX; s++) {
 		str_free(&gen->flags[s]);
@@ -109,8 +126,15 @@ void mk_pgen_free(mk_pgen_t *gen)
 		str_free(&gen->defines[i]);
 	}
 
+	mk_pgen_lib_data_t *lib;
+	arr_foreach(&gen->libs, lib)
+	{
+		str_free(&lib->dir);
+		str_free(&lib->name);
+	}
+	arr_free(&gen->libs);
+
 	str_free(&gen->ldflags);
-	str_free(&gen->depends);
 
 	for (mk_pgen_build_type_t b = 0; b < __MK_BUILD_MAX; b++) {
 		str_free(&gen->run[b]);
@@ -222,14 +246,22 @@ uint mk_pgen_add_src(mk_pgen_t *gen, str_t dir, int exts)
 	return id;
 }
 
-void mk_pgen_add_include(mk_pgen_t *gen, str_t dir)
+uint mk_pgen_add_include(mk_pgen_t *gen, str_t dir)
 {
 	if (gen == NULL) {
-		return;
+		return MK_SRC_END;
 	}
 
-	str_cat(&gen->includes, gen->includes.len > 0 ? STR(" -I") : STR("-I"));
-	str_cat(&gen->includes, dir);
+	uint id = arr_add(&gen->includes);
+
+	str_t *data = arr_get(&gen->includes, id);
+	if (data == NULL) {
+		return MK_SRC_END;
+	}
+
+	*data = dir;
+
+	return id;
 }
 
 void mk_pgen_add_flag(mk_pgen_t *gen, str_t flag, int exts)
@@ -277,49 +309,26 @@ void mk_pgen_add_ldflag(mk_pgen_t *gen, str_t ldflag)
 	str_cat(&gen->ldflags, ldflag);
 }
 
-void mk_pgen_add_slib(mk_pgen_t *gen, str_t dir, str_t lib)
+uint mk_pgen_add_lib(mk_pgen_t *gen, str_t dir, str_t name, mk_pgen_intdir_type_t link_type)
 {
 	if (gen == NULL) {
-		return;
+		return MK_SRC_END;
 	}
 
-	if (gen->depends.len > 0) {
-		str_cat(&gen->depends, STR(" "));
+	uint id = arr_add(&gen->libs);
+
+	mk_pgen_lib_data_t *data = arr_get(&gen->libs, id);
+	if (data == NULL) {
+		return MK_SRC_END;
 	}
 
-	if (dir.data) {
-		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -L") : STR("-L"));
-		str_cat(&gen->ldflags, dir);
+	*data = (mk_pgen_lib_data_t){
+		.dir	   = dir,
+		.name	   = name,
+		.link_type = link_type,
+	};
 
-		str_cat(&gen->depends, dir);
-	}
-
-	if (lib.data) {
-		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
-		str_cat(&gen->ldflags, lib);
-		str_cat(&gen->ldflags, STR(".a"));
-
-		str_cat(&gen->depends, lib);
-		str_cat(&gen->depends, STR(".a"));
-	}
-}
-
-void mk_pgen_add_dlib(mk_pgen_t *gen, str_t dir, str_t lib)
-{
-	if (gen == NULL) {
-		return;
-	}
-
-	if (dir.data) {
-		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -Wl,-rpath,") : STR("-Wl,-rpath,"));
-		str_cat(&gen->ldflags, dir);
-	}
-
-	if (lib.data) {
-		str_cat(&gen->ldflags, gen->ldflags.len > 0 ? STR(" -l:") : STR("-l:"));
-		str_cat(&gen->ldflags, lib);
-		str_cat(&gen->ldflags, STR(".so"));
-	}
+	return id;
 }
 
 void mk_pgen_set_run(mk_pgen_t *gen, str_t run, int build)
@@ -690,11 +699,18 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 	int is_flags = 0;
 
 	make_var_t includes = MAKE_END;
-	if (is_obj && gen->includes.len > 0) {
+	if (is_obj && gen->includes.cnt > 0) {
 		is_flags = 1;
 
 		includes = make_add_act(make, make_create_var(make, STR("INCLUDES"), MAKE_VAR_INST));
-		make_var_add_val(make, includes, MSTR(str_cpy(gen->includes)));
+
+		int first = 1;
+		const str_t *include;
+		arr_foreach(&gen->includes, include)
+		{
+			make_var_add_val(make, includes, MSTR(strf(first ? "-I%.*s" : "-I%.*s", include->len, include->data)));
+			first = 0;
+		}
 	}
 
 	make_var_t flags[] = {
@@ -736,6 +752,32 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 		is_flags = 1;
 
 		const make_var_t ldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_INST));
+
+		int first = 1;
+
+		const mk_pgen_lib_data_t *lib;
+		arr_foreach(&gen->libs, lib)
+		{
+			if (lib->dir.data) {
+				if (lib->link_type == MK_INTDIR_SHARED) {
+					make_var_add_val(make, ldflags, MSTR(strf(first ? "-Wl,-rpath,%.*s" : " -Wl,-rpath,%.*s", lib->dir.len, lib->dir.data)));
+				} else {
+					make_var_add_val(make, ldflags, MSTR(strf(first ? "-L%.*s" : " -L%.*s", lib->dir.len, lib->dir.data)));
+				}
+
+				first = 0;
+			}
+
+			if (lib->name.data) {
+				if (lib->link_type == MK_INTDIR_SHARED) {
+					make_var_add_val(make, ldflags, MSTR(strf(first ? "-l:%.*s.so" : " -l:%.*s.so", lib->name.len, lib->name.data)));
+				} else {
+					make_var_add_val(make, ldflags, MSTR(strf(first ? "-l:%.*s.a" : " -l:%.*s.a", lib->name.len, lib->name.data)));
+				}
+				first = 0;
+			}
+		}
+
 		if (gen->ldflags.len > 0) {
 			make_var_add_val(make, ldflags, MSTR(str_cpy(gen->ldflags)));
 		}
@@ -920,8 +962,19 @@ make_t *mk_pgen_local(const mk_pgen_t *gen, make_t *make)
 				str_cat(&cmd, STR(")"));
 			}
 
-			if (gen->depends.len > 0) {
-				make_rule_add_depend(make, target_rule[b], MRULE(MSTR(str_cpy(gen->depends))));
+			const mk_pgen_lib_data_t *lib;
+			arr_foreach(&gen->libs, lib)
+			{
+				if (lib->link_type == MK_INTDIR_SHARED || lib->name.data == NULL) {
+					continue;
+				}
+
+				if (lib->dir.data) {
+					make_rule_add_depend(make, target_rule[b],
+							     MRULE(MSTR(strf("%.*s%.*s.a", lib->dir.len, lib->dir.data, lib->name.len, lib->name.data))));
+				} else {
+					make_rule_add_depend(make, target_rule[b], MRULE(MSTR(strf("%.*s.a", lib->name.len, lib->name.data))));
+				}
 			}
 
 			str_cat(&cmd, target_c[b].cmdr);

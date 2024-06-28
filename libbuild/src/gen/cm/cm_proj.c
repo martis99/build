@@ -111,69 +111,6 @@ static int cm_proj_gen_proj(const proj_t *proj, const dict_t *projects, const pr
 		ret = 1;
 	}
 
-	int first = 1;
-	c_fprintf(file, "include_directories(");
-
-	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
-
-		for (uint i = 0; i < sources->cnt; i++) {
-			prop_str_t *source = arr_get(sources, i);
-
-			buf_len = source->val.len;
-			mem_cpy(buf, sizeof(buf), source->val.data, source->val.len);
-			convert_slash(buf, source->val.len);
-
-			c_fprintf(file, first ? "%.*s" : " %.*s", buf_len - 1, buf);
-			first = 0;
-		}
-	}
-
-	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
-
-		for (uint i = 0; i < includes->cnt; i++) {
-			prop_str_t *include = arr_get(includes, i);
-
-			buf_len = include->val.len;
-			mem_cpy(buf, sizeof(buf), include->val.data, include->val.len);
-			convert_slash(buf, include->val.len);
-
-			c_fprintf(file, first ? "%.*s" : " %.*s", buf_len - 1, buf);
-			first = 0;
-		}
-	}
-
-	for (uint i = 0; i < proj->includes.cnt; i++) {
-		const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
-
-		if (iproj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-			const arr_t *includes = &iproj->props[PROJ_PROP_INCLUDE].arr;
-
-			for (uint i = 0; i < includes->cnt; i++) {
-				prop_str_t *include = arr_get(includes, i);
-				if (!first) {
-					c_fprintf(file, " ");
-				}
-				print_rel_path(file, iproj, include->val.data, include->val.len);
-				first = 0;
-			}
-		}
-
-		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			if (!first) {
-				c_fprintf(file, " ");
-			}
-
-			buf_len = resolve(&iproj->props[PROJ_PROP_ENCLUDE].value, buf, sizeof(buf), iproj);
-
-			print_rel_path(file, iproj, buf, buf_len);
-			first = 0;
-		}
-	}
-
-	c_fprintf(file, ")\n");
-
 	if (!proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
 		if (lang & (1 << LANG_C)) {
 			c_fprintf(file, "set_target_properties(%.*s%s PROPERTIES LINKER_LANGUAGE C)\n", name->len, name->data, shared ? "_d" : "");
@@ -281,6 +218,12 @@ typedef struct mk_pgen_file_data_s {
 	mk_pgen_file_ext_t ext;
 } mk_pgen_file_data_t;
 
+typedef struct mk_pgen_lib_data_s {
+	str_t dir;
+	str_t name;
+	mk_pgen_intdir_type_t link_type;
+} mk_pgen_lib_data_t;
+
 //TODO: Resolve when reading config file
 static str_t resolve_path(str_t rel, str_t path, str_t *buf)
 {
@@ -299,7 +242,7 @@ static str_t resolve_path(str_t rel, str_t path, str_t *buf)
 static str_t resolve(str_t str, str_t *buf, const proj_t *proj)
 {
 	str_cpyd(str, buf);
-	str_replace(buf, STR("$(SLN_DIR)"), STR("$(CMAKE_SOURCE_DIR)"));
+	str_replace(buf, STR("$(SLN_DIR)"), STR("${CMAKE_SOURCE_DIR}/"));
 	str_replace(buf, STR("$(PROJ_DIR)"), strc(proj->rel_dir.path, proj->rel_dir.len));
 	str_replace(buf, STR("$(PROJ_NAME)"), strc(proj->name.data, proj->name.len));
 	str_replace(buf, STR("$(CONFIG)"), STR("$(Configuration)"));
@@ -411,11 +354,12 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 
 		for (mk_pgen_intdir_type_t i = 0; i < __MK_INTDIR_MAX; i++) {
 			if (target[b] && gen->defines[i].len > 0) {
-				dprintf(dst, "add_definitions(%.*s)\n", gen->defines[i].len, gen->defines[i].data);
+				dprintf(dst, "target_compile_definitions(%.*s%.*s PRIVATE %.*s)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
+					target_c[b].postfix.data, gen->defines[i].len, gen->defines[i].data);
 			}
 		}
 
-		if (target[b]) {
+		/*if (target[b]) {
 			if (src[MK_EXT_CPP]) {
 				dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES LINKER_LANGUAGE CXX)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
 					target_c[b].postfix.data);
@@ -426,6 +370,34 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 				dprintf(dst, "set_target_properties(%.*s%.*s PROPERTIES LINKER_LANGUAGE ASM)\n", gen->name.len, gen->name.data, target_c[b].postfix.len,
 					target_c[b].postfix.data);
 			}
+		}*/
+
+		if (target[b] && gen->includes.cnt > 0) {
+			dprintf(dst, "target_include_directories(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+
+			const str_t *include;
+			arr_foreach(&gen->includes, include)
+			{
+				dprintf(dst, " %.*s", include->len, include->data);
+			}
+
+			dprintf(dst, ")\n");
+		}
+
+		if (target[b] && gen->libs.cnt > 0) {
+			dprintf(dst, "target_link_libraries(%.*s%.*s PRIVATE", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
+
+			const mk_pgen_lib_data_t *lib;
+			arr_foreach(&gen->libs, lib)
+			{
+				if (lib->link_type == MK_INTDIR_SHARED) {
+					dprintf(dst, " %.*s%.*s", lib->name.len, lib->name.data, target_c[MK_BUILD_SHARED].postfix.len, target_c[MK_BUILD_SHARED].postfix.data);
+				} else {
+					dprintf(dst, " %.*s%.*s", lib->name.len, lib->name.data, target_c[MK_BUILD_STATIC].postfix.len, target_c[MK_BUILD_STATIC].postfix.data);
+				}
+			}
+
+			dprintf(dst, ")\n");
 		}
 	}
 }
@@ -555,6 +527,168 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 
 		if (srcs) {
 			mk_pgen_add_src(gen, strs(source->val), srcs);
+		}
+	}
+
+	const prop_t *partifact = &proj->props[PROJ_PROP_ARTIFACT];
+	if (partifact->flags & PROP_SET) {
+		//TODO: Different names for different build types
+		gen->artifact[MK_BUILD_EXE]    = strs(partifact->value.val);
+		gen->artifact[MK_BUILD_BIN]    = strs(partifact->value.val);
+		gen->artifact[MK_BUILD_ELF]    = strs(partifact->value.val);
+		gen->artifact[MK_BUILD_FAT12]  = strs(partifact->value.val);
+		gen->artifact[MK_BUILD_STATIC] = strs(partifact->value.val);
+		gen->artifact[MK_BUILD_SHARED] = strs(partifact->value.val);
+	}
+
+	if (proj->props[PROJ_PROP_ARGS].flags & PROP_SET) {
+		gen->args = str_cpy(resolve(proj->props[PROJ_PROP_ARGS].value.val, &buf, proj));
+	}
+
+	arr_foreach(&proj->props[PROJ_PROP_SOURCE].arr, source)
+	{
+		mk_pgen_add_include(gen, str_cpy(resolve(source->val, &buf, proj)));
+	}
+
+	arr_foreach(&proj->props[PROJ_PROP_INCLUDE].arr, include)
+	{
+		mk_pgen_add_include(gen, str_cpy(resolve(include->val, &buf, proj)));
+	}
+
+	for (uint i = 0; i < proj->includes.cnt; i++) {
+		const proj_t *iproj = *(proj_t **)arr_get(&proj->includes, i);
+
+		str_t rel = strc(iproj->rel_dir.path, iproj->rel_dir.len);
+
+		arr_foreach(&iproj->props[PROJ_PROP_INCLUDE].arr, include)
+		{
+			mk_pgen_add_include(gen, str_cpy(resolve(resolve_path(rel, include->val, &buf), &buf, iproj)));
+		}
+
+		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
+			mk_pgen_add_include(gen, str_cpy(resolve(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf), &buf, iproj)));
+		}
+	}
+
+	if (proj->props[PROJ_PROP_DEFINES].flags & PROP_SET) {
+		const arr_t *defines = &proj->props[PROJ_PROP_DEFINES].arr;
+
+		for (uint k = 0; k < defines->cnt; k++) {
+			const prop_str_t *define = arr_get(defines, k);
+			mk_pgen_add_define(gen, define->val, F_MK_INTDIR_OBJECT | F_MK_BUILD_STATIC | F_MK_INTDIR_SHARED);
+		}
+	}
+
+	const prop_t *flags = &proj->props[PROJ_PROP_FLAGS];
+	if ((flags->flags & PROP_SET)) {
+		if (flags->mask & (1 << FLAG_STD_C99)) {
+			mk_pgen_add_flag(gen, STR("-std=c99"), MK_EXT_C);
+		}
+		if (flags->mask & (1 << FLAG_FREESTANDING)) {
+			mk_pgen_add_flag(gen, STR("-ffreestanding"), MK_EXT_C);
+		}
+	}
+
+	mk_pgen_add_flag(gen, STR("-Wall -Wextra -Werror -pedantic"), F_MK_EXT_C | F_MK_EXT_CPP);
+
+	const proj_dep_t *dep;
+	arr_foreach(&proj->all_depends, dep)
+	{
+		if (dep->link_type != LINK_TYPE_SHARED) {
+			continue;
+		}
+
+		//TODO: cleanup
+		str_t define = strz(dep->proj->name.len + 5);
+		str_to_upper(dep->proj->name, &define);
+		str_cat(&define, STR("_DLL"));
+		mk_pgen_add_define(gen, define, F_MK_INTDIR_OBJECT | F_MK_INTDIR_SHARED);
+		str_free(&define);
+	}
+
+	//TODO: cleanup
+	str_t define = strz(proj->name.len + 11);
+	str_to_upper(proj->name, &define);
+	str_cat(&define, STR("_BUILD_DLL"));
+	mk_pgen_add_define(gen, define, F_MK_INTDIR_SHARED);
+	str_free(&define);
+
+	if (flags->flags & PROP_SET) {
+		if (flags->mask & (1 << FLAG_WHOLEARCHIVE)) {
+			mk_pgen_add_ldflag(gen, STR("-Wl,--whole-archive"));
+		}
+		if (flags->mask & (1 << FLAG_ALLOWMULTIPLEDEFINITION)) {
+			mk_pgen_add_ldflag(gen, STR("-Wl,--allow-multiple-definition"));
+		}
+	}
+
+	for (int i = proj->all_depends.cnt - 1; i >= 0; i--) {
+		proj_dep_t *dep = arr_get(&proj->all_depends, i);
+
+		str_t rel = strc(dep->proj->rel_dir.path, dep->proj->rel_dir.len);
+
+		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
+
+			if (doutdir->flags & PROP_SET) {
+				resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
+
+				if (dep->link_type == LINK_TYPE_SHARED) {
+					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dep->proj->name), MK_INTDIR_SHARED);
+
+					make_expand(&((proj_t *)dep->proj)->make);
+					mk_pgen_add_copyfile(gen, str_cpy(make_var_get_expanded(&dep->proj->make, STR("TARGET_D"))));
+				} else {
+					mk_pgen_add_lib(gen, str_cpy(buf), strs(dep->proj->name), MK_INTDIR_STATIC);
+				}
+			}
+		}
+
+		const prop_str_t *libdir;
+		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
+		{
+			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
+			mk_pgen_add_lib(gen, str_cpy(buf), str_null(), MK_INTDIR_SHARED);
+		}
+
+		//TODO: Not needed anymore? Replaced with LIB
+		const prop_str_t *link;
+		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
+		{
+			mk_pgen_add_lib(gen, str_null(), str_cpy(link->val), MK_INTDIR_SHARED);
+		}
+	}
+
+	if ((flags->flags & PROP_SET) && (flags->mask & (1 << FLAG_WHOLEARCHIVE))) {
+		mk_pgen_add_ldflag(gen, STR("-Wl,--no-whole-archive"));
+	}
+
+	if (lang & (1 << LANG_CPP)) {
+		mk_pgen_add_ldflag(gen, STR("-lstdc++"));
+	}
+
+	//TODO: Think of better solution
+	if (flags->flags & PROP_SET) {
+		if (flags->mask & (1 << FLAG_STATIC)) {
+			mk_pgen_add_ldflag(gen, STR("-static"));
+		}
+		if (flags->mask & (1 << FLAG_NOSTARTFILES)) {
+			mk_pgen_add_ldflag(gen, STR("-nostartfiles"));
+		}
+		if (flags->mask & (1 << FLAG_MATH)) {
+			mk_pgen_add_ldflag(gen, STR("-lm"));
+		}
+
+		if (flags->mask & (1 << FLAG_X11)) {
+			mk_pgen_add_ldflag(gen, STR("-lX11"));
+		}
+
+		if (flags->mask & (1 << FLAG_GL)) {
+			mk_pgen_add_ldflag(gen, STR("-lGL"));
+		}
+
+		if (flags->mask & (1 << FLAG_GLX)) {
+			mk_pgen_add_ldflag(gen, STR("-lGLX"));
 		}
 	}
 

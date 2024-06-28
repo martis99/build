@@ -38,7 +38,13 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	MSG("generating solution: %s", cmake_path.path);
 
-	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\nproject(\"%.*s\" LANGUAGES", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR, name->val.len, name->val.data);
+	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\n", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR);
+
+	/*c_fprintf(file, "if(NOT CMAKE_NASM_COMPILER)\n"
+			"  set(CMAKE_NASM_COMPILER \"nasm\")\n"
+			"endif()\n\n");*/
+
+	c_fprintf(file, "project(\"%.*s\" LANGUAGES", name->val.len, name->val.data);
 
 	// clang-format off
 	const char *langs[] = {
@@ -51,11 +57,18 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 	// clang-format on
 
 	for (int i = 0; i < __LANG_MAX; i++) {
-		if (languages & (1 << i)) {
+		if (i != LANG_NASM) {
 			c_fprintf(file, langs[i]);
 		}
 	}
 	c_fprintf(file, ")\n");
+
+	c_fprintf(
+		file,
+		"if(NOT CMAKE_ASM_CREATE_SHARED_LIBRARY)\n"
+		"  set(CMAKE_ASM_CREATE_SHARED_LIBRARY\n"
+		"      \"<CMAKE_LINKER> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS_<CONFIG>> <CMAKE_SHARED_LIBRARY_LINK_C_FLAGS> <CMAKE_SHARED_LIBRARY_LINK_C_FLAGS_<CONFIG>> <LANGUAGE_COMPILE_FLAGS> <CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG> <CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG_<CONFIG>> <LINK_LIBRARIES> <CMAKE_ASM_OUTPUT_FILE_FLAG><TARGET> <OBJECTS> <CMAKE_ASM_LINK_FLAGS> <LINK_FLAGS> <LINK_PATH> <LINK_LIBRARIES>\")\n"
+		"endif()\n\n");
 
 	if (sln->props[SLN_PROP_CONFIGS].flags & PROP_SET) {
 		c_fprintf(file, "\nset(CMAKE_CONFIGURATION_TYPES \"");

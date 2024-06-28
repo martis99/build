@@ -491,8 +491,8 @@ TEST(t_mk_pgen_add_include)
 	mk_pgen_init(&gen);
 
 	mk_pgen_add_include(NULL, str_null());
-	mk_pgen_add_include(&gen, STR("src/"));
-	mk_pgen_add_include(&gen, STR("include/"));
+	mk_pgen_add_include(&gen, STRH("src/"));
+	mk_pgen_add_include(&gen, STRH("include/"));
 
 	EXPECT_STRN(gen.includes.data, "-Isrc/ -Iinclude/", 17);
 
@@ -952,8 +952,8 @@ TEST(t_mk_pgen_includes)
 	gen.intdir[MK_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
 
 	mk_pgen_add_src(&gen, STRH("src/"), F_MK_EXT_C);
-	mk_pgen_add_include(&gen, STR("src/"));
-	mk_pgen_add_include(&gen, STR("include/"));
+	mk_pgen_add_include(&gen, STRH("src/"));
+	mk_pgen_add_include(&gen, STRH("include/"));
 
 	mk_pgen(&gen, &make);
 
