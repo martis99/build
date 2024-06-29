@@ -282,6 +282,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 				if (dep->link_type == LINK_TYPE_SHARED && dlib->flags & PROP_SET) {
 					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
 					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dlib->value.val), MK_LINK_SHARED, MK_LIB_EXT);
+					resolve(resolve_path(rel, dlib->value.val, &buf), &buf, dep->proj);
+					mk_pgen_add_copyfile(gen, strf("%.*s.so", buf.len, buf.data));
 				}
 			}
 		}

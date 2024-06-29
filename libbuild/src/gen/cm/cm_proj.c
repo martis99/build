@@ -246,9 +246,8 @@ static str_t resolve(str_t str, str_t *buf, const proj_t *proj)
 	str_replace(buf, STR("$(SLN_DIR)"), STR("${CMAKE_SOURCE_DIR}/"));
 	str_replace(buf, STR("$(PROJ_DIR)"), strc(proj->rel_dir.path, proj->rel_dir.len));
 	str_replace(buf, STR("$(PROJ_NAME)"), strc(proj->name.data, proj->name.len));
-	//str_replace(buf, STR("$(CONFIG)"), STR("$(Configuration)"));
-	str_replace(buf, STR("$(CONFIG)"), STR("Debug"));
-	str_replace(buf, STR("$(ARCH)"), STR("${CMAKE_VS_PLATFORM_NAME}"));
+	str_replace(buf, STR("$(CONFIG)"), STR("${CMAKE_BUILD_TYPE}"));
+	str_replace(buf, STR("$(ARCH)"), STR("${ARCH}"));
 	convert_slash((char *)buf->data, buf->len);
 	return *buf;
 }
@@ -456,11 +455,7 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 			const mk_pgen_lib_data_t *lib;
 			arr_foreach(&gen->libs, lib)
 			{
-				if (lib->link_type == MK_INTDIR_SHARED) {
-					dprintf(dst, " %.*s", lib->dir.len, lib->dir.data);
-				} else {
-					dprintf(dst, " %.*s", lib->dir.len, lib->dir.data);
-				}
+				dprintf(dst, " %.*s", lib->dir.len, lib->dir.data);
 			}
 
 			dprintf(dst, ")\n");
@@ -472,18 +467,12 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 			const mk_pgen_lib_data_t *lib;
 			arr_foreach(&gen->libs, lib)
 			{
-				if (lib->lib_type == MK_LIB_INT) {
-					if (lib->link_type == MK_LINK_SHARED) {
-						dprintf(dst, " %.*s_d", lib->name.len, lib->name.data);
-					} else {
-						dprintf(dst, " %.*s_s", lib->name.len, lib->name.data);
-					}
+				if (lib->link_type == MK_LINK_SHARED) {
+					dprintf(dst, " -l:%.*s.so", lib->name.len, lib->name.data);
+				} else if (lib->lib_type == MK_LIB_INT) {
+					dprintf(dst, " %.*s_s", lib->name.len, lib->name.data);
 				} else {
-					if (lib->link_type == MK_LINK_SHARED) {
-						dprintf(dst, " -l:%.*s.so", lib->name.len, lib->name.data);
-					} else {
-						dprintf(dst, " -l:%.*s.a", lib->name.len, lib->name.data);
-					}
+					dprintf(dst, " -l:%.*s.a", lib->name.len, lib->name.data);
 				}
 			}
 
@@ -498,9 +487,22 @@ static void cm_pgen(mk_pgen_t *gen, print_dst_t dst)
 		if (target[b] && gen->outdir.data) {
 			dprintf(dst, "set_target_properties(%.*s%.*s\n\tPROPERTIES\n", gen->name.len, gen->name.data, target_c[b].postfix.len, target_c[b].postfix.data);
 
-			dprintf(dst, "\tARCHIVE_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
-			dprintf(dst, "\tLIBRARY_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
-			dprintf(dst, "\tRUNTIME_OUTPUT_DIRECTORY %.*s\n", gen->outdir.len, gen->outdir.data);
+			str_t outdir = str_cpy(gen->outdir);
+			str_replace(&outdir, STR("${CMAKE_BUILD_TYPE}"), STR("Debug"));
+			dprintf(dst, "\tARCHIVE_OUTPUT_DIRECTORY %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tLIBRARY_OUTPUT_DIRECTORY %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tRUNTIME_OUTPUT_DIRECTORY %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tARCHIVE_OUTPUT_DIRECTORY_DEBUG %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tLIBRARY_OUTPUT_DIRECTORY_DEBUG %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tRUNTIME_OUTPUT_DIRECTORY_DEBUG %.*s\n", outdir.len, outdir.data);
+
+			outdir = str_cpy(gen->outdir);
+			str_replace(&outdir, STR("${CMAKE_BUILD_TYPE}"), STR("Release"));
+			dprintf(dst, "\tARCHIVE_OUTPUT_DIRECTORY_RELEASE %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tLIBRARY_OUTPUT_DIRECTORY_RELEASE %.*s\n", outdir.len, outdir.data);
+			dprintf(dst, "\tRUNTIME_OUTPUT_DIRECTORY_RELEASE %.*s\n", outdir.len, outdir.data);
+
+			dprintf(dst, "\tBUILD_RPATH \".\"\n");
 			dprintf(dst, "\tOUTPUT_NAME %.*s\n", gen->name.len, gen->name.data);
 			dprintf(dst, "\tPREFIX \"\"\n");
 
@@ -761,6 +763,8 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 				if (dep->link_type == LINK_TYPE_SHARED && dlib->flags & PROP_SET) {
 					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
 					mk_pgen_add_lib(gen, str_cpy(buf), str_cpy(dlib->value.val), MK_LINK_SHARED, MK_LIB_EXT);
+					resolve(resolve_path(rel, dlib->value.val, &buf), &buf, dep->proj);
+					mk_pgen_add_copyfile(gen, strf("%.*s.so", buf.len, buf.data));
 				}
 			}
 		}
@@ -782,7 +786,7 @@ static int cm_proj_gen_proj2(const proj_t *proj, const dict_t *projects, const p
 
 	arr_foreach(&proj->depends, dep)
 	{
-		if (!(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
+		if (!(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || dep->link_type == LINK_TYPE_SHARED) {
 			if (dep->link_type == LINK_TYPE_STATIC) {
 				mk_pgen_add_depend(gen, strf("%.*s_s", dep->proj->name.len, dep->proj->name.data));
 			} else {

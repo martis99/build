@@ -40,13 +40,24 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	c_fprintf(file, "cmake_minimum_required(VERSION %d.%d)\n\n", CMAKE_VERSION_MAJOR, CMAKE_VERSION_MINOR);
 
+	c_fprintf(file, "if(ARCH STREQUAL \"x86_64\")\n"
+			"\tset(CMAKE_ASM_NASM_OBJECT_FORMAT \"elf64\")\n"
+			"\tset(CMAKE_ASM_FLAGS \"-m64\")\n"
+			"\tset(CMAKE_C_FLAGS \"-m64\")\n"
+			"\tset(CMAKE_CXX_FLAGS \"-m64\")\n"
+			"else()\n"
+			"\tset(CMAKE_ASM_NASM_OBJECT_FORMAT \"elf32\")\n"
+			"\tset(CMAKE_ASM_FLAGS \"-m32\")\n"
+			"\tset(CMAKE_C_FLAGS \"-m32\")\n"
+			"\tset(CMAKE_CXX_FLAGS \"-m32\")\n"
+			"endif()\n\n");
+
 	c_fprintf(
 		file,
-		"set(CMAKE_ASM_CREATE_SHARED_LIBRARY \"<CMAKE_LINKER> -shared ${extra_flags} <CMAKE_ASM_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>\")\n");
-	c_fprintf(file, "set(CMAKE_ASM_NASM_OBJECT_FORMAT \"elf64\")\n");
+		"set(CMAKE_ASM_CREATE_SHARED_LIBRARY \"<CMAKE_ASM_COMPILER> <CMAKE_SHARED_LIBRARY_ASM_FLAGS> ${CMAKE_ASM_FLAGS} <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_ASM_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>\")\n");
 	c_fprintf(
 		file,
-		"set(CMAKE_ASM_NASM_LINK_EXECUTABLE \"<CMAKE_ASM_COMPILER> <FLAGS> <CMAKE_ASM_NASM_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>\")\n");
+		"set(CMAKE_ASM_NASM_LINK_EXECUTABLE \"<CMAKE_ASM_COMPILER> <FLAGS> ${CMAKE_ASM_FLAGS} <CMAKE_ASM_NASM_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>\")\n");
 
 	c_fprintf(file, "\nproject(\"%.*s\" LANGUAGES", name->val.len, name->val.data);
 
