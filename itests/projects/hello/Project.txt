@@ -1,0 +1,7 @@
+NAME = hello-2.12
+URL = http://ftp.gnu.org/gnu/hello/
+FORMAT = tar.gz
+CONFIG = CC=c99
+TARGET = all install
+REQUIRE = gcc
+EXPORT = HELLO = $(OUTDIR)bin/hello

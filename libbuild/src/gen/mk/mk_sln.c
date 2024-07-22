@@ -1,11 +1,10 @@
 #include "gen/mk/mk_sln.h"
 
+#include "gen/mk/make.h"
 #include "gen/var.h"
 #include "mk_proj.h"
 
 #include "common.h"
-
-#include "make.h"
 
 static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
 {
@@ -48,11 +47,12 @@ static str_t get_action(const proj_t *proj, int shared)
 	}
 }
 
-static void add_compile_action(make_t *make, const dict_t *projects, const proj_t *proj, int shared)
+static void add_compile_action(make_t *make, const dict_t *projects, const proj_t *proj, make_rule_t all, int shared)
 {
 	str_t action = get_action(proj, shared);
 
 	const make_act_t act = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(strs(proj->name)), action), 0));
+	make_rule_add_depend(make, all, MRULEACT(MSTR(strs(proj->name)), action));
 
 	if (proj->depends.cnt == 0) {
 		make_rule_add_depend(make, act, MRULE(MSTR(STR("check"))));
@@ -106,8 +106,6 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	MSG("generating solution: %s", cmake_path.path);
-
-	int ret = 0;
 
 	make_t make = { 0 };
 	make_init(&make, 16, 16, 16);
@@ -168,21 +166,6 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	make_add_act(&make, make_create_cmd(&make, MCMD(STR("export"))));
 	make_add_act(&make, make_create_empty(&make));
 
-	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		const make_var_t mconfigs = make_add_act(&make, make_create_var(&make, STR("CONFIGS"), MAKE_VAR_INST));
-
-		for (uint i = 0; i < configs->arr.cnt; i++) {
-			const prop_str_t *config = arr_get(&configs->arr, i);
-			make_var_add_val(&make, mconfigs, MSTR(strs(config->val)));
-		}
-
-		prop_str_t *config	 = arr_get(&configs->arr, 0);
-		const make_var_t mconfig = make_add_act(&make, make_create_var(&make, STR("CONFIG"), MAKE_VAR_INST));
-		make_var_add_val(&make, mconfig, MSTR(strs(config->val)));
-	}
-
-	make_add_act(&make, make_create_empty(&make));
-
 	if ((archs->flags & PROP_SET) && archs->arr.cnt > 0) {
 		const make_var_t marchs = make_add_act(&make, make_create_var(&make, STR("ARCHS"), MAKE_VAR_INST));
 
@@ -198,34 +181,36 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 	make_add_act(&make, make_create_empty(&make));
 
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
+		const make_var_t mconfigs = make_add_act(&make, make_create_var(&make, STR("CONFIGS"), MAKE_VAR_INST));
+
+		for (uint i = 0; i < configs->arr.cnt; i++) {
+			const prop_str_t *config = arr_get(&configs->arr, i);
+			make_var_add_val(&make, mconfigs, MSTR(strs(config->val)));
+		}
+
+		prop_str_t *config	 = arr_get(&configs->arr, 0);
+		const make_var_t mconfig = make_add_act(&make, make_create_var(&make, STR("CONFIG"), MAKE_VAR_INST));
+		make_var_add_val(&make, mconfig, MSTR(strs(config->val)));
+	}
+
+	make_add_act(&make, make_create_empty(&make));
+
 	const make_var_t show = make_add_act(&make, make_create_var(&make, STR("SHOW"), MAKE_VAR_INST));
 	make_var_add_val(&make, show, MSTR(STR("true")));
 
 	make_add_act(&make, make_create_empty(&make));
 
 	const make_rule_t all = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("all"))), 0));
-	{
-		const proj_t **proj;
-		arr_foreach(&sln->build_order, proj)
-		{
-			if ((*proj)->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/static")));
-				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/shared")));
-
-			} else {
-				make_rule_add_depend(&make, all, MRULEACT(MSTR(strs((*proj)->name)), STR("/compile")));
-			}
-		}
-	}
 
 	const make_rule_t check = make_add_act(&make, make_create_rule(&make, MRULE(MSTR(STR("check"))), 0));
-	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
-		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(CONFIG),$(CONFIGS))")), MSTR(str_null())));
-		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
-	}
 	if ((archs->flags & PROP_SET) && archs->arr.cnt > 0) {
 		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(ARCH),$(ARCHS))")), MSTR(str_null())));
 		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Arch '$(ARCH)' not found. Archs: $(ARCHS)"))));
+	}
+	if ((configs->flags & PROP_SET) && configs->arr.cnt > 0) {
+		make_if_t mif = make_rule_add_act(&make, check, make_create_if(&make, MSTR(STR("$(filter $(CONFIG),$(CONFIGS))")), MSTR(str_null())));
+		make_if_add_true_act(&make, mif, make_create_cmd(&make, MCMDERR(STR("Config '$(CONFIG)' not found. Configs: $(CONFIGS)"))));
 	}
 
 	int artifacts = 0;
@@ -236,9 +221,9 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 		add_util_action(&make, &sln->projects, proj, STR("/clean"), 0);
 
-		add_compile_action(&make, &sln->projects, proj, 0);
+		add_compile_action(&make, &sln->projects, proj, all, 0);
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			add_compile_action(&make, &sln->projects, proj, 1);
+			add_compile_action(&make, &sln->projects, proj, all, 1);
 		}
 
 		if (proj_runnable(proj)) {
@@ -282,17 +267,19 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
-	ret |= make_print(&make, PRINT_DST_FILE(file)) == 0;
+	int len = make_print(&make, PRINT_DST_FILE(file));
 
 	file_close(file);
 
 	make_free(&make);
 
-	if (ret == 0) {
-		SUC("generating solution: %s success", cmake_path.path);
-	} else {
+	if (len == 0) {
 		ERR("generating solution: %s failed", cmake_path.path);
+	} else {
+		SUC("generating solution: %s success", cmake_path.path);
 	}
+
+	int ret = 0;
 
 	arr_foreach(&sln->build_order, pproj)
 	{

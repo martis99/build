@@ -112,6 +112,7 @@ int main(int argc, const char **argv)
 	};
 
 	free_fn free_fns[__GEN_MAX] = {
+		[GEN_CMAKE] = cm_sln_free,
 		[GEN_MAKE] = mk_sln_free,
 	};
 

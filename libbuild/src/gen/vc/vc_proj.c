@@ -177,11 +177,11 @@ static int cppdbg(proj_t *proj, const dict_t *projects, const char *action, cons
 		}
 	}
 
-	make_ext_set_val(&pproj->make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}/")));
-	make_ext_set_val(&pproj->make, STR("CONFIG"), MSTR(strs(config->val)));
-	make_ext_set_val(&pproj->make, STR("ARCH"), MSTR(strs(arch->val)));
-	make_expand(&pproj->make);
-	str_t mtarget = make_var_get_resolved(&pproj->make, STR("TARGET"));
+	make_ext_set_val(&pproj->gen.make, STR("SLNDIR"), MSTR(STR("${workspaceFolder}/")));
+	make_ext_set_val(&pproj->gen.make, STR("CONFIG"), MSTR(strs(config->val)));
+	make_ext_set_val(&pproj->gen.make, STR("ARCH"), MSTR(strs(arch->val)));
+	make_expand(&pproj->gen.make);
+	str_t mtarget = make_var_get_resolved(&pproj->gen.make, STR("TARGET"));
 
 	json_add_val(json, conf, STR("program"), JSON_STR(str_cpy(mtarget)));
 

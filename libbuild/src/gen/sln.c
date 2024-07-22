@@ -17,8 +17,8 @@ static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_ARCHS]   = { .name = STRS("ARCHS"), .flags = PPF_ARR },
 	[SLN_PROP_CHARSET] = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[SLN_PROP_FLAGS]  = { .name = STRS("CFLAGS"), .str_table = s_flags, .str_table_len = __FLAG_MAX, .flags = PPF_ARR },
-	[SLN_PROP_OUTDIR]  = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(ARCH)\\$(PROJ_DIR)")},
-	[SLN_PROP_INTDIR]  = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)bin\\$(CONFIG)-$(ARCH)\\$(PROJ_DIR)int\\")},
+	[SLN_PROP_OUTDIR]  = { .name = STRS("OUTDIR"), .def = STRS("$(SLN_DIR)bin\\$(ARCH)-$(CONFIG)\\$(PROJ_DIR)")},
+	[SLN_PROP_INTDIR]  = { .name = STRS("INTDIR"), .def = STRS("$(SLN_DIR)bin\\$(ARCH)-$(CONFIG)\\$(PROJ_DIR)int\\")},
 };
 
 typedef struct read_dir_data_s {

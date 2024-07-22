@@ -1,8 +1,3 @@
-#include "t_cm.h"
-#include "t_mk.h"
-#include "t_vc.h"
-#include "t_vs.h"
-
 #include "cutils.h"
 
 #include "test.h"
@@ -15,13 +10,28 @@ int G_WRN = 0;
 int G_ERR = 0;
 int G_MSG = 0;
 
+STEST(t_cmake);
+STEST(t_make);
+STEST(t_pgc);
+STEST(t_pgc_gen_cm);
+STEST(t_pgc_gen_mk);
+STEST(t_cm);
+STEST(t_mk);
+STEST(t_vc);
+STEST(t_vs);
+
 TEST(tests)
 {
 	SSTART;
-	//RUN(cm);
-	RUN(mk);
-	//RUN(vc);
-	//RUN(vs);
+	RUN(t_cmake);
+	RUN(t_make);
+	RUN(t_pgc);
+	RUN(t_pgc_gen_cm);
+	RUN(t_pgc_gen_mk);
+	//RUN(t_cm);
+	//RUN(t_mk);
+	//RUN(t_vc);
+	//RUN(t_vs);
 	SEND;
 }
 

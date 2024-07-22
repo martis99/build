@@ -1,6 +1,3 @@
-#include "t_mk.h"
-
-#include "mk/t_mk_pgen.h"
 #include "gen/mk/mk_sln.h"
 
 #include "common.h"
@@ -476,12 +473,11 @@ TEST(os)
 	END;
 }
 
-STEST(mk)
+STEST(t_mk)
 {
 	SSTART;
-	RUN(t_mk_pgen);
-	/*RUN(mk_pgen_init_free);
-	RUN(mk_pgen_empty);
+	/*RUN(pgc_gen_mk_init_free);
+	RUN(pgc_gen_mk_empty);
 	RUN(c_small);
 	RUN(c_args);
 	RUN(c_include);

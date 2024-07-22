@@ -1,5 +1,3 @@
-#include "t_vs.h"
-
 #include "gen/vs/vs_sln.h"
 
 #include "common.h"

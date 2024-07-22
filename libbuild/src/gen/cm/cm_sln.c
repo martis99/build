@@ -138,3 +138,11 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	return ret;
 }
+
+void cm_sln_free(sln_t *sln)
+{
+	dict_foreach(&sln->projects, pair)
+	{
+		cm_proj_free(pair->value);
+	}
+}

@@ -7,7 +7,8 @@
 #include "arr.h"
 #include "cstr.h"
 #include "dict.h"
-#include "make.h"
+#include "gen/mk/make.h"
+#include "gen/cm/cmake.h"
 #include "path.h"
 #include "str.h"
 
@@ -162,7 +163,10 @@ typedef struct proj_s {
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;
-	make_t make;
+	union {
+		make_t make;
+		cmake_t cmake;
+	} gen;
 } proj_t;
 
 typedef struct proj_dep_s {

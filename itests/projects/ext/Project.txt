@@ -3,6 +3,6 @@ TYPE = LIB
 INCLUDE = include
 DEPENDS = extlib
 DDEPENDS = extlib
-COPYFILES = $(SLN_DIR)bin/$(CONFIG)-$(ARCH)/projects/extlib/extlib.a
+COPYFILES = $(SLN_DIR)bin/$(ARCH)-$(CONFIG)/projects/extlib/extlib.a
 LIB = extlib
 DLIB = extlib

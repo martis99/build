@@ -2,7 +2,6 @@
 *.vcxproj
 *.user
 *.pdb
-*.log
 *.a
 *.so
 *.lib
@@ -14,3 +13,4 @@ Makefile
 .vs/
 .vscode/
 /bin/
+/tmp/

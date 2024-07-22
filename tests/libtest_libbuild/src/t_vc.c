@@ -1,5 +1,3 @@
-#include "t_vc.h"
-
 #include "gen/vc/vc_sln.h"
 
 #include "common.h"
