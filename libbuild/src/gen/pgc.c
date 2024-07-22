@@ -77,7 +77,9 @@ static int pgc_str_dprint(void *ptr, print_dst_t dst)
 
 	int off = dst.off;
 
-	off += dprintf(dst, "    %.*s\n", str->len, str->data);
+	if (str->data) {
+		dst.off += dprintf(dst, "    %.*s\n", str->len, str->data);
+	}
 
 	return dst.off - off;
 }
@@ -94,7 +96,9 @@ static int pgc_str_flag_dprint(void *ptr, print_dst_t dst)
 
 	int off = dst.off;
 
-	off += dprintf(dst, "    %.*s (0x%04x)\n", data->str.len, data->str.data, data->flags);
+	if (data->str.data) {
+		dst.off += dprintf(dst, "    %.*s (0x%04x)\n", data->str.len, data->str.data, data->flags);
+	}
 
 	return dst.off - off;
 }
@@ -112,7 +116,9 @@ static int pgc_lib_dprint(void *ptr, print_dst_t dst)
 
 	int off = dst.off;
 
-	off += dprintf(dst, "    dir: %.*s, name: %.*s\n", lib->dir.len, lib->dir.data, lib->name.len, lib->name.data);
+	if (lib->dir.data || lib->name.data) {
+		dst.off += dprintf(dst, "    dir: %.*s, name: %.*s\n", lib->dir.len, lib->dir.data, lib->name.len, lib->name.data);
+	}
 
 	return dst.off - off;
 }
@@ -391,7 +397,7 @@ int pgc_print(const pgc_t *pgc, print_dst_t dst)
 		if (!pgc->str[i].data || pgc->str[i].len == 0) {
 			continue;
 		}
-		off += dprintf(dst, "%s: %.*s\n", str_str[i], pgc->str[i].len, pgc->str[i].data);
+		dst.off += dprintf(dst, "%s: %.*s\n", str_str[i], pgc->str[i].len, pgc->str[i].data);
 	}
 
 	for (pgc_arr_t i = 0; i < __PGC_ARR_MAX; i++) {
@@ -399,43 +405,55 @@ int pgc_print(const pgc_t *pgc, print_dst_t dst)
 			continue;
 		}
 
-		off += dprintf(dst, "%s\n", arr_str[i]);
+		dst.off += dprintf(dst, "%s\n", arr_str[i]);
 		void *val;
 		arr_foreach(&pgc->arr[i], val)
 		{
-			off += s_arr_c[i].dprint(val, dst);
+			dst.off += s_arr_c[i].dprint(val, dst);
 		}
 	}
 
 	for (pgc_str_t s = 0; s < __PGC_INTDIR_STR_MAX; s++) {
-		off += dprintf(dst, "%s\n", intdir_str_str[s]);
+		int first = 1;
 		for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
 			if (!pgc->intdir[s][i].data || pgc->intdir[s][i].len == 0) {
 				continue;
 			}
-			off += dprintf(dst, "    %s: %.*s\n", intdir_type_str[i], pgc->intdir[s][i].len, pgc->intdir[s][i].data);
+			if (first) {
+				dst.off += dprintf(dst, "%s\n", intdir_str_str[s]);
+				first = 0;
+			}
+			dst.off += dprintf(dst, "    %s: %.*s\n", intdir_type_str[i], pgc->intdir[s][i].len, pgc->intdir[s][i].data);
 		}
 	}
 
 	for (pgc_str_t s = 0; s < __PGC_TARGET_STR_MAX; s++) {
-		off += dprintf(dst, "%s\n", target_str_str[s]);
+		int first = 1;
 		for (pgc_build_type_t i = 0; i < __PGC_BUILD_TYPE_MAX; i++) {
 			if (!pgc->target[s][i].data || pgc->target[s][i].len == 0) {
 				continue;
 			}
-			off += dprintf(dst, "    %s: %.*s\n", build_type_str[i], pgc->target[s][i].len, pgc->target[s][i].data);
+			if (first) {
+				dst.off += dprintf(dst, "%s\n", target_str_str[s]);
+				first = 0;
+			}
+			dst.off += dprintf(dst, "    %s: %.*s\n", build_type_str[i], pgc->target[s][i].len, pgc->target[s][i].data);
 		}
 	}
 
 	for (pgc_str_t s = 0; s < __PGC_SRC_STR_MAX; s++) {
-		off += dprintf(dst, "%s\n", src_str_str[s]);
+		int first = 1;
 		for (pgc_src_type_t i = 0; i < __PGC_SRC_TYPE_MAX; i++) {
 			if (!pgc->src[s][i].data || pgc->src[s][i].len == 0) {
 				continue;
 			}
-			off += dprintf(dst, "    %s: %.*s\n", src_type_str[i], pgc->src[s][i].len, pgc->src[s][i].data);
+			if (first) {
+				dst.off += dprintf(dst, "%s\n", src_str_str[s]);
+				first = 0;
+			}
+			dst.off += dprintf(dst, "    %s: %.*s\n", src_type_str[i], pgc->src[s][i].len, pgc->src[s][i].data);
 		}
 	}
 
-	return off - dst.off;
+	return dst.off - off;
 }

@@ -35,6 +35,11 @@ TEST(t_pgc_add_config)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_config(&gen, STRH("Debug")), 2);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "CONFIGS\n"
+			"    Debug\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -53,6 +58,11 @@ TEST(t_pgc_add_header)
 	EXPECT_EQ(pgc_add_header(&gen, str_null(), 0), PGC_END);
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_header(&gen, STRH("include/"), 0), 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "HEADERS\n"
+			"    include/ (0x0000)\n");
 
 	pgc_free(&gen);
 
@@ -73,6 +83,11 @@ TEST(t_pgc_add_src)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_src(&gen, STRH("src/"), 0), 1);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "SRCS\n"
+			"    src/ (0x0000)\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -92,6 +107,11 @@ TEST(t_pgc_add_include)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_include(&gen, STRH("src/")), 1);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "INCLUDES\n"
+			"    src/\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -109,6 +129,11 @@ TEST(t_pgc_add_flag)
 	pgc_add_flag(&gen, STR("-Wextra"), F_PGC_SRC_C);
 
 	EXPECT_STRN(gen.src[PGC_SRC_STR_FLAGS][PGC_SRC_C].data, "-Wall -Wextra", 13);
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "FLAGS\n"
+			"    C: -Wall -Wextra\n");
 
 	pgc_free(&gen);
 
@@ -128,6 +153,11 @@ TEST(t_pgc_add_define)
 
 	EXPECT_STRN(gen.intdir[PGC_INTDIR_STR_DEFINES][PGC_INTDIR_OBJECT].data, "-DDEBUG -DUNICODE", 13);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "DEFINES\n"
+			"    OBJECT: -DDEBUG -DUNICODE\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -145,6 +175,10 @@ TEST(t_pgc_add_ldflag)
 	pgc_add_ldflag(&gen, STR("-lpthread"));
 
 	EXPECT(str_eq(gen.str[PGC_STR_LDFLAGS], STR("-lm -lpthread")));
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "LDFLAGS: -lm -lpthread\n");
 
 	pgc_free(&gen);
 
@@ -166,6 +200,12 @@ TEST(t_pgc_add_lib)
 	EXPECT_EQ(pgc_add_lib(&gen, STR("libs/"), str_null(), PGC_LINK_STATIC, PGC_LIB_INT), 1);
 	EXPECT_EQ(pgc_add_lib(&gen, str_null(), STR("a"), PGC_LINK_STATIC, PGC_LIB_INT), 2);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "LIBS\n"
+			"    dir: libs/, name: \n"
+			"    dir: , name: a\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -185,6 +225,11 @@ TEST(t_pgc_add_depend)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_depend(&gen, STRH("lib")), 1);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "DEPENDS\n"
+			"    lib\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -202,6 +247,11 @@ TEST(t_pgc_set_run)
 
 	EXPECT_STRN(gen.target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data, "$(TARGET)", 9);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "RUN\n"
+			"    EXE: $(TARGET)\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -218,6 +268,11 @@ TEST(t_pgc_set_run_debug)
 	pgc_set_run_debug(&gen, STRH("$(TARGET_DEBUG)"), F_PGC_BUILD_EXE);
 
 	EXPECT_STRN(gen.target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data, "$(TARGET_DEBUG)", 15);
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "RUN_DBG\n"
+			"    EXE: $(TARGET_DEBUG)\n");
 
 	pgc_free(&gen);
 
@@ -239,6 +294,11 @@ TEST(t_pgc_add_file)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_file(&gen, STRH("src/file.bin"), 0), 2);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "FILES\n"
+			"    src/file.bin (0x0000)\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -258,6 +318,11 @@ TEST(t_pgc_add_require)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_require(&gen, STRH("g++")), 1);
 
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "REQUIRES\n"
+			"    g++\n");
+
 	pgc_free(&gen);
 
 	END;
@@ -276,6 +341,29 @@ TEST(t_pgc_add_copyfile)
 	EXPECT_EQ(pgc_add_copyfile(&gen, str_null()), PGC_END);
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_copyfile(&gen, STRH("lib.so")), 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "COPYFILES\n"
+			"    lib.so\n");
+
+	pgc_free(&gen);
+
+	END;
+}
+
+TEST(t_pgc_print)
+{
+	START;
+
+	pgc_t gen = { 0 };
+	pgc_init(&gen);
+
+	EXPECT_EQ(pgc_print(NULL, PRINT_DST_NONE()), 0);
+
+	char buf[2048] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "");
 
 	pgc_free(&gen);
 
@@ -300,5 +388,6 @@ STEST(t_pgc)
 	RUN(t_pgc_add_file);
 	RUN(t_pgc_add_require);
 	RUN(t_pgc_add_copyfile);
+	RUN(t_pgc_print);
 	SEND;
 }
