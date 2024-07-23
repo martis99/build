@@ -2,10 +2,10 @@
 
 #include "gen/pgc_types.h"
 
-static int is_arch(const pgc_t *gen, str_t name)
+static int is_arch(const pgc_t *pgc, str_t name)
 {
 	const str_t *arch;
-	arr_foreach(&gen->arr[PGC_ARR_ARCHS], arch)
+	arr_foreach(&pgc->arr[PGC_ARR_ARCHS], arch)
 	{
 		if (str_eq(*arch, name)) {
 			return 1;
@@ -15,10 +15,10 @@ static int is_arch(const pgc_t *gen, str_t name)
 	return 0;
 }
 
-static int is_config(const pgc_t *gen, str_t name)
+static int is_config(const pgc_t *pgc, str_t name)
 {
 	const str_t *conf;
-	arr_foreach(&gen->arr[PGC_ARR_CONFIGS], conf)
+	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
 	{
 		if (str_eq(*conf, name)) {
 			return 1;
@@ -28,7 +28,7 @@ static int is_config(const pgc_t *gen, str_t name)
 	return 0;
 }
 
-make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
+make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 {
 	const make_var_t arch	  = make_create_var_ext(make, STR("ARCH"), MAKE_VAR_INST);
 	const make_var_t config	  = make_create_var_ext(make, STR("CONFIG"), MAKE_VAR_INST);
@@ -45,7 +45,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 
 	make_var_t headers = MAKE_END;
 	const pgc_str_flags_t *header;
-	arr_foreach(&gen->arr[PGC_ARR_HEADERS], header)
+	arr_foreach(&pgc->arr[PGC_ARR_HEADERS], header)
 	{
 		for (pgc_header_type_t ext = 0; ext < __PGC_HEADER_TYPE_MAX; ext++) {
 			if ((header->flags & (1 << ext)) == 0) {
@@ -84,7 +84,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 
 	for (pgc_src_type_t s = 0; s < __PGC_SRC_TYPE_MAX; s++) {
 		const pgc_str_flags_t *data;
-		arr_foreach(&gen->arr[PGC_ARR_SRCS], data)
+		arr_foreach(&pgc->arr[PGC_ARR_SRCS], data)
 		{
 			if ((data->flags & (1 << s)) == 0) {
 				continue;
@@ -115,14 +115,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	};
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (gen->intdir[PGC_INTDIR_STR_INTDIR][i].data == NULL || !is_src) {
+		if (pgc->intdir[PGC_INTDIR_STR_INTDIR][i].data == NULL || !is_src) {
 			continue;
 		}
 
 		is_vars = 1;
 
 		intdir[i] = make_add_act(make, make_create_var(make, intdir_c[i].name, MAKE_VAR_INST));
-		make_var_add_val(make, intdir[i], MSTR(str_cpy(gen->intdir[PGC_INTDIR_STR_INTDIR][i])));
+		make_var_add_val(make, intdir[i], MSTR(str_cpy(pgc->intdir[PGC_INTDIR_STR_INTDIR][i])));
 	}
 
 	make_var_t obj[][__PGC_SRC_TYPE_MAX] = {
@@ -193,24 +193,24 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			obj[i][s] = make_add_act(make, make_create_var(make, obj_ext_c[i][s].name, MAKE_VAR_INST));
 			make_var_add_val(make, obj[i][s],
 					 MSTR(strf("$(patsubst %%.%s, $(%s)%%.%s, $(%s))", src_c[s].ext, intdir_c[i].name.data,
-						   s == PGC_SRC_NASM && (gen->builds & (1 << PGC_BUILD_BIN)) ? "bin" : "o", src_c[s].name.data)));
+						   s == PGC_SRC_NASM && (pgc->builds & (1 << PGC_BUILD_BIN)) ? "bin" : "o", src_c[s].name.data)));
 		}
 	}
 
 	make_var_t outdir = MAKE_END;
-	if (gen->str[PGC_STR_OUTDIR].data && (is_obj || gen->arr[PGC_ARR_FILES].cnt > 0)) {
+	if (pgc->str[PGC_STR_OUTDIR].data && (is_obj || pgc->arr[PGC_ARR_FILES].cnt > 0)) {
 		is_vars = 1;
 
 		outdir = make_add_act(make, make_create_var(make, STR("OUTDIR"), MAKE_VAR_INST));
-		make_var_add_val(make, outdir, MSTR(str_cpy(gen->str[PGC_STR_OUTDIR])));
+		make_var_add_val(make, outdir, MSTR(str_cpy(pgc->str[PGC_STR_OUTDIR])));
 	}
 
 	make_var_t covdir = MAKE_END;
-	if (gen->str[PGC_STR_COVDIR].data && outdir != MAKE_END) {
+	if (pgc->str[PGC_STR_COVDIR].data && outdir != MAKE_END) {
 		is_vars = 1;
 
 		covdir = make_add_act(make, make_create_var(make, STR("COVDIR"), MAKE_VAR_INST));
-		make_var_add_val(make, covdir, MSTR(str_cpy(gen->str[PGC_STR_COVDIR])));
+		make_var_add_val(make, covdir, MSTR(str_cpy(pgc->str[PGC_STR_COVDIR])));
 	}
 
 	make_var_t cov = MAKE_END;
@@ -258,21 +258,21 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	// clang-format on
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (outdir == MAKE_END || gen->str[PGC_STR_NAME].data == NULL || (gen->builds & (1 << b)) == 0) {
+		if (outdir == MAKE_END || pgc->str[PGC_STR_NAME].data == NULL || (pgc->builds & (1 << b)) == 0) {
 			continue;
 		}
 
 		is_vars = 1;
 
 		target[b] = make_add_act(make, make_create_var(make, target_c[b].name, MAKE_VAR_INST));
-		make_var_add_val(make, target[b], MSTR(strf("$(OUTDIR)%.*s%s", gen->str[PGC_STR_NAME].len, gen->str[PGC_STR_NAME].data, target_c[b].ext)));
+		make_var_add_val(make, target[b], MSTR(strf("$(OUTDIR)%.*s%s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].ext)));
 	}
 
 	make_var_t args = MAKE_END;
 	if (target[PGC_BUILD_EXE] != MAKE_END) {
 		args = make_add_act(make, make_create_var(make, STR("ARGS"), MAKE_VAR_INST));
-		if (gen->str[PGC_STR_ARGS].len > 0) {
-			make_var_add_val(make, args, MSTR(str_cpy(gen->str[PGC_STR_ARGS])));
+		if (pgc->str[PGC_STR_ARGS].len > 0) {
+			make_var_add_val(make, args, MSTR(str_cpy(pgc->str[PGC_STR_ARGS])));
 		}
 	}
 
@@ -300,14 +300,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	int is_flags = 0;
 
 	make_var_t includes = MAKE_END;
-	if (is_obj && gen->arr[PGC_ARR_INCLUDES].cnt > 0) {
+	if (is_obj && pgc->arr[PGC_ARR_INCLUDES].cnt > 0) {
 		is_flags = 1;
 
 		includes = make_add_act(make, make_create_var(make, STR("INCLUDES"), MAKE_VAR_INST));
 
 		int first = 1;
 		const str_t *include;
-		arr_foreach(&gen->arr[PGC_ARR_INCLUDES], include)
+		arr_foreach(&pgc->arr[PGC_ARR_INCLUDES], include)
 		{
 			make_var_add_val(make, includes, MSTR(strf(first ? "-I%.*s" : "-I%.*s", include->len, include->data)));
 			first = 0;
@@ -322,14 +322,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	};
 
 	for (pgc_src_type_t s = 0; s < __PGC_SRC_TYPE_MAX; s++) {
-		if (!obj_ext[s] || gen->src[PGC_SRC_STR_FLAGS][s].len == 0) {
+		if (!obj_ext[s] || pgc->src[PGC_SRC_STR_FLAGS][s].len == 0) {
 			continue;
 		}
 
 		is_flags = 1;
 
 		flags[s] = make_add_act(make, make_create_var(make, src_c[s].flags, MAKE_VAR_INST));
-		make_var_add_val(make, flags[s], MSTR(str_cpy(gen->src[PGC_SRC_STR_FLAGS][s])));
+		make_var_add_val(make, flags[s], MSTR(str_cpy(pgc->src[PGC_SRC_STR_FLAGS][s])));
 	}
 
 	make_var_t defines[] = {
@@ -339,14 +339,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	};
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (intdir[i] == MAKE_END || gen->intdir[PGC_INTDIR_STR_DEFINES][i].len == 0) {
+		if (intdir[i] == MAKE_END || pgc->intdir[PGC_INTDIR_STR_DEFINES][i].len == 0) {
 			continue;
 		}
 
 		is_flags = 1;
 
 		defines[i] = make_add_act(make, make_create_var(make, intdir_c[i].defines, MAKE_VAR_INST));
-		make_var_add_val(make, defines[i], MSTR(str_cpy(gen->intdir[PGC_INTDIR_STR_DEFINES][i])));
+		make_var_add_val(make, defines[i], MSTR(str_cpy(pgc->intdir[PGC_INTDIR_STR_DEFINES][i])));
 	}
 
 	if (is_obj) {
@@ -357,7 +357,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 		int first = 1;
 
 		const pgc_lib_data_t *lib;
-		arr_foreach(&gen->arr[PGC_ARR_LIBS], lib)
+		arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
 		{
 			if (lib->dir.data) {
 				make_var_add_val(make, ldflags, MSTR(strf("-L%.*s", lib->dir.len, lib->dir.data)));
@@ -376,8 +376,8 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			}
 		}
 
-		if (gen->str[PGC_STR_LDFLAGS].len > 0) {
-			make_var_add_val(make, ldflags, MSTR(str_cpy(gen->str[PGC_STR_LDFLAGS])));
+		if (pgc->str[PGC_STR_LDFLAGS].len > 0) {
+			make_var_add_val(make, ldflags, MSTR(str_cpy(pgc->str[PGC_STR_LDFLAGS])));
 		}
 	}
 
@@ -406,14 +406,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 
 	make_var_t bits = MAKE_END;
 	if (is_obj) {
-		if (is_arch(gen, STR("x86_64"))) {
+		if (is_arch(pgc, STR("x86_64"))) {
 			const make_if_t if_x86_64   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("x86_64"))));
 			bits			    = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
 			const make_var_t bit_x86_64 = make_if_add_true_act(make, if_x86_64, bits);
 			make_var_add_val(make, bit_x86_64, MSTR(STR("64")));
 		}
 
-		if (is_arch(gen, STR("i386"))) {
+		if (is_arch(pgc, STR("i386"))) {
 			const make_if_t if_i386	   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("i386"))));
 			bits			   = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
 			const make_var_t bits_i386 = make_if_add_true_act(make, if_i386, bits);
@@ -425,7 +425,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 		}
 	}
 
-	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && is_config(gen, STR("Debug"));
+	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && is_config(pgc, STR("Debug"));
 
 	if (is_debug) {
 		const make_if_t if_config = make_add_act(make, make_create_if(make, MVAR(config), MSTR(STR("Debug"))));
@@ -493,7 +493,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	}
 
 	const str_t *require;
-	arr_foreach(&gen->arr[PGC_ARR_REQUIRES], require)
+	arr_foreach(&pgc->arr[PGC_ARR_REQUIRES], require)
 	{
 		make_if_t if_dpkg = make_rule_add_act(make, check,
 						      make_create_if(make, MSTR(str_null()),
@@ -502,18 +502,18 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	}
 
 	make_rule_t copyfiles = MAKE_END;
-	if (gen->arr[PGC_ARR_COPYFILES].cnt > 0) {
+	if (pgc->arr[PGC_ARR_COPYFILES].cnt > 0) {
 		copyfiles = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("copyfiles"))), 0));
 
 		const str_t *copyfile;
-		arr_foreach(&gen->arr[PGC_ARR_COPYFILES], copyfile)
+		arr_foreach(&pgc->arr[PGC_ARR_COPYFILES], copyfile)
 		{
 			make_rule_add_act(make, copyfiles, make_create_cmd(make, MCMD(strf("@cp %.*s .", copyfile->len, copyfile->data))));
 		}
 	}
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if ((target[b] == MAKE_END && copyfiles == MAKE_END) || ((gen->builds & (1 << b)) == 0)) {
+		if ((target[b] == MAKE_END && copyfiles == MAKE_END) || ((pgc->builds & (1 << b)) == 0)) {
 			continue;
 		}
 
@@ -568,7 +568,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			}
 
 			const pgc_lib_data_t *lib;
-			arr_foreach(&gen->arr[PGC_ARR_LIBS], lib)
+			arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
 			{
 				if (lib->name.data == NULL) {
 					continue;
@@ -623,7 +623,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			make_rule_add_act(make, target_rule[PGC_BUILD_BIN], make_create_cmd(make, MCMD(cmd)));
 		} else {
 			const pgc_str_flags_t *file;
-			arr_foreach(&gen->arr[PGC_ARR_FILES], file)
+			arr_foreach(&pgc->arr[PGC_ARR_FILES], file)
 			{
 				make_rule_add_depend(make, target_rule[PGC_BUILD_BIN], MRULE(MSTR(str_cpy(file->str))));
 				switch (file->flags) {
@@ -642,10 +642,10 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 				}
 			}
 
-			if (gen->str[PGC_STR_SIZE].data) {
+			if (pgc->str[PGC_STR_SIZE].data) {
 				make_rule_add_act(make, target_rule[PGC_BUILD_BIN],
-						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", gen->str[PGC_STR_SIZE].len,
-										  gen->str[PGC_STR_SIZE].data))));
+						  make_create_cmd(make, MCMD(strf("@dd if=/dev/zero bs=1 count=%.*s status=none >> $@", pgc->str[PGC_STR_SIZE].len,
+										  pgc->str[PGC_STR_SIZE].data))));
 			}
 		}
 	}
@@ -653,12 +653,12 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	if (target[PGC_BUILD_FAT12] != MAKE_END) {
 		target_rule[PGC_BUILD_FAT12] = make_add_act(make, make_create_rule(make, MRULE(MVAR(target[PGC_BUILD_FAT12])), 1));
 
-		if (gen->str[PGC_STR_HEADER].data != NULL) {
-			make_rule_add_depend(make, target_rule[PGC_BUILD_FAT12], MRULE(MSTR(str_cpy(gen->str[PGC_STR_HEADER]))));
+		if (pgc->str[PGC_STR_HEADER].data != NULL) {
+			make_rule_add_depend(make, target_rule[PGC_BUILD_FAT12], MRULE(MSTR(str_cpy(pgc->str[PGC_STR_HEADER]))));
 		}
 
 		const pgc_str_flags_t *file;
-		arr_foreach(&gen->arr[PGC_ARR_FILES], file)
+		arr_foreach(&pgc->arr[PGC_ARR_FILES], file)
 		{
 			make_rule_add_depend(make, target_rule[PGC_BUILD_FAT12], MRULE(MSTR(str_cpy(file->str))));
 		}
@@ -667,14 +667,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 
 		//create empty 1.44MB image (block size = 512, block count = 2880)
 		make_rule_add_act(make, target_rule[PGC_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@dd if=/dev/zero of=$@ bs=512 count=2880 status=none"))));
-		if (gen->str[PGC_STR_HEADER].data == NULL) {
+		if (pgc->str[PGC_STR_HEADER].data == NULL) {
 			//create file system
 			make_rule_add_act(make, target_rule[PGC_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@mkfs.fat -F12 -n \"NBOS\" $@"))));
 		} else {
 			//put first binary to the first sector of the disk
 			make_rule_add_act(make, target_rule[PGC_BUILD_FAT12],
-					  make_create_cmd(make, MCMD(strf("@dd if=%.*s of=$@ conv=notrunc status=none", gen->str[PGC_STR_HEADER].len,
-									  gen->str[PGC_STR_HEADER].data))));
+					  make_create_cmd(make, MCMD(strf("@dd if=%.*s of=$@ conv=notrunc status=none", pgc->str[PGC_STR_HEADER].len,
+									  pgc->str[PGC_STR_HEADER].data))));
 		}
 		//copy files to the image
 		make_rule_add_act(make, target_rule[PGC_BUILD_FAT12], make_create_cmd(make, MCMD(STR("@mcopy -i $@ $(word 2,$^) \"::$(shell basename $(word 2,$^))\""))));
@@ -759,22 +759,22 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			continue;
 		}
 
-		if ((is_debug && gen->target[PGC_TARGET_STR_RUN_DBG][b].data) || gen->target[PGC_TARGET_STR_RUN][b].data || b == PGC_BUILD_EXE) {
+		if ((is_debug && pgc->target[PGC_TARGET_STR_RUN_DBG][b].data) || pgc->target[PGC_TARGET_STR_RUN][b].data || b == PGC_BUILD_EXE) {
 			run[b] = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
 			make_rule_add_depend(make, run[b], MRULE(MSTR(STR("check"))));
 			make_rule_add_depend(make, run[b], MRULE(MVAR(target[b])));
 		}
 
-		if (is_debug && gen->target[PGC_TARGET_STR_RUN_DBG][b].data) {
+		if (is_debug && pgc->target[PGC_TARGET_STR_RUN_DBG][b].data) {
 			const make_if_t if_config = make_rule_add_act(make, run[b], make_create_if(make, MVAR(config), MSTR(STR("Debug"))));
-			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(gen->target[PGC_TARGET_STR_RUN_DBG][b]))));
-			if (gen->target[PGC_TARGET_STR_RUN][b].data) {
-				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(gen->target[PGC_TARGET_STR_RUN][b]))));
+			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN_DBG][b]))));
+			if (pgc->target[PGC_TARGET_STR_RUN][b].data) {
+				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN][b]))));
 			} else if (b == PGC_BUILD_EXE) {
 				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 			}
-		} else if (gen->target[PGC_TARGET_STR_RUN][b].data) {
-			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(str_cpy(gen->target[PGC_TARGET_STR_RUN][b]))));
+		} else if (pgc->target[PGC_TARGET_STR_RUN][b].data) {
+			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN][b]))));
 		} else if (b == PGC_BUILD_EXE) {
 			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
 		}
@@ -795,14 +795,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 		make_rule_add_depend(make, rdebug, MRULE(MSTR(STR("check"))));
 		make_rule_add_depend(make, rdebug, MRULE(MVAR(target[PGC_BUILD_EXE])));
 
-		if (gen->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data) {
+		if (pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data) {
 			make_rule_add_act(make, rdebug,
-					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", gen->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].len,
-									  gen->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data))));
-		} else if (gen->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data) {
+					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].len,
+									  pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data))));
+		} else if (pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data) {
 			make_rule_add_act(make, rdebug,
-					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", gen->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].len,
-									  gen->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data))));
+					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].len,
+									  pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data))));
 		} else {
 			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(STR("@gdb --args $(TARGET) $(ARGS)"))));
 		}
@@ -821,7 +821,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	int artifacts = 0;
 	// clang-format on
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (target[b] == MAKE_END || gen->target[PGC_TARGET_STR_ARTIFACT][b].data == NULL) {
+		if (target[b] == MAKE_END || pgc->target[PGC_TARGET_STR_ARTIFACT][b].data == NULL) {
 			continue;
 		}
 
@@ -831,7 +831,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 		make_rule_add_act(make, artifact[b], make_create_cmd(make, MCMD(STR("@mkdir -p $(SLNDIR)tmp/artifact/"))));
 		make_rule_add_act(make, artifact[b],
 				  make_create_cmd(make, MCMD(strf("@cp $(%.*s) $(SLNDIR)tmp/artifact/%.*s", target_c[b].name.len, target_c[b].name.data,
-								  gen->target[PGC_TARGET_STR_ARTIFACT][b].len, gen->target[PGC_TARGET_STR_ARTIFACT][b].data))));
+								  pgc->target[PGC_TARGET_STR_ARTIFACT][b].len, pgc->target[PGC_TARGET_STR_ARTIFACT][b].data))));
 
 		if (b != PGC_BUILD_EXE) {
 			artifacts = 1;
@@ -868,7 +868,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			continue;
 		}
 		str_cat(&cleans, STR(" $(SLNDIR)tmp/artifact/"));
-		str_cat(&cleans, gen->target[PGC_TARGET_STR_ARTIFACT][b]);
+		str_cat(&cleans, pgc->target[PGC_TARGET_STR_ARTIFACT][b]);
 	}
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
@@ -892,30 +892,30 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	return make;
 }
 
-static make_t *pgc_gen_mk_remote(const pgc_t *gen, make_t *make)
+static make_t *pgc_gen_mk_remote(const pgc_t *pgc, make_t *make)
 {
 	make_var_t outdir = MAKE_END;
-	if (gen->str[PGC_STR_OUTDIR].data) {
+	if (pgc->str[PGC_STR_OUTDIR].data) {
 		outdir = make_add_act(make, make_create_var(make, STR("OUTDIR"), MAKE_VAR_INST));
-		make_var_add_val(make, outdir, MSTR(str_cpy(gen->str[PGC_STR_OUTDIR])));
+		make_var_add_val(make, outdir, MSTR(str_cpy(pgc->str[PGC_STR_OUTDIR])));
 	}
 
 	make_var_t url = MAKE_END;
-	if (gen->str[PGC_STR_URL].data) {
+	if (pgc->str[PGC_STR_URL].data) {
 		url = make_add_act(make, make_create_var(make, STR("URL"), MAKE_VAR_INST));
-		make_var_add_val(make, url, MSTR(str_cpy(gen->str[PGC_STR_URL])));
+		make_var_add_val(make, url, MSTR(str_cpy(pgc->str[PGC_STR_URL])));
 	}
 
 	make_var_t name = MAKE_END;
-	if (gen->str[PGC_STR_NAME].data) {
+	if (pgc->str[PGC_STR_NAME].data) {
 		name = make_add_act(make, make_create_var(make, STR("NAME"), MAKE_VAR_INST));
-		make_var_add_val(make, name, MSTR(str_cpy(gen->str[PGC_STR_NAME])));
+		make_var_add_val(make, name, MSTR(str_cpy(pgc->str[PGC_STR_NAME])));
 	}
 
 	make_var_t format = MAKE_END;
-	if (gen->str[PGC_STR_FORMAT].data) {
+	if (pgc->str[PGC_STR_FORMAT].data) {
 		format = make_add_act(make, make_create_var(make, STR("FORMAT"), MAKE_VAR_INST));
-		make_var_add_val(make, format, MSTR(str_cpy(gen->str[PGC_STR_FORMAT])));
+		make_var_add_val(make, format, MSTR(str_cpy(pgc->str[PGC_STR_FORMAT])));
 	}
 
 	make_var_t file = MAKE_END;
@@ -957,7 +957,7 @@ static make_t *pgc_gen_mk_remote(const pgc_t *gen, make_t *make)
 	}
 
 	const str_t *require;
-	arr_foreach(&gen->arr[PGC_ARR_REQUIRES], require)
+	arr_foreach(&pgc->arr[PGC_ARR_REQUIRES], require)
 	{
 		make_if_t if_dpkg = make_rule_add_act(make, check,
 						      make_create_if(make, MSTR(str_null()),
@@ -983,18 +983,18 @@ static make_t *pgc_gen_mk_remote(const pgc_t *gen, make_t *make)
 		const make_rule_t routdir = make_add_act(make, make_create_rule(make, MRULEACT(MSTR(STR("$(OUTDIR)")), STR("$(NAME)")), 1));
 		make_rule_add_depend(make, routdir, MRULEACT(MVAR(srcdir), STR("done")));
 		make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@mkdir -p $(LOGDIR) $(BUILDDIR) $(OUTDIR)"))));
-		if (gen->str[PGC_STR_CONFIG].data) {
+		if (pgc->str[PGC_STR_CONFIG].data) {
 			make_rule_add_act(
 				make, routdir,
 				make_create_cmd(
 					make,
 					MCMD(strf("@cd $(BUILDDIR) && $(SRCDIR)configure --target=$(ARCH)-elf --prefix=$(OUTDIR) %.*s > $(LOGDIR)configure.log 2>&1",
-						  gen->str[PGC_STR_CONFIG].len, gen->str[PGC_STR_CONFIG].data))));
+						  pgc->str[PGC_STR_CONFIG].len, pgc->str[PGC_STR_CONFIG].data))));
 		}
-		if (gen->str[PGC_STR_TARGETS].data) {
+		if (pgc->str[PGC_STR_TARGETS].data) {
 			make_rule_add_act(make, routdir,
-					  make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s > $(LOGDIR)make.log 2>&1", gen->str[PGC_STR_TARGETS].len,
-									  gen->str[PGC_STR_TARGETS].data))));
+					  make_create_cmd(make, MCMD(strf("@cd $(BUILDDIR) && make %.*s > $(LOGDIR)make.log 2>&1", pgc->str[PGC_STR_TARGETS].len,
+									  pgc->str[PGC_STR_TARGETS].data))));
 		}
 		make_rule_add_act(make, routdir, make_create_cmd(make, MCMD(STR("@touch $(OUTDIR)$(NAME)"))));
 	}
@@ -1010,17 +1010,17 @@ static make_t *pgc_gen_mk_remote(const pgc_t *gen, make_t *make)
 	return make;
 }
 
-make_t *pgc_gen_mk(const pgc_t *gen, make_t *make)
+make_t *pgc_gen_mk(const pgc_t *pgc, make_t *make)
 {
-	if (gen == NULL || make == NULL) {
+	if (pgc == NULL || make == NULL) {
 		return NULL;
 	}
 
 	make_create_var_ext(make, STR("SLNDIR"), MAKE_VAR_INST);
 
-	if (gen->str[PGC_STR_URL].data) {
-		return pgc_gen_mk_remote(gen, make);
+	if (pgc->str[PGC_STR_URL].data) {
+		return pgc_gen_mk_remote(pgc, make);
 	}
 
-	return pgc_gen_mk_local(gen, make);
+	return pgc_gen_mk_local(pgc, make);
 }

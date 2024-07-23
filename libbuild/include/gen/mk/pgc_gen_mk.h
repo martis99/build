@@ -4,6 +4,6 @@
 #include "gen/mk/make.h"
 #include "gen/pgc.h"
 
-make_t *pgc_gen_mk(const pgc_t *gen, make_t *make);
+make_t *pgc_gen_mk(const pgc_t *pgc, make_t *make);
 
 #endif
