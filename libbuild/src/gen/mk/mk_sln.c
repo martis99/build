@@ -283,7 +283,9 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 	arr_foreach(&sln->build_order, pproj)
 	{
-		ret |= mk_proj_gen(*(proj_t **)pproj, &sln->projects, sln->props);
+		proj_t *proj = *(proj_t **)pproj;
+
+		ret |= mk_proj_gen(proj, &sln->projects, sln->props);
 	}
 
 	return ret;

@@ -51,16 +51,10 @@ int cm_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 
 	MSG("generating project: %s", gen_path.path);
 
-	pgc_t gen = { 0 };
-	pgc_init(&gen);
-
-	proj_gen(proj, projects, sln_props, resolve, resolve_path, &gen);
-
-	pgc_print(&gen, PRINT_DST_STD());
+	proj_gen(proj, projects, sln_props, resolve, resolve_path, &proj->pgc);
 
 	cmake_init(&proj->gen.cmake, 16, 8, 16);
-	pgc_gen_cm(&gen, &proj->gen.cmake);
-	pgc_free(&gen);
+	pgc_gen_cm(&proj->pgc, &proj->gen.cmake);
 
 	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {

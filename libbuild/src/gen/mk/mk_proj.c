@@ -49,14 +49,10 @@ int mk_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 
 	MSG("generating project: %s", gen_path.path);
 
-	pgc_t gen = { 0 };
-	pgc_init(&gen);
-
-	proj_gen(proj, projects, sln_props, resolve, resolve_path, &gen);
+	proj_gen(proj, projects, sln_props, resolve, resolve_path, &proj->pgc);
 
 	make_init(&proj->gen.make, 8, 8, 8);
-	pgc_gen_mk(&gen, &proj->gen.make);
-	pgc_free(&gen);
+	pgc_gen_mk(&proj->pgc, &proj->gen.make);
 
 	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {

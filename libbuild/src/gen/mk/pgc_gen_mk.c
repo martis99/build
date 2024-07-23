@@ -2,12 +2,25 @@
 
 #include "gen/pgc_types.h"
 
-static int is_config(const pgc_t *gen, str_t config)
+static int is_arch(const pgc_t *gen, str_t name)
+{
+	const str_t *arch;
+	arr_foreach(&gen->arr[PGC_ARR_ARCHS], arch)
+	{
+		if (str_eq(*arch, name)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int is_config(const pgc_t *gen, str_t name)
 {
 	const str_t *conf;
 	arr_foreach(&gen->arr[PGC_ARR_CONFIGS], conf)
 	{
-		if (str_eq(*conf, config)) {
+		if (str_eq(*conf, name)) {
 			return 1;
 		}
 	}
@@ -233,13 +246,14 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 		str_t artifact;
 		str_t cmdl;
 		str_t cmdr;
+		int bits;
 	} target_c[] = {
-		[PGC_BUILD_EXE]	  = { STRS("TARGET"),	    "",     STRS("compile"), PGC_INTDIR_OBJECT, STRS("run"),	  STRS("artifact"),	  STRS("@$(TCC) -m$(BITS)"),			    STRS(" $(LDFLAGS) -o $@")},
-		[PGC_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  PGC_INTDIR_STATIC, STRS("run_s"),	  STRS("artifact_s"),	  STRS("@ar rcs $@"),				    STRS("")},
-		[PGC_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  PGC_INTDIR_SHARED, STRS("run_d"),	  STRS("artifact_d"),	  STRS("@$(TCC) -m$(BITS) -shared"),		    STRS(" $(LDFLAGS) -o $@")},
-		[PGC_BUILD_ELF]	  = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     PGC_INTDIR_OBJECT, STRS("run_elf"),   STRS("artifact_elf"),	  STRS("@$(TCC) -m$(BITS) -shared -ffreestanding"), STRS(" $(LDFLAGS) -o $@")}, 
-		[PGC_BUILD_BIN]	  = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     PGC_INTDIR_OBJECT, STRS("run_bin"),   STRS("artifact_bin"),	  STRS(""),					    STRS("")}, 
-		[PGC_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __PGC_INTDIR_TYPE_MAX,  STRS("run_fat12"), STRS("artifact_fat12"), STRS(""),					    STRS("")},
+		[PGC_BUILD_EXE]	   = { STRS("TARGET"),	     "",     STRS("compile"), PGC_INTDIR_OBJECT, STRS("run"),		 STRS("artifact"),	 STRS("@$(TCC) -m$(BITS)"),			   STRS(" $(LDFLAGS) -o $@"), 1 },
+		[PGC_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  PGC_INTDIR_STATIC, STRS("run_s"),		 STRS("artifact_s"),	 STRS("@ar rcs $@"),				   STRS(""),		      0 },
+		[PGC_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  PGC_INTDIR_SHARED, STRS("run_d"),		 STRS("artifact_d"),	 STRS("@$(TCC) -m$(BITS) -shared"),		   STRS(" $(LDFLAGS) -o $@"), 1 },
+		[PGC_BUILD_ELF]	   = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     PGC_INTDIR_OBJECT, STRS("run_elf"),	 STRS("artifact_elf"),	 STRS("@$(TCC) -m$(BITS) -shared -ffreestanding"), STRS(" $(LDFLAGS) -o $@"), 1 }, 
+		[PGC_BUILD_BIN]	   = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     PGC_INTDIR_OBJECT, STRS("run_bin"),	 STRS("artifact_bin"),	 STRS(""),					   STRS(""),		      0 }, 
+		[PGC_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __PGC_INTDIR_TYPE_MAX,  STRS("run_fat12"), STRS("artifact_fat12"), STRS(""),					   STRS(""),		      0 },
 	};
 	// clang-format on
 
@@ -390,16 +404,25 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 
 	make_add_act(make, make_create_empty(make));
 
+	make_var_t bits = MAKE_END;
 	if (is_obj) {
-		const make_if_t if_x86_64   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("x86_64"))));
-		const make_var_t bit_x86_64 = make_if_add_true_act(make, if_x86_64, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
-		make_var_add_val(make, bit_x86_64, MSTR(STR("64")));
+		if (is_arch(gen, STR("x86_64"))) {
+			const make_if_t if_x86_64   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("x86_64"))));
+			bits			    = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
+			const make_var_t bit_x86_64 = make_if_add_true_act(make, if_x86_64, bits);
+			make_var_add_val(make, bit_x86_64, MSTR(STR("64")));
+		}
 
-		const make_if_t if_i386	   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("i386"))));
-		const make_var_t bits_i386 = make_if_add_true_act(make, if_i386, make_create_var(make, STR("BITS"), MAKE_VAR_INST));
-		make_var_add_val(make, bits_i386, MSTR(STR("32")));
+		if (is_arch(gen, STR("i386"))) {
+			const make_if_t if_i386	   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("i386"))));
+			bits			   = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
+			const make_var_t bits_i386 = make_if_add_true_act(make, if_i386, bits);
+			make_var_add_val(make, bits_i386, MSTR(STR("32")));
+		}
 
-		make_add_act(make, make_create_empty(make));
+		if (bits != MAKE_END) {
+			make_add_act(make, make_create_empty(make));
+		}
 	}
 
 	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && is_config(gen, STR("Debug"));
@@ -519,7 +542,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	// clang-format on
 
 	for (pgc_build_type_t b = PGC_BUILD_EXE; b <= PGC_BUILD_ELF; b++) {
-		if (target[b] == MAKE_END) {
+		if (target[b] == MAKE_END || (target_c[b].bits && bits == MAKE_END)) {
 			continue;
 		}
 
@@ -670,7 +693,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 			make_rule_add_act(
 				make, int_o,
 				make_create_cmd(make, MCMD(strf("@nasm -fbin $(INCLUDES) $(NASM_CONFIG_FLAGS) $(ASFLAGS) $(%s) $< -o $@", intdir_c[i].defines.data))));
-		} else {
+		} else if (bits != MAKE_END) {
 			const make_rule_t int_o = make_add_act(make, make_create_rule(make, MRULE(MSTR(strf("$(%s)%%.o", intdir_c[i].name.data))), 1));
 			make_rule_add_depend(make, int_o, MRULE(MSTR(STR("%.nasm"))));
 			make_rule_add_act(make, int_o, make_create_cmd(make, MCMD(STR("@mkdir -p $(@D)"))));
@@ -682,7 +705,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	}
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (obj[i][PGC_SRC_S] == MAKE_END) {
+		if (obj[i][PGC_SRC_S] == MAKE_END || bits == MAKE_END) {
 			continue;
 		}
 
@@ -695,7 +718,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	}
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (obj[i][PGC_SRC_C] == MAKE_END) {
+		if (obj[i][PGC_SRC_C] == MAKE_END || bits == MAKE_END) {
 			continue;
 		}
 
@@ -708,7 +731,7 @@ make_t *pgc_gen_mk_local(const pgc_t *gen, make_t *make)
 	}
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (obj[i][PGC_SRC_CPP] == MAKE_END) {
+		if (obj[i][PGC_SRC_CPP] == MAKE_END || bits == MAKE_END) {
 			continue;
 		}
 

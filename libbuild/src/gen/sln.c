@@ -293,6 +293,12 @@ int sln_read(sln_t *sln, const path_t *path)
 
 	ini_prs_free(&build.ini_prs);
 
+	dict_foreach(&sln->projects, pair)
+	{
+		proj_t *proj = pair->value;
+		pgc_init(&proj->pgc);
+	}
+
 	return ret;
 }
 
@@ -333,6 +339,12 @@ static void free_dir(void *key, size_t ksize, void *value, void *priv)
 
 void sln_free(sln_t *sln)
 {
+	dict_foreach(&sln->projects, pair)
+	{
+		proj_t *proj = pair->value;
+		pgc_free(&proj->pgc);
+	}
+
 	arr_free(&sln->build_order);
 
 	dict_foreach(&sln->projects, pair)

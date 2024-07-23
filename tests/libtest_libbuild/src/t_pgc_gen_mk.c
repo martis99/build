@@ -110,9 +110,6 @@
 #define CONFIG_BITS                \
 	"ifeq ($(ARCH), x86_64)\n" \
 	"BITS := 64\n"             \
-	"endif\n"                  \
-	"ifeq ($(ARCH), i386)\n"   \
-	"BITS := 32\n"             \
 	"endif\n"
 
 #define CONFIG_NASM              \
@@ -1538,6 +1535,53 @@ TEST(t_pgc_gen_mk_fat12_header)
 	END;
 }
 
+TEST(t_pgc_gen_mk_archs)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_archs(&pgc);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	pgc_gen_mk(&pgc, &make);
+
+	char buf[2048] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "" C_EXE_VARS ""
+			"\n"
+			"LDFLAGS :=\n"
+			"GCC_CONFIG_FLAGS :=\n"
+			"\n"
+			"RM += -r\n"
+			"\n"
+			"ifeq ($(ARCH), x86_64)\n"
+			"BITS := 64\n"
+			"endif\n"
+			"ifeq ($(ARCH), i386)\n"
+			"BITS := 32\n"
+			"endif\n"
+			"\n"
+			"" CONFIG_DEBUG ""
+			".PHONY: all check compile run debug clean\n"
+			"\n"
+			"all: compile\n"
+			"\n"
+			"" C_CHECK ""
+			"compile: check $(TARGET)\n"
+			"\n"
+			"" TARGET_C ""
+			"" C_O ""
+			"" RUN_EXE ""
+			"" CLEAN_EXE_C "");
+
+	make_free(&make);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_gen_mk_configs)
 {
 	START;
@@ -1869,6 +1913,7 @@ TEST(t_pgc_gen_mk_c_static)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_STATIC_VARS ""
 			"" CONFIG ""
+			"" CONFIG_DEBUG ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -1902,6 +1947,7 @@ TEST(t_pgc_gen_mk_c_shared)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_SHARED_VARS ""
 			"" CONFIG ""
+			"" CONFIG_DEBUG ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"
@@ -2112,6 +2158,7 @@ STEST(t_pgc_gen_mk)
 	RUN(t_pgc_gen_mk_elf);
 	RUN(t_pgc_gen_mk_fat12);
 	RUN(t_pgc_gen_mk_fat12_header);
+	RUN(t_pgc_gen_mk_archs);
 	RUN(t_pgc_gen_mk_configs);
 	RUN(t_pgc_gen_mk_nasm_bin);
 	RUN(t_pgc_gen_mk_nasm_exe);

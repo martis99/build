@@ -27,8 +27,9 @@ static const char *build_type_str[] = {
 };
 
 static const char *arr_str[] = {
-	[PGC_ARR_HEADERS]   = "HEADERS",
+	[PGC_ARR_ARCHS]	    = "ARCHS",
 	[PGC_ARR_CONFIGS]   = "CONFIGS",
+	[PGC_ARR_HEADERS]   = "HEADERS",
 	[PGC_ARR_SRCS]	    = "SRCS",
 	[PGC_ARR_INCLUDES]  = "INCLUDES",
 	[PGC_ARR_LIBS]	    = "LIBS",
@@ -129,8 +130,9 @@ struct {
 	void (*free)(void *ptr);
 	int (*dprint)(void *ptr, print_dst_t dst);
 } s_arr_c[] = {
-	[PGC_ARR_HEADERS]   = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
+	[PGC_ARR_ARCHS]	    = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
 	[PGC_ARR_CONFIGS]   = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
+	[PGC_ARR_HEADERS]   = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
 	[PGC_ARR_SRCS]	    = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
 	[PGC_ARR_INCLUDES]  = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
 	[PGC_ARR_LIBS]	    = { sizeof(pgc_lib_data_t),	 pgc_lib_free,	    pgc_lib_dprint },
@@ -231,6 +233,11 @@ static uint add_str_flags(pgc_t *pgc, pgc_arr_t arr, str_t str, int flags)
 	};
 
 	return id;
+}
+
+uint pgc_add_arch(pgc_t *pgc, str_t arch)
+{
+	return add_str(pgc, PGC_ARR_ARCHS, arch);
 }
 
 //TODO: Add ability to set config name independent from config settings

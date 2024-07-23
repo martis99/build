@@ -133,7 +133,9 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 
 	dict_foreach(&sln->projects, pair)
 	{
-		ret |= cm_proj_gen(pair->value, &sln->projects, sln->props);
+		proj_t *proj = pair->value;
+
+		ret |= cm_proj_gen(proj, &sln->projects, sln->props);
 	}
 
 	return ret;

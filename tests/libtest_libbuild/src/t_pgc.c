@@ -20,6 +20,31 @@ TEST(t_pgc_init_free)
 	END;
 }
 
+TEST(t_pgc_add_arch)
+{
+	START;
+
+	pgc_t gen = { 0 };
+	pgc_init(&gen);
+
+	EXPECT_EQ(pgc_add_arch(NULL, str_null()), PGC_END);
+	EXPECT_EQ(pgc_add_arch(&gen, str_null()), 0);
+	EXPECT_EQ(pgc_add_arch(&gen, str_null()), 1);
+	mem_oom(1);
+	EXPECT_EQ(pgc_add_arch(&gen, str_null()), PGC_END);
+	mem_oom(0);
+	EXPECT_EQ(pgc_add_arch(&gen, STRH("x86_64")), 2);
+
+	char buf[1024] = { 0 };
+	pgc_print(&gen, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "ARCHS\n"
+			"    x86_64\n");
+
+	pgc_free(&gen);
+
+	END;
+}
+
 TEST(t_pgc_add_config)
 {
 	START;
@@ -374,6 +399,7 @@ STEST(t_pgc)
 {
 	SSTART;
 	RUN(t_pgc_init_free);
+	RUN(t_pgc_add_arch);
 	RUN(t_pgc_add_config);
 	RUN(t_pgc_add_header);
 	RUN(t_pgc_add_src);

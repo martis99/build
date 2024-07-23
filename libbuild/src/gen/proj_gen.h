@@ -1,7 +1,6 @@
 #ifndef PROJ_GEN_H
 #define PROJ_GEN_H
 
-#include "gen/pgc.h"
 #include "gen/proj.h"
 
 typedef str_t (*resolve_fn)(str_t str, str_t *buf, const proj_t *proj);

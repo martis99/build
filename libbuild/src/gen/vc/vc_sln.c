@@ -1,12 +1,11 @@
 #include "gen/vc/vc_sln.h"
 
+#include "common.h"
 #include "gen/mk/mk_sln.h"
 #include "gen/proj.h"
 #include "gen/var.h"
-
+#include "gen/vc/pgc_gen_vc_tasks.h"
 #include "vc_proj.h"
-
-#include "common.h"
 
 #include <errno.h>
 
@@ -47,7 +46,8 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 		const proj_t **pproj;
 		arr_foreach(&sln->build_order, pproj)
 		{
-			vc_proj_gen_build(*pproj, sln->props, &json, tasks);
+			proj_t *proj = *(proj_t **)pproj;
+			pgc_gen_vc_tasks(&proj->pgc, &json, tasks);
 		}
 
 		FILE *file = file_open(tasks_path.path, "w");

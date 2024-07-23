@@ -728,6 +728,31 @@ TEST(t_pgc_gen_cm_fat12_header)
 	END;
 }
 
+TEST(t_pgc_gen_cm_archs)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_archs(&pgc);
+
+	cmake_t cmake = { 0 };
+	cmake_init(&cmake, 8, 8, 8);
+
+	pgc_gen_cm(&pgc, &cmake);
+
+	char buf[2048] = { 0 };
+	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
+			"\n"
+			"add_executable(test ${test_SOURCE})\n"
+			"" TARGET_PROPERTIES "");
+
+	cmake_free(&cmake);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_gen_cm_configs)
 {
 	START;
@@ -1130,6 +1155,7 @@ STEST(t_pgc_gen_cm)
 	RUN(t_pgc_gen_cm_elf);
 	RUN(t_pgc_gen_cm_fat12);
 	RUN(t_pgc_gen_cm_fat12_header);
+	RUN(t_pgc_gen_cm_archs);
 	RUN(t_pgc_gen_cm_configs);
 	RUN(t_pgc_gen_cm_nasm_bin);
 	RUN(t_pgc_gen_cm_nasm_exe);

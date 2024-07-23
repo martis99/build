@@ -4,11 +4,13 @@
 #include "build.h"
 #include "prop.h"
 
+#include "gen/cm/cmake.h"
+#include "gen/mk/make.h"
+#include "gen/pgc.h"
+
 #include "arr.h"
 #include "cstr.h"
 #include "dict.h"
-#include "gen/mk/make.h"
-#include "gen/cm/cmake.h"
 #include "path.h"
 #include "str.h"
 
@@ -163,6 +165,7 @@ typedef struct proj_s {
 	arr_t all_depends;
 	arr_t includes;
 	const struct dir_s *parent;
+	pgc_t pgc;
 	union {
 		make_t make;
 		cmake_t cmake;

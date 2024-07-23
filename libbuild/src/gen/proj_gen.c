@@ -84,6 +84,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
+	const prop_str_t *arch;
+	arr_foreach(&sln_props[SLN_PROP_ARCHS].arr, arch)
+	{
+		pgc_add_arch(gen, strs(arch->val));
+	}
+
 	const prop_str_t *config;
 	arr_foreach(&sln_props[SLN_PROP_CONFIGS].arr, config)
 	{

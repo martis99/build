@@ -176,6 +176,7 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	dict_foreach(&sln->projects, pair)
 	{
 		proj_t *proj = pair->value;
+
 		ret |= vs_proj_gen(proj, &sln->projects, sln->props, 0);
 		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 			ret |= vs_proj_gen(pair->value, &sln->projects, sln->props, 1);

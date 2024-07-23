@@ -91,8 +91,9 @@ typedef enum pgc_str_e {
 } pgc_str_t;
 
 typedef enum pgc_arr_e {
-	PGC_ARR_HEADERS,
+	PGC_ARR_ARCHS,
 	PGC_ARR_CONFIGS,
+	PGC_ARR_HEADERS,
 	PGC_ARR_SRCS,
 	PGC_ARR_INCLUDES,
 	PGC_ARR_LIBS,
@@ -133,6 +134,7 @@ typedef struct pgc_s {
 pgc_t *pgc_init(pgc_t *pgc);
 void pgc_free(pgc_t *pgc);
 
+uint pgc_add_arch(pgc_t *pgc, str_t config);
 uint pgc_add_config(pgc_t *pgc, str_t config);
 uint pgc_add_header(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_src(pgc_t *pgc, str_t dir, int exts);
