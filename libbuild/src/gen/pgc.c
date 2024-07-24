@@ -10,6 +10,7 @@ static const char *str_str[] = {
 	[PGC_STR_ARGS]	  = "ARGS",
 	[PGC_STR_LDFLAGS] = "LDFLAGS",
 	[PGC_STR_HEADER]  = "HEADER",
+	[PGC_STR_CWD]	  = "CWD",
 	[PGC_STR_SIZE]	  = "SIZE",
 	[PGC_STR_URL]	  = "URL",
 	[PGC_STR_FORMAT]  = "FORMAT",
@@ -345,6 +346,15 @@ uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, pgc_link_type_t link_type, p
 uint pgc_add_depend(pgc_t *pgc, str_t depend)
 {
 	return add_str(pgc, PGC_ARR_DEPENDS, depend);
+}
+
+void pgc_set_cwd(pgc_t *pgc, str_t cwd)
+{
+	if (pgc == NULL) {
+		return;
+	}
+
+	pgc->str[PGC_STR_CWD] = cwd;
 }
 
 void pgc_set_run(pgc_t *pgc, str_t run, int build)

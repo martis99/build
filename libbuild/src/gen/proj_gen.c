@@ -398,6 +398,9 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 	}
 
+	const prop_t *wdir = &proj->props[PROJ_PROP_WDIR];
+	pgc_set_cwd(pgc, wdir->flags & PROP_SET ? str_cpy(wdir->value.val) : strn(proj->dir.path, proj->dir.len, proj->dir.len + 1));
+
 	const prop_t *size = &proj->props[PROJ_PROP_SIZE];
 	if (size->flags & PROP_SET) {
 		pgc->str[PGC_STR_SIZE] = str_cpy(size->value.val);

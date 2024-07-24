@@ -2,6 +2,19 @@
 
 #include "gen/pgc_types.h"
 
+static int is_config(const pgc_t *pgc, str_t name)
+{
+	const str_t *conf;
+	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
+	{
+		if (str_eq(*conf, name)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 {
 	static const char *header_ext[] = {
@@ -246,15 +259,20 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR, str_cpy(buf));
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR, str_cpy(buf));
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR, str_cpy(buf));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_DBG, str_cpy(buf));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR_DBG, str_cpy(buf));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR_DBG, str_cpy(buf));
 
-			str_cpyd(pgc->str[PGC_STR_OUTDIR], &buf);
-			str_replace(&buf, STR("${CMAKE_BUILD_TYPE}"), STR("Release"));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_RLS, str_cpy(buf));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR_RLS, str_cpy(buf));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR_RLS, str_cpy(buf));
+			if (is_config(pgc, STR("Debug"))) {
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_DBG, str_cpy(buf));
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR_DBG, str_cpy(buf));
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR_DBG, str_cpy(buf));
+			}
+
+			if (is_config(pgc, STR("Release"))) {
+				str_cpyd(pgc->str[PGC_STR_OUTDIR], &buf);
+				str_replace(&buf, STR("${CMAKE_BUILD_TYPE}"), STR("Release"));
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_RLS, str_cpy(buf));
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR_RLS, str_cpy(buf));
+				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR_RLS, str_cpy(buf));
+			}
 
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_BUILD_RPATH, STR("\".\""));
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_OUTPUT_NAME, str_cpy(pgc->str[PGC_STR_NAME]));

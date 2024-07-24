@@ -260,6 +260,27 @@ TEST(t_pgc_add_depend)
 	END;
 }
 
+TEST(t_pgc_set_cwd)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_set_cwd(NULL, str_null());
+	pgc_set_cwd(&pgc, STRH("test"));
+
+	EXPECT_STRN(pgc.str[PGC_STR_CWD].data, "test", 4);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "CWD: test\n");
+
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_set_run)
 {
 	START;
@@ -409,6 +430,7 @@ STEST(t_pgc)
 	RUN(t_pgc_add_ldflag);
 	RUN(t_pgc_add_lib);
 	RUN(t_pgc_add_depend);
+	RUN(t_pgc_set_cwd);
 	RUN(t_pgc_set_run);
 	RUN(t_pgc_set_run_debug);
 	RUN(t_pgc_add_file);

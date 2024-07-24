@@ -5,6 +5,7 @@
 
 void pgc_gen_empty(pgc_t *pgc);
 void pgc_gen_args(pgc_t *pgc);
+void pgc_gen_cwd(pgc_t *pgc);
 void pgc_gen_require(pgc_t *pgc);
 void pgc_gen_lib_empty(pgc_t *pgc);
 void pgc_gen_headers(pgc_t *pgc);
@@ -27,6 +28,7 @@ void pgc_gen_artifact_exe(pgc_t *pgc);
 void pgc_gen_artifact_lib(pgc_t *pgc);
 void pgc_gen_bin_obj(pgc_t *pgc);
 void pgc_gen_bin_files(pgc_t *pgc);
+void pgc_gen_bin_run(pgc_t *pgc);
 void pgc_gen_elf(pgc_t *pgc);
 void pgc_gen_fat12(pgc_t *pgc);
 void pgc_gen_fat12_header(pgc_t *pgc);

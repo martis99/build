@@ -4,14 +4,34 @@
 #include "pgc_gen.h"
 #include "test.h"
 
-#define TARGET_PROPERTIES                                                           \
+#define TARGET_PROPERTIES                                                   \
+	"set_target_properties(test PROPERTIES\n"                           \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                             \
+	"\tOUTPUT_NAME test\n"                                              \
+	"\tPREFIX \"\"\n"                                                   \
+	")\n"
+
+#define TARGET_PROPERTIES_DEBUG                                                   \
+	"set_target_properties(test PROPERTIES\n"                                 \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                                   \
+	"\tOUTPUT_NAME test\n"                                                    \
+	"\tPREFIX \"\"\n"                                                         \
+	")\n"
+
+#define TARGET_PROPERTIES_RELEASE                                                   \
 	"set_target_properties(test PROPERTIES\n"                                   \
 	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
 	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
 	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
 	"\tARCHIVE_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
 	"\tLIBRARY_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
 	"\tRUNTIME_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
@@ -20,36 +40,50 @@
 	"\tPREFIX \"\"\n"                                                           \
 	")\n"
 
-#define TARGET_PROPERTIES_S                                                         \
-	"set_target_properties(test_s PROPERTIES\n"                                 \
-	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tARCHIVE_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tLIBRARY_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tRUNTIME_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tBUILD_RPATH \".\"\n"                                                     \
-	"\tOUTPUT_NAME test\n"                                                      \
-	"\tPREFIX \"\"\n"                                                           \
+#define TARGET_PROPERTIES_S                                                 \
+	"set_target_properties(test_s PROPERTIES\n"                         \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                             \
+	"\tOUTPUT_NAME test\n"                                              \
+	"\tPREFIX \"\"\n"                                                   \
 	")\n"
 
-#define TARGET_PROPERTIES_D                                                         \
-	"set_target_properties(test_d PROPERTIES\n"                                 \
-	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"         \
-	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"   \
-	"\tARCHIVE_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tLIBRARY_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tRUNTIME_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
-	"\tBUILD_RPATH \".\"\n"                                                     \
-	"\tOUTPUT_NAME test\n"                                                      \
-	"\tPREFIX \"\"\n"                                                           \
+#define TARGET_PROPERTIES_S_DEBUG                                                 \
+	"set_target_properties(test_s PROPERTIES\n"                               \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                                   \
+	"\tOUTPUT_NAME test\n"                                                    \
+	"\tPREFIX \"\"\n"                                                         \
+	")\n"
+
+#define TARGET_PROPERTIES_D                                                 \
+	"set_target_properties(test_d PROPERTIES\n"                         \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                             \
+	"\tOUTPUT_NAME test\n"                                              \
+	"\tPREFIX \"\"\n"                                                   \
+	")\n"
+
+#define TARGET_PROPERTIES_D_DEBUG                                                 \
+	"set_target_properties(test_d PROPERTIES\n"                               \
+	"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"       \
+	"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n" \
+	"\tBUILD_RPATH \".\"\n"                                                   \
+	"\tOUTPUT_NAME test\n"                                                    \
+	"\tPREFIX \"\"\n"                                                         \
 	")\n"
 
 TEST(t_pgc_gen_cm_empty)
@@ -91,7 +125,32 @@ TEST(t_pgc_gen_cm_args)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
+
+	cmake_free(&cmake);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_gen_cm_cwd)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_cwd(&pgc);
+
+	cmake_t cmake = { 0 };
+	cmake_init(&cmake, 8, 8, 8);
+
+	pgc_gen_cm(&pgc, &cmake);
+
+	char buf[2048] = { 0 };
+	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
+			"\n"
+			"add_executable(test ${test_SOURCE})\n"
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -501,7 +560,7 @@ TEST(t_pgc_gen_cm_run)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_RELEASE "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -526,7 +585,7 @@ TEST(t_pgc_gen_cm_run_debug)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -551,7 +610,7 @@ TEST(t_pgc_gen_cm_run_run_debug)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -657,6 +716,31 @@ TEST(t_pgc_gen_cm_bin_files)
 	END;
 }
 
+TEST(t_pgc_gen_cm_bin_run)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_bin_run(&pgc);
+
+	cmake_t cmake = { 0 };
+	cmake_init(&cmake, 8, 8, 8);
+
+	pgc_gen_cm(&pgc, &cmake);
+
+	char buf[2048] = { 0 };
+	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
+			"\n"
+			"add_executable(test ${test_SOURCE})\n"
+			"" TARGET_PROPERTIES_DEBUG "");
+
+	cmake_free(&cmake);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_gen_cm_elf)
 {
 	START;
@@ -745,7 +829,7 @@ TEST(t_pgc_gen_cm_archs)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -770,7 +854,20 @@ TEST(t_pgc_gen_cm_configs)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"set_target_properties(test PROPERTIES\n"
+			"\tARCHIVE_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tLIBRARY_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tRUNTIME_OUTPUT_DIRECTORY $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tARCHIVE_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tLIBRARY_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tRUNTIME_OUTPUT_DIRECTORY_DEBUG $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tARCHIVE_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tLIBRARY_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tRUNTIME_OUTPUT_DIRECTORY_RELEASE $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"\tBUILD_RPATH \".\"\n"
+			"\tOUTPUT_NAME test\n"
+			"\tPREFIX \"\"\n"
+			")\n");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -795,7 +892,7 @@ TEST(t_pgc_gen_cm_nasm_bin)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.nasm)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -820,7 +917,7 @@ TEST(t_pgc_gen_cm_nasm_exe)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.nasm)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES "");
+			"" TARGET_PROPERTIES_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -995,7 +1092,7 @@ TEST(t_pgc_gen_cm_c_static)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_library(test_s STATIC ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES_S "");
+			"" TARGET_PROPERTIES_S_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -1020,7 +1117,7 @@ TEST(t_pgc_gen_cm_c_shared)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_library(test_d SHARED ${test_SOURCE})\n"
-			"" TARGET_PROPERTIES_D "");
+			"" TARGET_PROPERTIES_D_DEBUG "");
 
 	cmake_free(&cmake);
 	pgc_free(&pgc);
@@ -1130,6 +1227,7 @@ STEST(t_pgc_gen_cm)
 	SSTART;
 	RUN(t_pgc_gen_cm_empty);
 	RUN(t_pgc_gen_cm_args);
+	RUN(t_pgc_gen_cm_cwd);
 	RUN(t_pgc_gen_cm_require);
 	RUN(t_pgc_gen_cm_lib_empty);
 	RUN(t_pgc_gen_cm_headers);
@@ -1152,6 +1250,7 @@ STEST(t_pgc_gen_cm)
 	RUN(t_pgc_gen_cm_artifact_lib);
 	RUN(t_pgc_gen_cm_bin_obj);
 	RUN(t_pgc_gen_cm_bin_files);
+	RUN(t_pgc_gen_cm_bin_run);
 	RUN(t_pgc_gen_cm_elf);
 	RUN(t_pgc_gen_cm_fat12);
 	RUN(t_pgc_gen_cm_fat12_header);

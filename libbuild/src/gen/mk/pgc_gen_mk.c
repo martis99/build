@@ -760,23 +760,34 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		}
 
 		if ((is_debug && pgc->target[PGC_TARGET_STR_RUN_DBG][b].data) || pgc->target[PGC_TARGET_STR_RUN][b].data || b == PGC_BUILD_EXE) {
-			run[b] = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("run"))), 0));
+			run[b] = make_add_act(make, make_create_rule(make, MRULE(MSTR(target_c[b].run)), 0));
 			make_rule_add_depend(make, run[b], MRULE(MSTR(STR("check"))));
 			make_rule_add_depend(make, run[b], MRULE(MVAR(target[b])));
 		}
 
 		if (is_debug && pgc->target[PGC_TARGET_STR_RUN_DBG][b].data) {
 			const make_if_t if_config = make_rule_add_act(make, run[b], make_create_if(make, MVAR(config), MSTR(STR("Debug"))));
-			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN_DBG][b]))));
+
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, pgc->target[PGC_TARGET_STR_RUN_DBG][b]);
+			make_if_add_true_act(make, if_config, make_create_cmd(make, MCMD(cmd)));
 			if (pgc->target[PGC_TARGET_STR_RUN][b].data) {
-				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN][b]))));
+				cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+				str_cat(&cmd, pgc->target[PGC_TARGET_STR_RUN][b]);
+				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(cmd)));
 			} else if (b == PGC_BUILD_EXE) {
-				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
+				cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+				str_cat(&cmd, STR("@$(TARGET) $(ARGS)"));
+				make_if_add_false_act(make, if_config, make_create_cmd(make, MCMD(cmd)));
 			}
 		} else if (pgc->target[PGC_TARGET_STR_RUN][b].data) {
-			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(str_cpy(pgc->target[PGC_TARGET_STR_RUN][b]))));
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, pgc->target[PGC_TARGET_STR_RUN][b]);
+			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(cmd)));
 		} else if (b == PGC_BUILD_EXE) {
-			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(STR("@$(TARGET) $(ARGS)"))));
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, STR("@$(TARGET) $(ARGS)"));
+			make_rule_add_act(make, run[b], make_create_cmd(make, MCMD(cmd)));
 		}
 
 		if (run[b] == MAKE_END || repdir == MAKE_END || lcov == MAKE_END) {
@@ -796,15 +807,19 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		make_rule_add_depend(make, rdebug, MRULE(MVAR(target[PGC_BUILD_EXE])));
 
 		if (pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data) {
-			make_rule_add_act(make, rdebug,
-					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].len,
-									  pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data))));
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, STR("@gdb --args "));
+			str_cat(&cmd, pgc->target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE]);
+			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(cmd)));
 		} else if (pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data) {
-			make_rule_add_act(make, rdebug,
-					  make_create_cmd(make, MCMD(strf("@gdb --args %.*s", pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].len,
-									  pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data))));
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, STR("@gdb --args "));
+			str_cat(&cmd, pgc->target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE]);
+			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(cmd)));
 		} else {
-			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(STR("@gdb --args $(TARGET) $(ARGS)"))));
+			str_t cmd = pgc->str[PGC_STR_CWD].data ? strf("@cd %.*s && ", pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].data) : strz(32);
+			str_cat(&cmd, STR("@gdb --args $(TARGET) $(ARGS)"));
+			make_rule_add_act(make, rdebug, make_create_cmd(make, MCMD(cmd)));
 		}
 	}
 

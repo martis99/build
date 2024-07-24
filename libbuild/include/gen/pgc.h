@@ -82,6 +82,7 @@ typedef enum pgc_str_e {
 	PGC_STR_ARGS,
 	PGC_STR_LDFLAGS,
 	PGC_STR_HEADER,
+	PGC_STR_CWD,
 	PGC_STR_SIZE,
 	PGC_STR_URL,
 	PGC_STR_FORMAT,
@@ -144,6 +145,7 @@ void pgc_add_define(pgc_t *pgc, str_t define, int intdirs);
 void pgc_add_ldflag(pgc_t *pgc, str_t ldflag);
 uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, pgc_link_type_t link_type, pgc_lib_type_t lib_type);
 uint pgc_add_depend(pgc_t *pgc, str_t depend);
+void pgc_set_cwd(pgc_t *pgc, str_t cwd);
 void pgc_set_run(pgc_t *pgc, str_t run, int builds);
 void pgc_set_run_debug(pgc_t *pgc, str_t run, int builds);
 uint pgc_add_file(pgc_t *pgc, str_t path, int ext);

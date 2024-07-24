@@ -465,6 +465,7 @@ TEST(t_pgc_gen_mk_args)
 			"ARGS := -D\n"
 			"\n"
 			"" CONFIG ""
+			"" CONFIG_DEBUG ""
 			".PHONY: all check compile run debug clean\n"
 			"\n"
 			"all: compile\n"
@@ -475,6 +476,52 @@ TEST(t_pgc_gen_mk_args)
 			"" TARGET_C ""
 			"" C_O ""
 			"" RUN_EXE ""
+			"" CLEAN_EXE_C "");
+
+	make_free(&make);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_gen_mk_cwd)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_cwd(&pgc);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	pgc_gen_mk(&pgc, &make);
+
+	char buf[2048] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "SRC_C := $(shell find src/ -name '*.c')\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
+			"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"TARGET := $(OUTDIR)test\n"
+			"ARGS :=\n"
+			"\n"
+			"" CONFIG ""
+			"" CONFIG_DEBUG ""
+			".PHONY: all check compile run debug clean\n"
+			"\n"
+			"all: compile\n"
+			"\n"
+			"" C_CHECK ""
+			"compile: check $(TARGET)\n"
+			"\n"
+			"" TARGET_C ""
+			"" C_O ""
+			"run: check $(TARGET)\n"
+			"\t@cd projects/test && @$(TARGET) $(ARGS)\n"
+			"\n"
+			"debug: check $(TARGET)\n"
+			"\t@cd projects/test && @gdb --args $(TARGET) $(ARGS)\n"
+			"\n"
 			"" CLEAN_EXE_C "");
 
 	make_free(&make);
@@ -1400,6 +1447,53 @@ TEST(t_pgc_gen_mk_bin_files)
 	END;
 }
 
+TEST(t_pgc_gen_mk_bin_run)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_bin_run(&pgc);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	pgc_gen_mk(&pgc, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "SRC_C := $(shell find src/ -name '*.c')\n"
+			"INTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/\n"
+			"OBJ_C := $(patsubst %.c, $(INTDIR)%.o, $(SRC_C))\n"
+			"OUTDIR := $(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/\n"
+			"TARGET_BIN := $(OUTDIR)test.bin\n"
+			"\n"
+			"" CONFIG ""
+			"" CONFIG_DEBUG ""
+			".PHONY: all check bin run_bin clean\n"
+			"\n"
+			"all: bin\n"
+			"\n"
+			"" C_CHECK ""
+			"bin: check $(TARGET_BIN)\n"
+			"\n"
+			"$(TARGET_BIN): $(OBJ_C)\n"
+			"\t@mkdir -p $(@D)\n"
+			"\t@$(TLD) -Tlinker.ld --oformat binary $(OBJ_C) $(LDFLAGS) -o $@\n"
+			"\n"
+			"" C_O ""
+			"run_bin: check $(TARGET_BIN)\n"
+			"\trun\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM) $(TARGET_BIN) $(OBJ_C)\n"
+			"\n");
+
+	make_free(&make);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_gen_mk_elf)
 {
 	START;
@@ -2133,6 +2227,7 @@ STEST(t_pgc_gen_mk)
 	SSTART;
 	RUN(t_pgc_gen_mk_empty);
 	RUN(t_pgc_gen_mk_args);
+	RUN(t_pgc_gen_mk_cwd);
 	RUN(t_pgc_gen_mk_require);
 	RUN(t_pgc_gen_mk_lib_empty);
 	RUN(t_pgc_gen_mk_headers);
@@ -2155,6 +2250,7 @@ STEST(t_pgc_gen_mk)
 	RUN(t_pgc_gen_mk_artifact_lib);
 	RUN(t_pgc_gen_mk_bin_obj);
 	RUN(t_pgc_gen_mk_bin_files);
+	RUN(t_pgc_gen_mk_bin_run);
 	RUN(t_pgc_gen_mk_elf);
 	RUN(t_pgc_gen_mk_fat12);
 	RUN(t_pgc_gen_mk_fat12_header);

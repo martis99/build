@@ -17,6 +17,23 @@ void pgc_gen_args(pgc_t *pgc)
 	pgc->builds = F_PGC_BUILD_EXE;
 
 	pgc_add_arch(pgc, STRH("x86_64"));
+	pgc_add_config(pgc, STRH("Debug"));
+	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+}
+
+void pgc_gen_cwd(pgc_t *pgc)
+{
+	pgc_init(pgc);
+
+	pgc->str[PGC_STR_NAME]				      = STRH("test");
+	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->str[PGC_STR_CWD]				      = STRH("projects/test");
+
+	pgc->builds = F_PGC_BUILD_EXE;
+
+	pgc_add_arch(pgc, STRH("x86_64"));
+	pgc_add_config(pgc, STRH("Debug"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
 }
 
@@ -334,6 +351,22 @@ void pgc_gen_bin_files(pgc_t *pgc)
 	pgc_add_file(pgc, STRH("file.elf"), PGC_FILE_ELF);
 
 	pgc->str[PGC_STR_SIZE] = STRH("1024");
+}
+
+void pgc_gen_bin_run(pgc_t *pgc)
+{
+	pgc_init(pgc);
+
+	pgc->str[PGC_STR_NAME]				      = STRH("test");
+	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+
+	pgc->builds = F_PGC_BUILD_BIN;
+
+	pgc_add_arch(pgc, STRH("x86_64"));
+	pgc_add_config(pgc, STRH("Debug"));
+	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+	pgc_set_run(pgc, STRH("run"), F_PGC_BUILD_BIN);
 }
 
 void pgc_gen_elf(pgc_t *pgc)
