@@ -1,32 +1,6 @@
 #include "gen/mk/pgc_gen_mk.h"
 
-#include "gen/pgc_types.h"
-
-static int is_arch(const pgc_t *pgc, str_t name)
-{
-	const str_t *arch;
-	arr_foreach(&pgc->arr[PGC_ARR_ARCHS], arch)
-	{
-		if (str_eq(*arch, name)) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static int is_config(const pgc_t *pgc, str_t name)
-{
-	const str_t *conf;
-	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
-	{
-		if (str_eq(*conf, name)) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
+#include "gen/pgc_common.h"
 
 make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 {
@@ -406,14 +380,14 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 
 	make_var_t bits = MAKE_END;
 	if (is_obj) {
-		if (is_arch(pgc, STR("x86_64"))) {
+		if (pgc_get_arch(pgc, STR("x86_64")) != PGC_END) {
 			const make_if_t if_x86_64   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("x86_64"))));
 			bits			    = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
 			const make_var_t bit_x86_64 = make_if_add_true_act(make, if_x86_64, bits);
 			make_var_add_val(make, bit_x86_64, MSTR(STR("64")));
 		}
 
-		if (is_arch(pgc, STR("i386"))) {
+		if (pgc_get_arch(pgc, STR("i386")) != PGC_END) {
 			const make_if_t if_i386	   = make_add_act(make, make_create_if(make, MVAR(arch), MSTR(STR("i386"))));
 			bits			   = make_create_var(make, STR("BITS"), MAKE_VAR_INST);
 			const make_var_t bits_i386 = make_if_add_true_act(make, if_i386, bits);
@@ -425,7 +399,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		}
 	}
 
-	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && is_config(pgc, STR("Debug"));
+	int is_debug = (nasm_config_flags != MAKE_END || gcc_config_flags != MAKE_END) && pgc_get_config(pgc, STR("Debug")) != PGC_END;
 
 	if (is_debug) {
 		const make_if_t if_config = make_add_act(make, make_create_if(make, MVAR(config), MSTR(STR("Debug"))));

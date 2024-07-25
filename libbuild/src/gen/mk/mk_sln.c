@@ -90,19 +90,6 @@ static void add_util_action(make_t *make, const dict_t *projects, const proj_t *
 	add_child_cmd(make, maction, proj, strc(action.data + 1, action.len - 1));
 }
 
-static int is_config(const pgc_t *pgc, str_t name)
-{
-	const str_t *conf;
-	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
-	{
-		if (str_eq(*conf, name)) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 int mk_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
@@ -265,8 +252,8 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 				continue;
 			}
 
-			if ((is_config(&proj->pgc, STR("Debug")) && proj->pgc.target[PGC_TARGET_STR_RUN_DBG][b].data) || proj->pgc.target[PGC_TARGET_STR_RUN][b].data ||
-			    b == PGC_BUILD_EXE) {
+			if ((pgc_get_config(&proj->pgc, STR("Debug")) != PGC_END && proj->pgc.target[PGC_TARGET_STR_RUN_DBG][b].data) ||
+			    proj->pgc.target[PGC_TARGET_STR_RUN][b].data || b == PGC_BUILD_EXE) {
 				add_run_action(&make, &sln->projects, proj, target_c[b].run);
 			}
 		}

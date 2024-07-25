@@ -136,7 +136,9 @@ pgc_t *pgc_init(pgc_t *pgc);
 void pgc_free(pgc_t *pgc);
 
 uint pgc_add_arch(pgc_t *pgc, str_t config);
+uint pgc_get_arch(const pgc_t *pgc, str_t name);
 uint pgc_add_config(pgc_t *pgc, str_t config);
+uint pgc_get_config(const pgc_t *pgc, str_t name);
 uint pgc_add_header(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_src(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_include(pgc_t *pgc, str_t dir);

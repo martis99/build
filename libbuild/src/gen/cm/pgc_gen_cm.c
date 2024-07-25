@@ -1,19 +1,6 @@
 #include "gen/cm/pgc_gen_cm.h"
 
-#include "gen/pgc_types.h"
-
-static int is_config(const pgc_t *pgc, str_t name)
-{
-	const str_t *conf;
-	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
-	{
-		if (str_eq(*conf, name)) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
+#include "gen/pgc_common.h"
 
 cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 {
@@ -260,13 +247,13 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR, str_cpy(buf));
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR, str_cpy(buf));
 
-			if (is_config(pgc, STR("Debug"))) {
+			if (pgc_get_config(pgc, STR("Debug")) != PGC_END) {
 				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_DBG, str_cpy(buf));
 				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_LIB_OUT_DIR_DBG, str_cpy(buf));
 				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_RUN_OUT_DIR_DBG, str_cpy(buf));
 			}
 
-			if (is_config(pgc, STR("Release"))) {
+			if (pgc_get_config(pgc, STR("Release")) != PGC_END) {
 				str_cpyd(pgc->str[PGC_STR_OUTDIR], &buf);
 				str_replace(&buf, STR("${CMAKE_BUILD_TYPE}"), STR("Release"));
 				cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_ARC_OUT_DIR_RLS, str_cpy(buf));

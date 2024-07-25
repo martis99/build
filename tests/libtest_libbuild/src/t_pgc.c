@@ -45,6 +45,24 @@ TEST(t_pgc_add_arch)
 	END;
 }
 
+TEST(t_pgc_get_arch)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_add_arch(&pgc, STRH("x86_64"));
+
+	EXPECT_EQ(pgc_get_arch(NULL, str_null()), PGC_END);
+	EXPECT_EQ(pgc_get_arch(&pgc, str_null()), PGC_END);
+	EXPECT_EQ(pgc_get_arch(&pgc, STR("x86_64")), 0);
+
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_add_config)
 {
 	START;
@@ -64,6 +82,24 @@ TEST(t_pgc_add_config)
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "CONFIGS\n"
 			"    Debug\n");
+
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_get_config)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_add_config(&pgc, STRH("Debug"));
+
+	EXPECT_EQ(pgc_get_config(NULL, str_null()), PGC_END);
+	EXPECT_EQ(pgc_get_config(&pgc, str_null()), PGC_END);
+	EXPECT_EQ(pgc_get_config(&pgc, STR("Debug")), 0);
 
 	pgc_free(&pgc);
 
@@ -421,7 +457,9 @@ STEST(t_pgc)
 	SSTART;
 	RUN(t_pgc_init_free);
 	RUN(t_pgc_add_arch);
+	RUN(t_pgc_get_arch);
 	RUN(t_pgc_add_config);
+	RUN(t_pgc_get_config);
 	RUN(t_pgc_add_header);
 	RUN(t_pgc_add_src);
 	RUN(t_pgc_add_include);

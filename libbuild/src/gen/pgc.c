@@ -1,6 +1,4 @@
-#include "gen/pgc.h"
-
-#include "pgc_types.h"
+#include "pgc_common.h"
 
 // clang-format off
 static const char *str_str[] = {
@@ -241,10 +239,44 @@ uint pgc_add_arch(pgc_t *pgc, str_t arch)
 	return add_str(pgc, PGC_ARR_ARCHS, arch);
 }
 
+uint pgc_get_arch(const pgc_t *pgc, str_t name)
+{
+	if (pgc == NULL) {
+		return PGC_END;
+	}
+
+	const str_t *arch;
+	arr_foreach(&pgc->arr[PGC_ARR_ARCHS], arch)
+	{
+		if (str_eq(*arch, name)) {
+			return _i;
+		}
+	}
+
+	return PGC_END;
+}
+
 //TODO: Add ability to set config name independent from config settings
 uint pgc_add_config(pgc_t *pgc, str_t config)
 {
 	return add_str(pgc, PGC_ARR_CONFIGS, config);
+}
+
+uint pgc_get_config(const pgc_t *pgc, str_t name)
+{
+	if (pgc == NULL) {
+		return PGC_END;
+	}
+
+	const str_t *conf;
+	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
+	{
+		if (str_eq(*conf, name)) {
+			return _i;
+		}
+	}
+
+	return PGC_END;
 }
 
 uint pgc_add_header(pgc_t *pgc, str_t dir, int exts)

@@ -1,5 +1,7 @@
-#ifndef PGC_TYPES_H
-#define PGC_TYPES_H
+#ifndef PGC_COMMON_H
+#define PGC_COMMON_H
+
+#include "gen/pgc.h"
 
 #include "str.h"
 
