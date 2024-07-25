@@ -1,5 +1,5 @@
-#ifndef PGC_GEN_VC_TASKS_H
-#define PGC_GEN_VC_TASKS_H
+#ifndef PGC_GEN_VC_LAUNCH_H
+#define PGC_GEN_VC_LAUNCH_H
 
 #include "gen/pgc.h"
 #include "json.h"

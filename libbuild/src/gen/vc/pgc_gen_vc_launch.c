@@ -71,7 +71,10 @@ static json_t *pgc_gen_vc_launch_cppdbg(const pgc_t *pgc, json_t *json, json_val
 
 	json_add_val(json, conf, STR("stopAtEntry"), JSON_BOOL(0));
 	if (pgc->str[PGC_STR_CWD].data) {
-		json_add_val(json, conf, STR("cwd"), JSON_STR(str_cpy(pgc->str[PGC_STR_CWD])));
+		str_t cwd = strn(pgc->str[PGC_STR_CWD].data, pgc->str[PGC_STR_CWD].len, pgc->str[PGC_STR_CWD].len + 10);
+		//TODO: Hardcoded
+		str_replace(&cwd, STR("$(SLNDIR)"), STR("${workspaceFolder}/"));
+		json_add_val(json, conf, STR("cwd"), JSON_STR(cwd));
 	}
 	json_add_val(json, conf, STR("environment"), JSON_ARR());
 	json_add_val(json, conf, STR("externalConsole"), JSON_BOOL(0));
@@ -96,7 +99,26 @@ static json_t *pgc_gen_vc_launch_cppdbg(const pgc_t *pgc, json_t *json, json_val
 
 static json_t *pgc_gen_vc_launch_f5anything(const pgc_t *pgc, json_t *json, json_val_t confs, pgc_build_type_t b, str_t arch, str_t config)
 {
-	add_launch_header(pgc, json, confs, STR("f5anything"), b, arch, config);
+	// clang-format off
+	static struct {
+		str_t act;
+	} target_c[] = {
+		[PGC_BUILD_EXE]	   = { STRS("compile") },
+		[PGC_BUILD_STATIC] = { STRS("static") },
+		[PGC_BUILD_SHARED] = { STRS("shared") },
+		[PGC_BUILD_ELF]	   = { STRS("elf") },
+		[PGC_BUILD_BIN]	   = { STRS("bin") },
+		[PGC_BUILD_FAT12]  = { STRS("fat12") },
+	};
+	// clang-format on
+
+	str_t name = pgc->str[PGC_STR_NAME];
+
+	const json_val_t conf = json_add_val(json, confs, str_null(), JSON_OBJ());
+	json_add_val(json, conf, STR("name"), JSON_STR(strf(NAME_FMT, NAME_ARGS(target_c[b].act, name, arch, config))));
+	json_add_val(json, conf, STR("type"), JSON_STR(STR("f5anything")));
+	json_add_val(json, conf, STR("request"), JSON_STR(STR("launch")));
+	json_add_val(json, conf, STR("preLaunchTask"), JSON_STR(strf(NAME_FMT, NAME_ARGS(target_c[b].act, name, arch, config))));
 
 	return json;
 }

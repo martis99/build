@@ -357,6 +357,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		if (dict_get(projects, header->value.val.data, header->value.val.len, (void **)&fproj)) {
 			ERR("project doesn't exist: '%.*s'", (int)header->value.val.len, header->value.val.data);
 		} else {
+			tmp.len = 0;
 			str_cat(&tmp, fproj->props[PROJ_PROP_OUTDIR].value.val);
 			if (fproj->props[PROJ_PROP_FILENAME].flags & PROP_SET) {
 				str_cat(&tmp, fproj->props[PROJ_PROP_FILENAME].value.val);
@@ -399,7 +400,15 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	const prop_t *wdir = &proj->props[PROJ_PROP_WDIR];
-	pgc_set_cwd(pgc, wdir->flags & PROP_SET ? str_cpy(wdir->value.val) : strn(proj->dir.path, proj->dir.len, proj->dir.len + 1));
+	if (wdir->flags & PROP_SET) {
+		pgc_set_cwd(pgc, str_cpy(resolve(wdir->value.val, &buf, proj)));
+	} else {
+		tmp.len = 0;
+		str_cat(&tmp, STR("$(SLN_DIR)"));
+		str_catc(&tmp, proj->rel_dir.path, proj->rel_dir.len);
+		resolve(tmp, &buf, proj);
+		pgc_set_cwd(pgc, str_cpy(buf));
+	}
 
 	const prop_t *size = &proj->props[PROJ_PROP_SIZE];
 	if (size->flags & PROP_SET) {

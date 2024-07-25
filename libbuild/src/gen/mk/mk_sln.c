@@ -90,11 +90,33 @@ static void add_util_action(make_t *make, const dict_t *projects, const proj_t *
 	add_child_cmd(make, maction, proj, strc(action.data + 1, action.len - 1));
 }
 
+static int is_config(const pgc_t *pgc, str_t name)
+{
+	const str_t *conf;
+	arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
+	{
+		if (str_eq(*conf, name)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int mk_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
+	}
+
+	int ret = 0;
+	const proj_t **pproj;
+	arr_foreach(&sln->build_order, pproj)
+	{
+		proj_t *proj = *(proj_t **)pproj;
+
+		ret |= mk_proj_gen(proj, &sln->projects, sln->props);
 	}
 
 	const prop_t *configs = &sln->props[SLN_PROP_CONFIGS];
@@ -214,7 +236,6 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	int artifacts = 0;
-	const proj_t **pproj;
 	arr_foreach(&sln->build_order, pproj)
 	{
 		const proj_t *proj = *pproj;
@@ -226,8 +247,31 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 			add_compile_action(&make, &sln->projects, proj, all, 1);
 		}
 
+		// clang-format off
+		static struct {
+			str_t run;
+		} target_c[] = {
+			[PGC_BUILD_EXE]	   = { STRS("/run") },
+			[PGC_BUILD_STATIC] = { STRS("/run_s") },
+			[PGC_BUILD_SHARED] = { STRS("/run_d") },
+			[PGC_BUILD_ELF]	   = { STRS("/run_elf") },
+			[PGC_BUILD_BIN]	   = { STRS("/run_bin" ) },
+			[PGC_BUILD_FAT12]  = { STRS("/run_fat12") },
+		};
+		// clang-format on
+
+		for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
+			if (proj->pgc.str[PGC_STR_OUTDIR].data == NULL || proj->pgc.str[PGC_STR_NAME].data == NULL || (proj->pgc.builds & (1 << b)) == 0) {
+				continue;
+			}
+
+			if ((is_config(&proj->pgc, STR("Debug")) && proj->pgc.target[PGC_TARGET_STR_RUN_DBG][b].data) || proj->pgc.target[PGC_TARGET_STR_RUN][b].data ||
+			    b == PGC_BUILD_EXE) {
+				add_run_action(&make, &sln->projects, proj, target_c[b].run);
+			}
+		}
+
 		if (proj_runnable(proj)) {
-			add_run_action(&make, &sln->projects, proj, STR("/run"));
 			add_run_action(&make, &sln->projects, proj, STR("/debug"));
 		}
 
@@ -277,15 +321,6 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		ERR("generating solution: %s failed", cmake_path.path);
 	} else {
 		SUC("generating solution: %s success", cmake_path.path);
-	}
-
-	int ret = 0;
-
-	arr_foreach(&sln->build_order, pproj)
-	{
-		proj_t *proj = *(proj_t **)pproj;
-
-		ret |= mk_proj_gen(proj, &sln->projects, sln->props);
 	}
 
 	return ret;

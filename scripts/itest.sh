@@ -95,7 +95,7 @@ DEXTLIB: test"
 
 	status "mk" "$1" "$2" "fat12"
 	mkdir -p itests/tmp/logs/"$1"-"$2"/projects/fat12
-	if ! make $make_flags -C itests fat12/run ARCH="$1" CONFIG="$2" >itests/tmp/logs/"$1"-"$2"/projects/fat12/run.log 2>&1; then
+	if ! make $make_flags -C itests fat12/run_fat12 ARCH="$1" CONFIG="$2" >itests/tmp/logs/"$1"-"$2"/projects/fat12/run.log 2>&1; then
 		printf "\033[0;31mFAILED\033[0m\n"
 		ret=1
 	else

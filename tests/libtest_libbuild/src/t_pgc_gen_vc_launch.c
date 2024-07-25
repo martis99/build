@@ -356,7 +356,7 @@ TEST(t_pgc_gen_vc_launch_c_static)
 	json_print(&json, tasks, PRINT_DST_BUF(buf, sizeof(buf), 0), "    ");
 	EXPECT_STR(buf, "[\n"
 			"    {\n"
-			"        \"name\": \"run_s-test-x86_64-Debug\",\n"
+			"        \"name\": \"static-test-x86_64-Debug\",\n"
 			"        \"type\": \"f5anything\",\n"
 			"        \"request\": \"launch\",\n"
 			"        \"preLaunchTask\": \"static-test-x86_64-Debug\"\n"
@@ -386,7 +386,7 @@ TEST(t_pgc_gen_vc_launch_c_shared)
 	json_print(&json, tasks, PRINT_DST_BUF(buf, sizeof(buf), 0), "    ");
 	EXPECT_STR(buf, "[\n"
 			"    {\n"
-			"        \"name\": \"run_d-test-x86_64-Debug\",\n"
+			"        \"name\": \"shared-test-x86_64-Debug\",\n"
 			"        \"type\": \"f5anything\",\n"
 			"        \"request\": \"launch\",\n"
 			"        \"preLaunchTask\": \"shared-test-x86_64-Debug\"\n"

@@ -4,8 +4,8 @@
 #include "gen/mk/mk_sln.h"
 #include "gen/proj.h"
 #include "gen/var.h"
+#include "gen/vc/pgc_gen_vc_launch.h"
 #include "gen/vc/pgc_gen_vc_tasks.h"
-#include "vc_proj.h"
 
 #include <errno.h>
 
@@ -90,11 +90,7 @@ int vc_sln_gen(sln_t *sln, const path_t *path)
 		{
 			proj_t *proj = pair->value;
 
-			if (!proj_runnable(proj)) {
-				continue;
-			}
-
-			vc_proj_gen_launch(proj, &sln->projects, sln->props, &json, confs);
+			pgc_gen_vc_launch(&proj->pgc, &json, confs);
 		}
 
 		FILE *file = file_open(launch_path.path, "w");
