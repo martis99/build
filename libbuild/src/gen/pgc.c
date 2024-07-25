@@ -58,6 +58,7 @@ static const char *intdir_str_str[] = {
 };
 
 static const char *target_str_str[] = {
+	[PGC_TARGET_STR_TARGET]	  = "TARGET",
 	[PGC_TARGET_STR_RUN]	  = "RUN",
 	[PGC_TARGET_STR_RUN_DBG]  = "RUN_DBG",
 	[PGC_TARGET_STR_ARTIFACT] = "ARTIFACT",
@@ -432,6 +433,76 @@ uint pgc_add_require(pgc_t *pgc, str_t require)
 uint pgc_add_copyfile(pgc_t *pgc, str_t path)
 {
 	return add_str(pgc, PGC_ARR_COPYFILES, path);
+}
+
+pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *dst_vars, size_t vars_cnt)
+{
+	if (src == NULL || dst == NULL) {
+		return NULL;
+	}
+
+	for (pgc_str_t i = 0; i < __PGC_STR_MAX; i++) {
+		if (src->str[i].data == NULL || src->str[i].len == 0) {
+			continue;
+		}
+
+		dst->str[i] = strn(src->str[i].data, src->str[i].len, 256);
+		str_replaces(&dst->str[i], src_vars, dst_vars, vars_cnt);
+	}
+
+	for (pgc_arr_t i = 0; i < __PGC_ARR_MAX; i++) {
+		if (src->arr[i].cnt == 0) {
+			continue;
+		}
+
+		if (arr_init(&dst->arr[i], src->arr[i].cnt, src->arr[i].size) == NULL) {
+			return NULL;
+		}
+
+		str_t *src_str;
+		arr_foreach(&src->arr[i], src_str)
+		{
+			str_t *dst_str = arr_get(&dst->arr[i], arr_add(&dst->arr[i]));
+
+			*dst_str = strn(src_str->data, src_str->len, 256);
+			str_replaces(dst_str, src_vars, dst_vars, vars_cnt);
+		}
+	}
+
+	for (pgc_str_t s = 0; s < __PGC_INTDIR_STR_MAX; s++) {
+		for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
+			if (src->intdir[s][i].data == NULL || src->intdir[s][i].len == 0) {
+				continue;
+			}
+
+			dst->intdir[s][i] = strn(src->intdir[s][i].data, src->intdir[s][i].len, 256);
+			str_replaces(&dst->intdir[s][i], src_vars, dst_vars, vars_cnt);
+		}
+	}
+
+	for (pgc_str_t s = 0; s < __PGC_TARGET_STR_MAX; s++) {
+		for (pgc_build_type_t i = 0; i < __PGC_BUILD_TYPE_MAX; i++) {
+			if (src->target[s][i].data == NULL || src->target[s][i].len == 0) {
+				continue;
+			}
+
+			dst->target[s][i] = strn(src->target[s][i].data, src->target[s][i].len, 256);
+			str_replaces(&dst->target[s][i], src_vars, dst_vars, vars_cnt);
+		}
+	}
+
+	for (pgc_str_t s = 0; s < __PGC_SRC_STR_MAX; s++) {
+		for (pgc_src_type_t i = 0; i < __PGC_SRC_TYPE_MAX; i++) {
+			if (src->src[s][i].data == NULL || src->src[s][i].len == 0) {
+				continue;
+			}
+
+			dst->src[s][i] = strn(src->src[s][i].data, src->src[s][i].len, 256);
+			str_replaces(&dst->src[s][i], src_vars, dst_vars, vars_cnt);
+		}
+	}
+
+	return dst;
 }
 
 int pgc_print(const pgc_t *pgc, print_dst_t dst)

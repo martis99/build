@@ -1,6 +1,7 @@
 #include "gen/mk/mk_sln.h"
 
 #include "gen/mk/make.h"
+#include "gen/proj_gen.h"
 #include "gen/var.h"
 #include "mk_proj.h"
 
@@ -97,11 +98,21 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		return 1;
 	}
 
+	str_t vars[__PROJ_VAR_MAX] = { 0 };
+
 	int ret = 0;
 	const proj_t **pproj;
 	arr_foreach(&sln->build_order, pproj)
 	{
 		proj_t *proj = *(proj_t **)pproj;
+
+		proj_gen(proj, &sln->projects, sln->props, resolve, resolve_path, &proj->pgc);
+
+		mk_proj_get_vars(proj, vars);
+		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX);
+
+		make_init(&proj->gen.make, 8, 8, 8);
+		pgc_gen_mk(&proj->pgc, &proj->gen.make);
 
 		ret |= mk_proj_gen(proj, &sln->projects, sln->props);
 	}

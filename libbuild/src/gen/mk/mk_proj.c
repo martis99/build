@@ -7,6 +7,16 @@
 
 #include "common.h"
 
+str_t *mk_proj_get_vars(const proj_t *proj, str_t *vars)
+{
+	vars[PROJ_VAR_SLNDIR]	= STR("$(SLNDIR)");
+	vars[PROJ_VAR_PROJDIR]	= strc(proj->rel_dir.path, proj->rel_dir.len);
+	vars[PROJ_VAR_PROJNAME] = strc(proj->name.data, proj->name.len);
+	vars[PROJ_VAR_CONFIG]	= STR("$(CONFIG)");
+	vars[PROJ_VAR_ARCH]	= STR("$(ARCH)");
+	return vars;
+}
+
 //TODO: Resolve when reading config file
 static str_t resolve_path(str_t rel, str_t path, str_t *buf)
 {
@@ -48,11 +58,6 @@ int mk_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 	}
 
 	MSG("generating project: %s", gen_path.path);
-
-	proj_gen(proj, projects, sln_props, resolve, resolve_path, &proj->pgc);
-
-	make_init(&proj->gen.make, 8, 8, 8);
-	pgc_gen_mk(&proj->pgc, &proj->gen.make);
 
 	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {

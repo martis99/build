@@ -4,7 +4,25 @@
 
 #include "gen/sln.h"
 
-static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, resolve_fn resolve, resolve_path_fn resolve_path, pgc_t *pgc)
+static str_t resolve_path(str_t rel, str_t path, str_t *buf)
+{
+	if (str_eqn(path, STR("$(SLNDIR)"), 9)) {
+		str_cpyd(path, buf);
+		return *buf;
+	}
+
+	buf->len = 0;
+	str_cat(buf, STR("$(SLNDIR)"));
+	str_cat(buf, rel);
+	str_cat(buf, path);
+	return *buf;
+}
+
+static int add_target(pgc_t *pgc, str_t outdir, str_t name, str_t ext)
+{
+}
+
+static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, pgc_t *pgc)
 {
 	char buf_d[P_MAX_PATH] = { 0 };
 	char tmp_d[P_MAX_PATH] = { 0 };
@@ -22,25 +40,31 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 	pgc->str[PGC_STR_NAME] = str_cpy(*filename);
 
-	switch (proj->props[PROJ_PROP_TYPE].mask) {
-	case PROJ_TYPE_EXE:
-		pgc->builds = F_PGC_BUILD_EXE;
-		break;
-	case PROJ_TYPE_BIN:
-		pgc->builds = F_PGC_BUILD_BIN;
-		break;
-	case PROJ_TYPE_ELF:
-		pgc->builds = F_PGC_BUILD_ELF;
-		break;
-	case PROJ_TYPE_FAT12:
-		pgc->builds = F_PGC_BUILD_FAT12;
-		break;
-	case PROJ_TYPE_LIB:
-		pgc->builds = F_PGC_BUILD_STATIC | F_PGC_BUILD_SHARED;
-		break;
-	case PROJ_TYPE_EXT:
-		break;
-	}
+	// clang-format off
+	static struct {
+		pgc_build_type_t build;
+		int builds;
+	} type_c[] = {
+		[PROJ_TYPE_EXE]	  = { PGC_BUILD_EXE,    F_PGC_BUILD_EXE },
+		[PROJ_TYPE_LIB]	  = { PGC_BUILD_STATIC, F_PGC_BUILD_STATIC | F_PGC_BUILD_SHARED},
+		[PROJ_TYPE_ELF]	  = { PGC_BUILD_ELF,    F_PGC_BUILD_ELF }, 
+		[PROJ_TYPE_BIN]	  = { PGC_BUILD_BIN,    F_PGC_BUILD_BIN }, 
+		[PROJ_TYPE_FAT12] = { PGC_BUILD_FAT12,  F_PGC_BUILD_FAT12 },
+	};
+
+	static struct {
+		const char *ext;
+	} build_c[] = {
+		[PGC_BUILD_EXE]	  = { ""     },
+		[PGC_BUILD_STATIC]= { ".a"   },
+		[PGC_BUILD_SHARED]= { ".so"  },
+		[PGC_BUILD_ELF]	  = { ".elf" }, 
+		[PGC_BUILD_BIN]	  = { ".bin" }, 
+		[PGC_BUILD_FAT12] = { ".img" },
+	};
+	// clang-format on
+
+	pgc->builds = type_c[proj->props[PROJ_PROP_TYPE].mask].builds;
 
 	const prop_t *outdir = &proj->props[PROJ_PROP_OUTDIR];
 	if (outdir->flags & PROP_SET) {
@@ -53,6 +77,26 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			break;
 		}
 		default:
+			break;
+		}
+	}
+
+	if (outdir->flags & PROP_SET && filename->data != NULL && pgc->builds) {
+		tmp.len = 0;
+		str_cat(&tmp, outdir->value.val);
+		str_cat(&tmp, *filename);
+
+		switch (proj->props[PROJ_PROP_TYPE].mask) {
+		case PROJ_TYPE_LIB:
+			pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC] =
+				strf("%.*s%.*s%s", outdir->value.val.len, outdir->value.val.data, filename->len, filename->data, build_c[PGC_BUILD_STATIC].ext);
+			pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED] =
+				strf("%.*s%.*s%s", outdir->value.val.len, outdir->value.val.data, filename->len, filename->data, build_c[PGC_BUILD_SHARED].ext);
+			break;
+		default:
+			pgc->target[PGC_TARGET_STR_TARGET][type_c[proj->props[PROJ_PROP_TYPE].mask].build] =
+				strf("%.*s%.*s%s", outdir->value.val.len, outdir->value.val.data, filename->len, filename->data,
+				     build_c[type_c[proj->props[PROJ_PROP_TYPE].mask].build].ext);
 			break;
 		}
 	}
@@ -171,7 +215,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		}
 
 		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			pgc_add_include(pgc, str_cpy(resolve(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf), &buf, iproj)));
+			pgc_add_include(pgc, str_cpy(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf)));
 		}
 	}
 
@@ -180,7 +224,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		for (uint k = 0; k < defines->cnt; k++) {
 			const prop_str_t *define = arr_get(defines, k);
-			pgc_add_define(pgc, resolve(define->val, &buf, proj), F_PGC_INTDIR_OBJECT | F_PGC_BUILD_STATIC | F_PGC_INTDIR_SHARED);
+			pgc_add_define(pgc, define->val, F_PGC_INTDIR_OBJECT | F_PGC_BUILD_STATIC | F_PGC_INTDIR_SHARED);
 		}
 	}
 
@@ -348,7 +392,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	const prop_str_t *copyfile;
 	arr_foreach(&proj->props[PROJ_PROP_COPYFILES].arr, copyfile)
 	{
-		pgc_add_copyfile(pgc, str_cpy(resolve(copyfile->val, &buf, proj)));
+		pgc_add_copyfile(pgc, str_cpy(copyfile->val));
 	}
 
 	const prop_t *header = &proj->props[PROJ_PROP_HEADER];
@@ -357,16 +401,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 		if (dict_get(projects, header->value.val.data, header->value.val.len, (void **)&fproj)) {
 			ERR("project doesn't exist: '%.*s'", (int)header->value.val.len, header->value.val.data);
 		} else {
-			tmp.len = 0;
-			str_cat(&tmp, fproj->props[PROJ_PROP_OUTDIR].value.val);
-			if (fproj->props[PROJ_PROP_FILENAME].flags & PROP_SET) {
-				str_cat(&tmp, fproj->props[PROJ_PROP_FILENAME].value.val);
-			} else {
-				str_cat(&tmp, fproj->name);
-			}
-
-			str_cat(&tmp, STR(".bin"));
-			pgc->str[PGC_STR_HEADER] = str_cpy(resolve(tmp, &buf, fproj));
+			pgc->str[PGC_STR_HEADER] = str_cpy(fproj->pgcr.target[PGC_TARGET_STR_TARGET][type_c[fproj->props[PROJ_PROP_TYPE].mask].build]);
 		}
 	}
 
@@ -379,29 +414,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 			continue;
 		}
 
-		tmp.len = 0;
-		str_cat(&tmp, fproj->props[PROJ_PROP_OUTDIR].value.val);
-		if (fproj->props[PROJ_PROP_FILENAME].flags & PROP_SET) {
-			str_cat(&tmp, fproj->props[PROJ_PROP_FILENAME].value.val);
-		} else {
-			str_cat(&tmp, fproj->name);
-		}
-
-		switch (fproj->props[PROJ_PROP_TYPE].mask) {
-		case PROJ_TYPE_BIN:
-			str_cat(&tmp, STR(".bin"));
-			pgc_add_file(pgc, str_cpy(resolve(tmp, &buf, fproj)), PGC_FILE_BIN);
-			break;
-		case PROJ_TYPE_ELF:
-			str_cat(&tmp, STR(".elf"));
-			pgc_add_file(pgc, str_cpy(resolve(tmp, &buf, fproj)), PGC_FILE_ELF);
-			break;
-		}
+		pgc_add_file(pgc, str_cpy(fproj->pgcr.target[PGC_TARGET_STR_TARGET][type_c[fproj->props[PROJ_PROP_TYPE].mask].build]), PGC_FILE_ELF);
 	}
 
 	const prop_t *wdir = &proj->props[PROJ_PROP_WDIR];
 	if (wdir->flags & PROP_SET) {
-		pgc_set_cwd(pgc, str_cpy(resolve(wdir->value.val, &buf, proj)));
+		pgc_set_cwd(pgc, str_cpy(wdir->value.val));
 	} else {
 		tmp.len = 0;
 		str_cat(&tmp, STR("$(SLN_DIR)"));
@@ -417,18 +435,18 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	const prop_t *run = &proj->props[PROJ_PROP_RUN];
 	if (run->flags & PROP_SET) {
-		pgc_set_run(pgc, str_cpy(resolve(run->value.val, &buf, proj)), pgc->builds);
+		pgc_set_run(pgc, str_cpy(run->value.val), pgc->builds);
 	}
 
 	const prop_t *drun = &proj->props[PROJ_PROP_DRUN];
 	if (drun->flags & PROP_SET) {
-		pgc_set_run_debug(pgc, str_cpy(resolve(drun->value.val, &buf, proj)), pgc->builds);
+		pgc_set_run_debug(pgc, str_cpy(drun->value.val), pgc->builds);
 	}
 
 	return 0;
 }
 
-static int gen_url(const proj_t *proj, resolve_fn resolve, resolve_path_fn resolve_path, pgc_t *pgc)
+static int gen_url(const proj_t *proj, pgc_t *pgc)
 {
 	char buf_d[P_MAX_PATH] = { 0 };
 
@@ -445,7 +463,7 @@ static int gen_url(const proj_t *proj, resolve_fn resolve, resolve_path_fn resol
 	}
 
 	if (proj->props[PROJ_PROP_OUTDIR].flags & PROP_SET) {
-		pgc->str[PGC_STR_OUTDIR] = str_cpy(resolve(proj->props[PROJ_PROP_OUTDIR].value.val, &buf, proj));
+		pgc->str[PGC_STR_OUTDIR] = str_cpy(proj->props[PROJ_PROP_OUTDIR].value.val);
 	}
 
 	const prop_str_t *require;
@@ -465,11 +483,11 @@ static int gen_url(const proj_t *proj, resolve_fn resolve, resolve_path_fn resol
 	return 0;
 }
 
-int proj_gen(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, resolve_fn resolve, resolve_path_fn resolve_path, pgc_t *pgc)
+int proj_gen(const proj_t *proj, const dict_t *projects, const prop_t *sln_props, pgc_t *pgc)
 {
 	if (proj->props[PROJ_PROP_URL].flags & PROP_SET) {
-		return gen_url(proj, resolve, resolve_path, pgc);
+		return gen_url(proj, pgc);
 	}
 
-	return gen_source(proj, projects, sln_props, resolve, resolve_path, pgc);
+	return gen_source(proj, projects, sln_props, pgc);
 }

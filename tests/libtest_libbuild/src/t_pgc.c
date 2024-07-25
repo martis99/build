@@ -452,6 +452,157 @@ TEST(t_pgc_print)
 	END;
 }
 
+TEST(t_pgc_replace_vars)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_t pgcr = { 0 };
+
+	EXPECT_EQ(pgc_replace_vars(NULL, NULL, NULL, NULL, 0), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, NULL, NULL, NULL, 0), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, NULL, NULL, 0), &pgcr);
+
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_replace_vars_str)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc.str[PGC_STR_NAME] = STR("$(PROJNAME)");
+
+	pgc_t pgcr = { 0 };
+	str_t from = STR("$(PROJNAME)");
+	str_t to   = STR("name");
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "NAME: name\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_replace_vars_arr)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_add_arch(&pgc, STRH("$(ARCH)"));
+
+	pgc_t pgcr = { 0 };
+	str_t from = STR("$(ARCH)");
+	str_t to   = STR("x86_64");
+	mem_oom(1);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1), NULL);
+	mem_oom(0);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "ARCHS\n"
+			"    x86_64\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_replace_vars_src)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc.src[PGC_SRC_STR_FLAGS][PGC_SRC_C] = STR("-m$(BITS)");
+
+	pgc_t pgcr = { 0 };
+	str_t from = STR("$(BITS)");
+	str_t to   = STR("64");
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "FLAGS\n"
+			"    C: -m64\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_replace_vars_intdir)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc.intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STR("$(INTDIR)");
+
+	pgc_t pgcr = { 0 };
+	str_t from = STR("$(INTDIR)");
+	str_t to   = STR("bin");
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "INTDIR\n"
+			"    OBJECT: bin\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_replace_vars_target)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc.target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE] = STR("$(OUTDIR)$(NAME)");
+
+	pgc_t pgcr   = { 0 };
+	str_t from[] = {
+		STR("$(OUTDIR)"),
+		STR("$(NAME)"),
+	};
+	str_t to[] = {
+		STR("bin/projects/test/"),
+		STR("test"),
+	};
+	pgc_replace_vars(&pgc, &pgcr, from, to, 2);
+
+	char buf[1024] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "RUN\n"
+			"    EXE: bin/projects/test/test\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
 STEST(t_pgc)
 {
 	SSTART;
@@ -474,6 +625,12 @@ STEST(t_pgc)
 	RUN(t_pgc_add_file);
 	RUN(t_pgc_add_require);
 	RUN(t_pgc_add_copyfile);
+	RUN(t_pgc_replace_vars);
+	RUN(t_pgc_replace_vars_str);
+	RUN(t_pgc_replace_vars_arr);
+	RUN(t_pgc_replace_vars_src);
+	RUN(t_pgc_replace_vars_intdir);
+	RUN(t_pgc_replace_vars_target);
 	RUN(t_pgc_print);
 	SEND;
 }

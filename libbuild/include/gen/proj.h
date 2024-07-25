@@ -55,13 +55,32 @@ typedef enum proj_prop_e {
 	__PROJ_PROP_MAX,
 } proj_prop_t;
 
+typedef enum proj_var_e {
+	PROJ_VAR_SLNDIR,
+	PROJ_VAR_PROJDIR,
+	PROJ_VAR_PROJNAME,
+	PROJ_VAR_CONFIG,
+	PROJ_VAR_ARCH,
+
+	__PROJ_VAR_MAX
+} proj_var_t;
+
+// clang-format off
+static const str_t s_proj_vars[] = {
+	[PROJ_VAR_SLNDIR]   = STRS("SLNDIR"),
+	[PROJ_VAR_PROJDIR]  = STRS("PROJDIR"),
+	[PROJ_VAR_PROJNAME] = STRS("PROJNAME"),
+	[PROJ_VAR_CONFIG]   = STRS("CONFIG"),
+	[PROJ_VAR_ARCH]	    = STRS("ARCH"),
+};
+// clang-format on
+
 typedef enum proj_type_e {
 	PROJ_TYPE_UNKNOWN,
-	PROJ_TYPE_LIB,
 	PROJ_TYPE_EXE,
-	PROJ_TYPE_EXT, //TODO: Remove
-	PROJ_TYPE_BIN,
+	PROJ_TYPE_LIB,
 	PROJ_TYPE_ELF,
+	PROJ_TYPE_BIN,
 	PROJ_TYPE_FAT12,
 
 	__PROJ_TYPE_MAX,
@@ -72,7 +91,6 @@ static const str_t s_proj_types[] = {
 	[PROJ_TYPE_UNKNOWN] = STRS(""),
 	[PROJ_TYPE_LIB]	    = STRS("LIB"),
 	[PROJ_TYPE_EXE]	    = STRS("EXE"),
-	[PROJ_TYPE_EXT]	    = STRS("EXT"),
 	[PROJ_TYPE_BIN]	    = STRS("BIN"),
 	[PROJ_TYPE_ELF]	    = STRS("ELF"),
 	[PROJ_TYPE_FAT12]   = STRS("FAT12"),
@@ -166,6 +184,7 @@ typedef struct proj_s {
 	arr_t includes;
 	const struct dir_s *parent;
 	pgc_t pgc;
+	pgc_t pgcr;
 	union {
 		make_t make;
 		cmake_t cmake;

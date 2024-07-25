@@ -2,6 +2,7 @@
 
 #include "cm_dir.h"
 #include "cm_proj.h"
+#include "gen/proj_gen.h"
 
 #include "common.h"
 
@@ -11,6 +12,20 @@
 
 #define CMAKE_VERSION_MAJOR 3
 #define CMAKE_VERSION_MINOR 16
+
+static str_t resolve_path(str_t rel, str_t path, str_t *buf)
+{
+	if (str_eqn(path, STR("$(SLN_DIR)"), 9)) {
+		str_cpyd(path, buf);
+		return *buf;
+	}
+
+	buf->len = 0;
+	str_cat(buf, STR("$(SLN_DIR)"));
+	str_cat(buf, rel);
+	str_cat(buf, path);
+	return *buf;
+}
 
 int cm_sln_gen(sln_t *sln, const path_t *path)
 {
@@ -131,9 +146,21 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 		ret |= cm_dir_gen(pair->value, path);
 	}
 
-	dict_foreach(&sln->projects, pair)
+	str_t vars[__PROJ_VAR_MAX] = { 0 };
+
+	int ret = 0;
+	const proj_t **pproj;
+	arr_foreach(&sln->build_order, pproj)
 	{
-		proj_t *proj = pair->value;
+		proj_t *proj = *(proj_t **)pproj;
+
+		proj_gen(proj, &sln->projects, sln->props, resolve, resolve_path, &proj->pgc);
+
+		cm_proj_get_vars(proj, vars);
+		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX);
+
+		cmake_init(&proj->gen.cmake, 16, 8, 16);
+		pgc_gen_cm(&proj->pgc, &proj->gen.make);
 
 		ret |= cm_proj_gen(proj, &sln->projects, sln->props);
 	}

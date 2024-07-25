@@ -232,14 +232,14 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	// clang-format on
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (outdir == MAKE_END || pgc->str[PGC_STR_NAME].data == NULL || (pgc->builds & (1 << b)) == 0) {
+		if (pgc->target[PGC_TARGET_STR_TARGET]->data == NULL) {
 			continue;
 		}
 
 		is_vars = 1;
 
 		target[b] = make_add_act(make, make_create_var(make, target_c[b].name, MAKE_VAR_INST));
-		make_var_add_val(make, target[b], MSTR(strf("$(OUTDIR)%.*s%s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].ext)));
+		make_var_add_val(make, target[b], MSTR(str_cpy(pgc->target[PGC_TARGET_STR_TARGET][b])));
 	}
 
 	make_var_t args = MAKE_END;
