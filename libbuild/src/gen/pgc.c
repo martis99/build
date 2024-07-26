@@ -435,7 +435,16 @@ uint pgc_add_copyfile(pgc_t *pgc, str_t path)
 	return add_str(pgc, PGC_ARR_COPYFILES, path);
 }
 
-pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *dst_vars, size_t vars_cnt)
+static void convert_slash(str_t str)
+{
+	for (size_t i = 0; i < str.len; i++) {
+		if (str.data[i] == '\\') {
+			((char *)str.data)[i] = '/';
+		}
+	}
+}
+
+pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt)
 {
 	if (src == NULL || dst == NULL) {
 		return NULL;
@@ -448,6 +457,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *ds
 
 		dst->str[i] = strn(src->str[i].data, src->str[i].len, 256);
 		str_replaces(&dst->str[i], src_vars, dst_vars, vars_cnt);
+		convert_slash(dst->str[i]);
 	}
 
 	for (pgc_arr_t i = 0; i < __PGC_ARR_MAX; i++) {
@@ -466,6 +476,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *ds
 
 			*dst_str = strn(src_str->data, src_str->len, 256);
 			str_replaces(dst_str, src_vars, dst_vars, vars_cnt);
+			convert_slash(*dst_str);
 		}
 	}
 
@@ -477,6 +488,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *ds
 
 			dst->intdir[s][i] = strn(src->intdir[s][i].data, src->intdir[s][i].len, 256);
 			str_replaces(&dst->intdir[s][i], src_vars, dst_vars, vars_cnt);
+			convert_slash(dst->intdir[s][i]);
 		}
 	}
 
@@ -488,6 +500,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *ds
 
 			dst->target[s][i] = strn(src->target[s][i].data, src->target[s][i].len, 256);
 			str_replaces(&dst->target[s][i], src_vars, dst_vars, vars_cnt);
+			convert_slash(dst->target[s][i]);
 		}
 	}
 
@@ -499,6 +512,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *ds
 
 			dst->src[s][i] = strn(src->src[s][i].data, src->src[s][i].len, 256);
 			str_replaces(&dst->src[s][i], src_vars, dst_vars, vars_cnt);
+			convert_slash(dst->src[s][i]);
 		}
 	}
 

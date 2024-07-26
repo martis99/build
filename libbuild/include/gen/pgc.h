@@ -155,7 +155,7 @@ uint pgc_add_file(pgc_t *pgc, str_t path, int ext);
 uint pgc_add_require(pgc_t *pgc, str_t require);
 uint pgc_add_copyfile(pgc_t *pgc, str_t path);
 
-pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, str_t *src_vars, str_t *dst_vars, size_t vars_cnt);
+pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt);
 
 int pgc_print(const pgc_t *pgc, print_dst_t dst);
 

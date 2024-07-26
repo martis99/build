@@ -3,7 +3,9 @@
 #include "common.h"
 
 #include "gen/sln.h"
+#include "pgc_common.h"
 
+//TODO: Resolve when reading config file
 static str_t resolve_path(str_t rel, str_t path, str_t *buf)
 {
 	if (str_eqn(path, STR("$(SLNDIR)"), 9)) {
@@ -68,7 +70,7 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	const prop_t *outdir = &proj->props[PROJ_PROP_OUTDIR];
 	if (outdir->flags & PROP_SET) {
-		pgc->str[PGC_STR_OUTDIR] = str_cpy(resolve(outdir->value.val, &buf, proj));
+		pgc->str[PGC_STR_OUTDIR] = str_cpy(outdir->value.val);
 		switch (proj->props[PROJ_PROP_TYPE].mask) {
 		case PROJ_TYPE_EXE: {
 			str_t c = strn(buf.data, buf.len, buf.len + 5);
@@ -104,20 +106,18 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	if (proj->props[PROJ_PROP_SOURCE].arr.cnt > 0) {
 		const prop_t *intdir = &proj->props[PROJ_PROP_INTDIR];
 		if (intdir->flags & PROP_SET) {
-			resolve(intdir->value.val, &buf, proj);
 			switch (proj->props[PROJ_PROP_TYPE].mask) {
 			case PROJ_TYPE_EXE:
 			case PROJ_TYPE_BIN:
 			case PROJ_TYPE_ELF:
-				pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = str_cpy(buf);
+				pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = str_cpy(intdir->value.val);
 				break;
 			case PROJ_TYPE_LIB: {
-				resolve(intdir->value.val, &buf, proj);
-				str_t s = strn(buf.data, buf.len, buf.len + 8);
+				str_t s = strn(intdir->value.val.data, intdir->value.val.len, intdir->value.val.len + 8);
 				str_cat(&s, STR("static/"));
 				pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = s;
 
-				str_t d = strn(buf.data, buf.len, buf.len + 8);
+				str_t d = strn(intdir->value.val.data, intdir->value.val.len, intdir->value.val.len + 8);
 				str_cat(&d, STR("shared/"));
 				pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = d;
 				break;
@@ -191,17 +191,17 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	}
 
 	if (proj->props[PROJ_PROP_ARGS].flags & PROP_SET) {
-		pgc->str[PGC_STR_ARGS] = str_cpy(resolve(proj->props[PROJ_PROP_ARGS].value.val, &buf, proj));
+		pgc->str[PGC_STR_ARGS] = str_cpy(proj->props[PROJ_PROP_ARGS].value.val);
 	}
 
 	arr_foreach(&proj->props[PROJ_PROP_SOURCE].arr, source)
 	{
-		pgc_add_include(pgc, str_cpy(resolve(source->val, &buf, proj)));
+		pgc_add_include(pgc, str_cpy(source->val));
 	}
 
 	arr_foreach(&proj->props[PROJ_PROP_INCLUDE].arr, include)
 	{
-		pgc_add_include(pgc, str_cpy(resolve(include->val, &buf, proj)));
+		pgc_add_include(pgc, str_cpy(include->val));
 	}
 
 	for (uint i = 0; i < proj->includes.cnt; i++) {
@@ -209,13 +209,10 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		str_t rel = strc(iproj->rel_dir.path, iproj->rel_dir.len);
 
-		arr_foreach(&iproj->props[PROJ_PROP_INCLUDE].arr, include)
+		str_t *inc;
+		arr_foreach(&iproj->pgcr.arr[PGC_ARR_INCLUDES], inc)
 		{
-			pgc_add_include(pgc, str_cpy(resolve(resolve_path(rel, include->val, &buf), &buf, iproj)));
-		}
-
-		if (iproj->props[PROJ_PROP_ENCLUDE].flags & PROP_SET) {
-			pgc_add_include(pgc, str_cpy(resolve_path(rel, iproj->props[PROJ_PROP_ENCLUDE].value.val, &buf)));
+			pgc_add_include(pgc, str_cpy(resolve_path(rel, *inc, &buf)));
 		}
 	}
 
@@ -304,10 +301,8 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 			if (dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-				const prop_t *doutdir = &dep->proj->props[PROJ_PROP_OUTDIR];
-
-				if (doutdir->flags & PROP_SET) {
-					resolve(resolve_path(rel, doutdir->value.val, &buf), &buf, dep->proj);
+				if (dep->proj->pgcr.str[PGC_STR_OUTDIR].data) {
+					resolve_path(rel, dep->proj->pgcr.str[PGC_STR_OUTDIR], &buf);
 
 					if (dep->link_type == LINK_TYPE_SHARED) {
 						pgc_add_lib(pgc, str_cpy(buf), str_cpy(dep->proj->name), PGC_LINK_SHARED, PGC_LIB_INT);
@@ -318,36 +313,37 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 						pgc_add_lib(pgc, str_cpy(buf), str_cpy(dep->proj->name), PGC_LINK_STATIC, PGC_LIB_INT);
 					}
 				}
-			} else {
-				const prop_t *lib = &dep->proj->props[PROJ_PROP_LIB];
-				if (dep->link_type == LINK_TYPE_STATIC && lib->flags & PROP_SET) {
-					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
-					pgc_add_lib(pgc, str_cpy(buf), strs(lib->value.val), PGC_LINK_STATIC, PGC_LIB_EXT);
-				}
-
-				const prop_t *dlib = &dep->proj->props[PROJ_PROP_DLIB];
-				if (dep->link_type == LINK_TYPE_SHARED && dlib->flags & PROP_SET) {
-					resolve(resolve_path(rel, STR(""), &buf), &buf, dep->proj);
-					pgc_add_lib(pgc, str_cpy(buf), str_cpy(dlib->value.val), PGC_LINK_SHARED, PGC_LIB_EXT);
-					resolve(resolve_path(rel, dlib->value.val, &buf), &buf, dep->proj);
-					pgc_add_copyfile(pgc, strf("%.*s.so", buf.len, buf.data));
-				}
 			}
 		}
 
-		const prop_str_t *libdir;
-		arr_foreach(&dep->proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
+		pgc_lib_data_t *lib;
+		arr_foreach(&dep->proj->pgcr.arr[PGC_ARR_LIBS], lib)
 		{
-			resolve(resolve_path(rel, libdir->val, &buf), &buf, dep->proj);
-			pgc_add_lib(pgc, str_cpy(buf), str_null(), PGC_LINK_SHARED, PGC_LIB_EXT);
+			pgc_add_lib(pgc, str_cpy(lib->dir), str_cpy(lib->name), dep->link_type == LINK_TYPE_STATIC ? PGC_LINK_STATIC : PGC_LINK_SHARED, lib->lib_type);
 		}
+	}
 
-		//TODO: Not needed anymore? Replaced with LIB
-		const prop_str_t *link;
-		arr_foreach(&dep->proj->props[PROJ_PROP_LINK].arr, link)
-		{
-			pgc_add_lib(pgc, str_null(), str_cpy(link->val), PGC_LINK_SHARED, PGC_LIB_EXT);
-		}
+	str_t rel = strc(proj->rel_dir.path, proj->rel_dir.len);
+
+	const prop_t *lib = &proj->props[PROJ_PROP_LIB];
+	if (lib->flags & PROP_SET) {
+		resolve_path(rel, STR(""), &buf);
+		pgc_add_lib(pgc, str_cpy(buf), strs(lib->value.val), __PGC_LINK_TYPE_MAX, PGC_LIB_EXT);
+	}
+
+	const prop_t *dlib = &proj->props[PROJ_PROP_DLIB];
+	if (dlib->flags & PROP_SET) {
+		resolve_path(rel, STR(""), &buf);
+		pgc_add_lib(pgc, str_cpy(buf), str_cpy(dlib->value.val), __PGC_LINK_TYPE_MAX, PGC_LIB_EXT);
+		resolve_path(rel, dlib->value.val, &buf);
+		pgc_add_copyfile(pgc, strf("%.*s.so", buf.len, buf.data));
+	}
+
+	const prop_str_t *libdir;
+	arr_foreach(&proj->props[PROJ_PROP_LIBDIRS].arr, libdir)
+	{
+		resolve_path(rel, libdir->val, &buf);
+		pgc_add_lib(pgc, str_cpy(libdir->val), str_null(), __PGC_LINK_TYPE_MAX, PGC_LIB_EXT);
 	}
 
 	if ((flags->flags & PROP_SET) && (flags->mask & (1 << FLAG_WHOLEARCHIVE))) {
@@ -421,11 +417,10 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 	if (wdir->flags & PROP_SET) {
 		pgc_set_cwd(pgc, str_cpy(wdir->value.val));
 	} else {
-		tmp.len = 0;
-		str_cat(&tmp, STR("$(SLN_DIR)"));
-		str_catc(&tmp, proj->rel_dir.path, proj->rel_dir.len);
-		resolve(tmp, &buf, proj);
-		pgc_set_cwd(pgc, str_cpy(buf));
+		str_t cwd = strz(10 + proj->rel_dir.len);
+		str_cat(&cwd, STR("$(SLNDIR)"));
+		str_catc(&cwd, proj->rel_dir.path, proj->rel_dir.len);
+		pgc_set_cwd(pgc, cwd);
 	}
 
 	const prop_t *size = &proj->props[PROJ_PROP_SIZE];

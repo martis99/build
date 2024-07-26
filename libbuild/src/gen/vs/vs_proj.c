@@ -376,10 +376,8 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 
 	if (shared) {
 		config_types[PROJ_TYPE_LIB] = (lib_type_t){ CSTR("DynamicLibrary") };
-		config_types[PROJ_TYPE_EXT] = (lib_type_t){ CSTR("DynamicLibrary") };
 	} else {
 		config_types[PROJ_TYPE_LIB] = (lib_type_t){ CSTR("StaticLibrary") };
-		config_types[PROJ_TYPE_EXT] = (lib_type_t){ CSTR("StaticLibrary") };
 	}
 
 	const struct {
@@ -608,7 +606,7 @@ int vs_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props, i
 			for (uint i = 0; i < depends->cnt; i++) {
 				const proj_dep_t *dep = arr_get(depends, i);
 
-				if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_EXT) {
+				if (dep->proj->props[PROJ_PROP_SOURCE].mask & PROP_SET) {
 					path_t rel_path = { 0 };
 					if (dep->link_type == LINK_TYPE_SHARED) {
 						path_calc_rel(proj->gen_path.path, proj->gen_path.len, dep->proj->gen_path_d.path, dep->proj->gen_path_d.len, &rel_path);

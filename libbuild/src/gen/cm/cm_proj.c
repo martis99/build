@@ -17,33 +17,6 @@ str_t *cm_proj_get_vars(const proj_t *proj, str_t *vars)
 	return vars;
 }
 
-//TODO: Resolve when reading config file
-static str_t resolve_path(str_t rel, str_t path, str_t *buf)
-{
-	if (str_eqn(path, STR("$(SLN_DIR)"), 9)) {
-		str_cpyd(path, buf);
-		return *buf;
-	}
-
-	buf->len = 0;
-	str_cat(buf, STR("$(SLN_DIR)"));
-	str_cat(buf, rel);
-	str_cat(buf, path);
-	return *buf;
-}
-
-static str_t resolve(str_t str, str_t *buf, const proj_t *proj)
-{
-	str_cpyd(str, buf);
-	str_replace(buf, STR("$(SLN_DIR)"), STR("${CMAKE_SOURCE_DIR}/"));
-	str_replace(buf, STR("$(PROJ_DIR)"), strc(proj->rel_dir.path, proj->rel_dir.len));
-	str_replace(buf, STR("$(PROJ_NAME)"), strc(proj->name.data, proj->name.len));
-	str_replace(buf, STR("$(CONFIG)"), STR("${CMAKE_BUILD_TYPE}"));
-	str_replace(buf, STR("$(ARCH)"), STR("${ARCH}"));
-	convert_slash((char *)buf->data, buf->len);
-	return *buf;
-}
-
 int cm_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 {
 	path_t gen_path = { 0 };
@@ -60,11 +33,6 @@ int cm_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 	}
 
 	MSG("generating project: %s", gen_path.path);
-
-	proj_gen(proj, projects, sln_props, resolve, resolve_path, &proj->pgc);
-
-	cmake_init(&proj->gen.cmake, 16, 8, 16);
-	pgc_gen_cm(&proj->pgc, &proj->gen.cmake);
 
 	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {

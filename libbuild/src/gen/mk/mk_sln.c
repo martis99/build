@@ -1,26 +1,12 @@
 #include "gen/mk/mk_sln.h"
 
 #include "gen/mk/make.h"
+#include "gen/mk/pgc_gen_mk.h"
 #include "gen/proj_gen.h"
 #include "gen/var.h"
 #include "mk_proj.h"
 
 #include "common.h"
-
-static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const proj_t *proj)
-{
-	size_t buf_len = prop->val.len;
-	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
-
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("$(SLNDIR)"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), proj->name.data, proj->name.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(CONFIG)"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PLATFORM)"), CSTR("$(PLATFORM)"), NULL);
-	convert_slash(buf, buf_len);
-
-	return buf_len;
-}
 
 static void add_child_cmd(make_t *make, make_rule_t rule, const proj_t *proj, str_t target)
 {
@@ -106,7 +92,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj = *(proj_t **)pproj;
 
-		proj_gen(proj, &sln->projects, sln->props, resolve, resolve_path, &proj->pgc);
+		proj_gen(proj, &sln->projects, sln->props, &proj->pgc);
 
 		mk_proj_get_vars(proj, vars);
 		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX);
@@ -151,14 +137,8 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		const proj_t *proj = pair->value;
 
 		char buf[P_MAX_PATH] = { 0 };
-		char out[P_MAX_PATH] = { 0 };
 
 		size_t buf_len;
-		size_t out_len;
-
-		const prop_str_t *outdir = &proj->props[PROJ_PROP_OUTDIR].value;
-
-		out_len = resolve(outdir, CSTR(out), proj);
 
 		const prop_t *exports = &proj->props[PROJ_PROP_EXPORT];
 
@@ -171,7 +151,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 			buf_len = export->val.len;
 			mem_cpy(CSTR(buf), export->val.data, export->val.len);
-			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), out, out_len, NULL);
+			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), proj->pgcr.str[PGC_STR_OUTDIR].data, proj->pgcr.str[PGC_STR_OUTDIR].len, NULL);
 
 			if (first) {
 				make_add_act(&make, make_create_empty(&make));

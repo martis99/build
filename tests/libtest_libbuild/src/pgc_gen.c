@@ -12,6 +12,7 @@ void pgc_gen_args(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 	pgc->str[PGC_STR_ARGS]				      = STRH("-D");
 
 	pgc->builds = F_PGC_BUILD_EXE;
@@ -114,6 +115,7 @@ void pgc_gen_libs(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -133,6 +135,7 @@ void pgc_gen_depends(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -148,6 +151,7 @@ void pgc_gen_coverage_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 	pgc->str[PGC_STR_COVDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	pgc->builds = F_PGC_BUILD_EXE;
@@ -163,6 +167,7 @@ void pgc_gen_coverage_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 	pgc->str[PGC_STR_COVDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
@@ -178,6 +183,7 @@ void pgc_gen_coverage_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 	pgc->str[PGC_STR_COVDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/cov/");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
@@ -193,6 +199,7 @@ void pgc_gen_defines_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -209,6 +216,7 @@ void pgc_gen_defines_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
@@ -225,6 +233,7 @@ void pgc_gen_defines_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
 
@@ -252,6 +261,7 @@ void pgc_gen_run(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -268,6 +278,7 @@ void pgc_gen_run_debug(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -284,6 +295,7 @@ void pgc_gen_run_run_debug(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -301,6 +313,7 @@ void pgc_gen_artifact_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 	pgc->target[PGC_TARGET_STR_ARTIFACT][PGC_BUILD_EXE]   = STRH("test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
@@ -316,6 +329,7 @@ void pgc_gen_artifact_lib(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				       = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			       = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC]  = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]   = STRH("$(OUTDIR)test.a");
 	pgc->target[PGC_TARGET_STR_ARTIFACT][PGC_BUILD_STATIC] = STRH("test");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
@@ -331,6 +345,7 @@ void pgc_gen_bin_obj(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_BIN]     = STRH("$(OUTDIR)test.bin");
 
 	pgc->builds = F_PGC_BUILD_BIN;
 
@@ -342,8 +357,9 @@ void pgc_gen_bin_files(pgc_t *pgc)
 {
 	pgc_init(pgc);
 
-	pgc->str[PGC_STR_NAME]	 = STRH("test");
-	pgc->str[PGC_STR_OUTDIR] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->str[PGC_STR_NAME]				  = STRH("test");
+	pgc->str[PGC_STR_OUTDIR]			  = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_BIN] = STRH("$(OUTDIR)test.bin");
 
 	pgc->builds = F_PGC_BUILD_BIN;
 
@@ -360,6 +376,7 @@ void pgc_gen_bin_run(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_BIN]     = STRH("$(OUTDIR)test.bin");
 
 	pgc->builds = F_PGC_BUILD_BIN;
 
@@ -376,6 +393,7 @@ void pgc_gen_elf(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_ELF]     = STRH("$(OUTDIR)test.elf");
 
 	pgc->builds = F_PGC_BUILD_ELF;
 
@@ -387,8 +405,9 @@ void pgc_gen_fat12(pgc_t *pgc)
 {
 	pgc_init(pgc);
 
-	pgc->str[PGC_STR_NAME]	 = STRH("test");
-	pgc->str[PGC_STR_OUTDIR] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->str[PGC_STR_NAME]				    = STRH("test");
+	pgc->str[PGC_STR_OUTDIR]			    = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_FAT12] = STRH("$(OUTDIR)test.img");
 
 	pgc->builds = F_PGC_BUILD_FAT12;
 
@@ -402,10 +421,11 @@ void pgc_gen_fat12_header(pgc_t *pgc)
 {
 	pgc_init(pgc);
 
-	pgc->str[PGC_STR_NAME]	 = STRH("test");
-	pgc->str[PGC_STR_OUTDIR] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
-	pgc->str[PGC_STR_HEADER] = STRH("file.bin");
-	pgc->str[PGC_STR_SIZE]	 = STRH("1024");
+	pgc->str[PGC_STR_NAME]				    = STRH("test");
+	pgc->str[PGC_STR_OUTDIR]			    = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_FAT12] = STRH("$(OUTDIR)test.img");
+	pgc->str[PGC_STR_HEADER]			    = STRH("file.bin");
+	pgc->str[PGC_STR_SIZE]				    = STRH("1024");
 
 	pgc->builds = F_PGC_BUILD_FAT12;
 
@@ -419,6 +439,7 @@ void pgc_gen_archs(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -435,6 +456,7 @@ void pgc_gen_configs(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -451,6 +473,7 @@ void pgc_gen_nasm_bin(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_BIN]     = STRH("$(OUTDIR)test.bin");
 
 	pgc->builds = F_PGC_BUILD_BIN;
 
@@ -466,6 +489,7 @@ void pgc_gen_nasm_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -481,6 +505,7 @@ void pgc_gen_nasm_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
@@ -495,6 +520,7 @@ void pgc_gen_nasm_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
 
@@ -509,6 +535,7 @@ void pgc_gen_asm_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -523,6 +550,7 @@ void pgc_gen_asm_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
@@ -537,6 +565,7 @@ void pgc_gen_asm_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
 
@@ -551,6 +580,7 @@ void pgc_gen_c_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -565,6 +595,7 @@ void pgc_gen_c_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
@@ -580,6 +611,7 @@ void pgc_gen_c_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
 
@@ -595,6 +627,7 @@ void pgc_gen_cpp_exe(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
@@ -609,6 +642,7 @@ void pgc_gen_cpp_static(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_STATIC] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_STATIC]  = STRH("$(OUTDIR)test.a");
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
@@ -623,6 +657,7 @@ void pgc_gen_cpp_shared(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_SHARED] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_SHARED]  = STRH("$(OUTDIR)test.so");
 
 	pgc->builds = F_PGC_BUILD_SHARED;
 
