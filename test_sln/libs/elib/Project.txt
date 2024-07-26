@@ -1,5 +1,5 @@
 NAME = elib
 TYPE = EXT
 LINK = slib
-ENCLUDE = $(SLN_DIR)\libs\slib\inc
-LIBDIRS = $(SLN_DIR)\libs\slib\bin\$(CONFIG)-$(PLATFORM)\
+ENCLUDE = $(SLNDIR)\libs\slib\inc
+LIBDIRS = $(SLNDIR)\libs\slib\bin\$(CONFIG)-$(PLATFORM)\

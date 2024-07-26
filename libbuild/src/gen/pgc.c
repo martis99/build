@@ -1,5 +1,7 @@
 #include "pgc_common.h"
 
+#include "mem.h"
+
 // clang-format off
 static const char *str_str[] = {
 	[PGC_STR_NAME]	  = "NAME",
@@ -66,6 +68,24 @@ static const char *target_str_str[] = {
 
 static const char *src_str_str[] = { [PGC_SRC_STR_FLAGS] = "FLAGS" };
 
+static void convert_slash(str_t str)
+{
+	for (size_t i = 0; i < str.len; i++) {
+		if (str.data[i] == '\\') {
+			((char *)str.data)[i] = '/';
+		}
+	}
+}
+
+static void pgc_str_replace(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt)
+{
+	str_t *str = ptr;
+
+	*str = strn(str->data, str->len, 256);
+	str_replaces(str, src_vars, dst_vars, vars_cnt);
+	convert_slash(*str);
+}
+
 static void pgc_str_free(void *ptr)
 {
 	str_t *str = ptr;
@@ -83,6 +103,15 @@ static int pgc_str_dprint(void *ptr, print_dst_t dst)
 	}
 
 	return dst.off - off;
+}
+
+static void pgc_str_flag_replace(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt)
+{
+	pgc_str_flags_t *data = ptr;
+
+	data->str = strn(data->str.data, data->str.len, 256);
+	str_replaces(&data->str, src_vars, dst_vars, vars_cnt);
+	convert_slash(data->str);
 }
 
 static void pgc_str_flag_free(void *ptr)
@@ -104,6 +133,37 @@ static int pgc_str_flag_dprint(void *ptr, print_dst_t dst)
 	return dst.off - off;
 }
 
+static int pgc_include_dprint(void *ptr, print_dst_t dst)
+{
+	pgc_str_flags_t *data = ptr;
+
+	int off = dst.off;
+
+	static const char *scope_str[] = {
+		[PGC_SCOPE_PRIVATE] = "PRIVATE",
+		[PGC_SCOPE_PUBLIC]  = "PUBLIC",
+	};
+
+	if (data->str.data) {
+		dst.off += dprintf(dst, "    %.*s (%s)\n", data->str.len, data->str.data, scope_str[data->flags]);
+	}
+
+	return dst.off - off;
+}
+
+static void pgc_lib_replace(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt)
+{
+	pgc_lib_data_t *data = ptr;
+
+	data->dir = strn(data->dir.data, data->dir.len, 256);
+	str_replaces(&data->dir, src_vars, dst_vars, vars_cnt);
+	convert_slash(data->dir);
+
+	data->name = strn(data->name.data, data->name.len, 256);
+	str_replaces(&data->name, src_vars, dst_vars, vars_cnt);
+	convert_slash(data->name);
+}
+
 static void pgc_lib_free(void *ptr)
 {
 	pgc_lib_data_t *lib = ptr;
@@ -117,29 +177,62 @@ static int pgc_lib_dprint(void *ptr, print_dst_t dst)
 
 	int off = dst.off;
 
-	if (lib->dir.data || lib->name.data) {
-		dst.off += dprintf(dst, "    dir: %.*s, name: %.*s\n", lib->dir.len, lib->dir.data, lib->name.len, lib->name.data);
+	static const char *link_type_str[] = {
+		[PGC_LINK_STATIC] = "STATIC",
+		[PGC_LINK_SHARED] = "SHARED",
+	};
+
+	static const char *lib_type_str[] = {
+		[PGC_LIB_INT] = "INT",
+		[PGC_LIB_EXT] = "EXT",
+	};
+
+	dst.off += dprintf(dst, "    ");
+
+	if (lib->dir.data) {
+		dst.off += dprintf(dst, "dir: %.*s ", lib->dir.len, lib->dir.data);
 	}
+
+	if (lib->name.data) {
+		dst.off += dprintf(dst, "name: %.*s ", lib->name.len, lib->name.data);
+	}
+
+	dst.off += dprintf(dst, "(%s, %s)\n", link_type_str[lib->link_type], lib_type_str[lib->lib_type]);
 
 	return dst.off - off;
 }
 
-// clang-format off
-struct {
+typedef enum pgc_arr_cfg_e {
+	PGC_ARR_STR,
+	PGC_ARR_FLAG,
+	PGC_ARR_INCLUDE,
+	PGC_ARR_LIB,
+} pgc_arr_cfg_t;
+
+static struct {
 	size_t size;
-	void (*free)(void *ptr);
+	void (*replace)(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt);
 	int (*dprint)(void *ptr, print_dst_t dst);
-} s_arr_c[] = {
-	[PGC_ARR_ARCHS]	    = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
-	[PGC_ARR_CONFIGS]   = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
-	[PGC_ARR_HEADERS]   = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
-	[PGC_ARR_SRCS]	    = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
-	[PGC_ARR_INCLUDES]  = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
-	[PGC_ARR_LIBS]	    = { sizeof(pgc_lib_data_t),	 pgc_lib_free,	    pgc_lib_dprint },
-	[PGC_ARR_DEPENDS]   = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
-	[PGC_ARR_FILES]	    = { sizeof(pgc_str_flags_t), pgc_str_flag_free, pgc_str_flag_dprint },
-	[PGC_ARR_REQUIRES]  = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
-	[PGC_ARR_COPYFILES] = { sizeof(str_t),		 pgc_str_free,	    pgc_str_dprint },
+	void (*free)(void *ptr);
+} s_arr_type[] = {
+	[PGC_ARR_STR]	  = { sizeof(str_t), pgc_str_replace, pgc_str_dprint, pgc_str_free },
+	[PGC_ARR_FLAG]	  = { sizeof(pgc_str_flags_t), pgc_str_flag_replace, pgc_str_flag_dprint, pgc_str_flag_free },
+	[PGC_ARR_INCLUDE] = { sizeof(pgc_str_flags_t), pgc_str_flag_replace, pgc_include_dprint, pgc_str_flag_free },
+	[PGC_ARR_LIB]	  = { sizeof(pgc_lib_data_t), pgc_lib_replace, pgc_lib_dprint, pgc_lib_free },
+};
+
+// clang-format off
+pgc_arr_cfg_t s_arr_cfg[] = {
+	[PGC_ARR_ARCHS]	    = PGC_ARR_STR,
+	[PGC_ARR_CONFIGS]   = PGC_ARR_STR,
+	[PGC_ARR_HEADERS]   = PGC_ARR_FLAG,
+	[PGC_ARR_SRCS]	    = PGC_ARR_FLAG,
+	[PGC_ARR_INCLUDES]  = PGC_ARR_INCLUDE,
+	[PGC_ARR_LIBS]	    = PGC_ARR_LIB,
+	[PGC_ARR_DEPENDS]   = PGC_ARR_STR,
+	[PGC_ARR_FILES]	    = PGC_ARR_FLAG,
+	[PGC_ARR_REQUIRES]  = PGC_ARR_STR,
+	[PGC_ARR_COPYFILES] = PGC_ARR_STR,
 };
 // clang-format on
 
@@ -150,7 +243,7 @@ pgc_t *pgc_init(pgc_t *pgc)
 	}
 
 	for (pgc_arr_t i = 0; i < __PGC_ARR_MAX; i++) {
-		if (arr_init(&pgc->arr[i], 1, s_arr_c[i].size) == NULL) {
+		if (arr_init(&pgc->arr[i], 1, s_arr_type[s_arr_cfg[i]].size) == NULL) {
 			return NULL;
 		}
 	}
@@ -172,7 +265,7 @@ void pgc_free(pgc_t *pgc)
 		void *val;
 		arr_foreach(&pgc->arr[i], val)
 		{
-			s_arr_c[i].free(val);
+			s_arr_type[s_arr_cfg[i]].free(val);
 		}
 		arr_free(&pgc->arr[i]);
 	}
@@ -290,9 +383,9 @@ uint pgc_add_src(pgc_t *pgc, str_t dir, int exts)
 	return add_str_flags(pgc, PGC_ARR_SRCS, dir, exts);
 }
 
-uint pgc_add_include(pgc_t *pgc, str_t dir)
+uint pgc_add_include(pgc_t *pgc, str_t dir, pgc_scope_t scope)
 {
-	return add_str(pgc, PGC_ARR_INCLUDES, dir);
+	return add_str_flags(pgc, PGC_ARR_INCLUDES, dir, scope);
 }
 
 void pgc_add_flag(pgc_t *pgc, str_t flag, int exts)
@@ -435,15 +528,6 @@ uint pgc_add_copyfile(pgc_t *pgc, str_t path)
 	return add_str(pgc, PGC_ARR_COPYFILES, path);
 }
 
-static void convert_slash(str_t str)
-{
-	for (size_t i = 0; i < str.len; i++) {
-		if (str.data[i] == '\\') {
-			((char *)str.data)[i] = '/';
-		}
-	}
-}
-
 pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt)
 {
 	if (src == NULL || dst == NULL) {
@@ -465,7 +549,7 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, con
 			continue;
 		}
 
-		if (arr_init(&dst->arr[i], src->arr[i].cnt, src->arr[i].size) == NULL) {
+		if (arr_init(&dst->arr[i], src->arr[i].cnt, s_arr_type[s_arr_cfg[i]].size) == NULL) {
 			return NULL;
 		}
 
@@ -473,10 +557,9 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, con
 		arr_foreach(&src->arr[i], src_str)
 		{
 			str_t *dst_str = arr_get(&dst->arr[i], arr_add(&dst->arr[i]));
+			mem_cpy(dst_str, s_arr_type[s_arr_cfg[i]].size, src_str, s_arr_type[s_arr_cfg[i]].size);
 
-			*dst_str = strn(src_str->data, src_str->len, 256);
-			str_replaces(dst_str, src_vars, dst_vars, vars_cnt);
-			convert_slash(*dst_str);
+			s_arr_type[s_arr_cfg[i]].replace(dst_str, src_vars, dst_vars, vars_cnt);
 		}
 	}
 
@@ -543,7 +626,7 @@ int pgc_print(const pgc_t *pgc, print_dst_t dst)
 		void *val;
 		arr_foreach(&pgc->arr[i], val)
 		{
-			dst.off += s_arr_c[i].dprint(val, dst);
+			dst.off += s_arr_type[s_arr_cfg[i]].dprint(val, dst);
 		}
 	}
 

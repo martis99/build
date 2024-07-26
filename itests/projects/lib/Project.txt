@@ -1,0 +1,7 @@
+NAME = lib
+TYPE = LIB
+LANGS = C
+SOURCE = src
+INCLUDE = include
+DEPENDS = ext, liblib
+INCLUDES = ext, liblib

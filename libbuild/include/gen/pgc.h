@@ -75,6 +75,11 @@ typedef enum pgc_lib_type_e {
 	PGC_LIB_EXT,
 } pgc_lib_type_t;
 
+typedef enum pgc_scope_e {
+	PGC_SCOPE_PRIVATE,
+	PGC_SCOPE_PUBLIC,
+} pgc_scope_t;
+
 typedef enum pgc_str_e {
 	PGC_STR_NAME,
 	PGC_STR_OUTDIR,
@@ -142,7 +147,7 @@ uint pgc_add_config(pgc_t *pgc, str_t config);
 uint pgc_get_config(const pgc_t *pgc, str_t name);
 uint pgc_add_header(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_src(pgc_t *pgc, str_t dir, int exts);
-uint pgc_add_include(pgc_t *pgc, str_t dir);
+uint pgc_add_include(pgc_t *pgc, str_t dir, pgc_scope_t scope);
 void pgc_add_flag(pgc_t *pgc, str_t flag, int exts);
 void pgc_add_define(pgc_t *pgc, str_t define, int intdirs);
 void pgc_add_ldflag(pgc_t *pgc, str_t ldflag);

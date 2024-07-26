@@ -29,6 +29,7 @@ void pgc_gen_cwd(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 	pgc->str[PGC_STR_CWD]				      = STRH("projects/test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
@@ -74,8 +75,8 @@ void pgc_gen_includes(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
-	pgc_add_include(pgc, STRH("src/"));
-	pgc_add_include(pgc, STRH("include/"));
+	pgc_add_include(pgc, STRH("src/"), PGC_SCOPE_PRIVATE);
+	pgc_add_include(pgc, STRH("include/"), PGC_SCOPE_PUBLIC);
 }
 
 void pgc_gen_flags(pgc_t *pgc)
@@ -99,6 +100,7 @@ void pgc_gen_ldflags(pgc_t *pgc)
 	pgc->str[PGC_STR_NAME]				      = STRH("test");
 	pgc->str[PGC_STR_OUTDIR]			      = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/");
 	pgc->intdir[PGC_INTDIR_STR_INTDIR][PGC_INTDIR_OBJECT] = STRH("$(SLNDIR)bin/$(CONFIG)-$(ARCH)/test/int/");
+	pgc->target[PGC_TARGET_STR_TARGET][PGC_BUILD_EXE]     = STRH("$(OUTDIR)test");
 
 	pgc->builds = F_PGC_BUILD_EXE;
 

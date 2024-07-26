@@ -1,7 +1,6 @@
 #include "vs_proj.h"
 
 #include "gen/sln.h"
-#include "gen/var.h"
 
 #include "common.h"
 
@@ -11,9 +10,9 @@ static size_t resolve(const prop_str_t *prop, char *buf, size_t buf_size, const 
 {
 	size_t buf_len = prop->val.len;
 	mem_cpy(buf, buf_size, prop->val.data, prop->val.len);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLN_DIR)"), CSTR("$(SolutionDir)"), NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_DIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
-	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJ_NAME)"), CSTR("$(ProjectName)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(SLNDIR)"), CSTR("$(SolutionDir)"), NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJDIR)"), proj->rel_dir.path, proj->rel_dir.len, NULL);
+	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(PROJNAME)"), CSTR("$(ProjectName)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(CONFIG)"), CSTR("$(Configuration)"), NULL);
 	buf_len = cstr_replace(buf, buf_size, buf_len, CSTR("$(ARCH)"), CSTR("$(PlatformTarget)"), NULL);
 	convert_backslash(buf, buf_len);

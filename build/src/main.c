@@ -113,7 +113,7 @@ int main(int argc, const char **argv)
 
 	free_fn free_fns[__GEN_MAX] = {
 		[GEN_CMAKE] = cm_sln_free,
-		[GEN_MAKE] = mk_sln_free,
+		[GEN_MAKE]  = mk_sln_free,
 	};
 
 	char *solution = ".";
@@ -161,8 +161,6 @@ int main(int argc, const char **argv)
 
 	ret += sln_read(&sln, &sln_dir);
 
-	sln_print(&sln);
-
 	path_t build_dir = { 0 };
 	if (path_init(&build_dir, build, cstr_len(build)) == NULL) {
 		return 1;
@@ -176,6 +174,8 @@ int main(int argc, const char **argv)
 	if (gen_fns[gen]) {
 		ret += gen_fns[gen](&sln, &build_dir);
 	}
+
+	sln_print(&sln);
 
 	if (free_fns[gen]) {
 		free_fns[gen](&sln);

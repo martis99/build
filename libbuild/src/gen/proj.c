@@ -150,7 +150,7 @@ int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_dir, const path_t
 
 void proj_print(proj_t *proj)
 {
-	INFP("Project\n"
+	/*INFP("Project\n"
 	     "    Path   : %.*s\n"
 	     "    Dir    : %.*s\n"
 	     "    Rel    : %.*s\n"
@@ -188,7 +188,13 @@ void proj_print(proj_t *proj)
 	arr_foreach(&proj->includes, dproj)
 	{
 		INFP("        %.*s", (int)(*dproj)->name.len, (*dproj)->name.data);
-	}
+	}*/
+
+	//printf("\nConfig\n");
+	//pgc_print(&proj->pgc, PRINT_DST_STD());
+	printf("\nConfig (resolved)\n");
+	pgc_print(&proj->pgcr, PRINT_DST_STD());
+	printf("\n");
 
 	INFF();
 }

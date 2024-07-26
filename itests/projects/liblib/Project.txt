@@ -1,0 +1,5 @@
+NAME = liblib
+TYPE = LIB
+LANGS = C
+SOURCE = src
+INCLUDE = include

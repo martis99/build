@@ -1,10 +1,11 @@
 #include "c.h"
 #include "cpp.hpp"
 
+#include "extlib.h"
+#include "lib.h"
 #include "libasm.h"
 #include "libcc.h"
 #include "libccpp.hpp"
-#include "extlib.h"
 
 #include <iostream>
 
@@ -17,6 +18,14 @@ int main(int argc, char **argv)
 	std::cout << "" << std::endl;
 
 	if (asm_args(argc, argv)) {
+		ret = 1;
+	}
+
+	if (lib_args(argc, argv)) {
+		ret = 1;
+	}
+
+	if (dlib_args(argc, argv)) {
 		ret = 1;
 	}
 

@@ -3,7 +3,6 @@
 #include "gen/mk/pgc_gen_mk.h"
 #include "gen/proj_gen.h"
 #include "gen/sln.h"
-#include "gen/var.h"
 
 #include "common.h"
 

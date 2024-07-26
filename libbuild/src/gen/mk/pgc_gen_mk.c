@@ -232,7 +232,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	// clang-format on
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (pgc->target[PGC_TARGET_STR_TARGET]->data == NULL) {
+		if (pgc->target[PGC_TARGET_STR_TARGET][b].data == NULL) {
 			continue;
 		}
 

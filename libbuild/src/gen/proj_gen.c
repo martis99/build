@@ -196,12 +196,12 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 	arr_foreach(&proj->props[PROJ_PROP_SOURCE].arr, source)
 	{
-		pgc_add_include(pgc, str_cpy(source->val));
+		pgc_add_include(pgc, str_cpy(source->val), PGC_SCOPE_PRIVATE);
 	}
 
 	arr_foreach(&proj->props[PROJ_PROP_INCLUDE].arr, include)
 	{
-		pgc_add_include(pgc, str_cpy(include->val));
+		pgc_add_include(pgc, str_cpy(include->val), PGC_SCOPE_PUBLIC);
 	}
 
 	for (uint i = 0; i < proj->includes.cnt; i++) {
@@ -209,10 +209,14 @@ static int gen_source(const proj_t *proj, const dict_t *projects, const prop_t *
 
 		str_t rel = strc(iproj->rel_dir.path, iproj->rel_dir.len);
 
-		str_t *inc;
+		pgc_str_flags_t *inc;
 		arr_foreach(&iproj->pgcr.arr[PGC_ARR_INCLUDES], inc)
 		{
-			pgc_add_include(pgc, str_cpy(resolve_path(rel, *inc, &buf)));
+			if (inc->flags != PGC_SCOPE_PUBLIC) {
+				continue;
+			}
+
+			pgc_add_include(pgc, str_cpy(resolve_path(rel, inc->str, &buf)), PGC_SCOPE_PRIVATE);
 		}
 	}
 
