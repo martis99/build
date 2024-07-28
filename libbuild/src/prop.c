@@ -1,4 +1,4 @@
-//TODO: Add warning when prop not found 
+//TODO: Add warning when prop not found
 
 #include "prop.h"
 
@@ -134,18 +134,22 @@ void props_print(const prop_t *props, const prop_pol_t *props_pol, size_t props_
 			props_pol[i].print(&props[i]);
 		} else {
 			if (props_pol[i].flags & PPF_ARR) {
-				INFP("    %.*s:", (int)props_pol[i].name.len, props_pol[i].name.data);
-				if (props_pol[i].str_table) {
-					prop_print_flags(&props[i], props_pol[i].str_table, props_pol[i].str_table_len);
-				} else {
-					prop_print_arr(&props[i]);
+				if (props[i].arr.cnt > 0) {
+					INFP("    %.*s:", (int)props_pol[i].name.len, props_pol[i].name.data);
+					if (props_pol[i].str_table) {
+						prop_print_flags(&props[i], props_pol[i].str_table, props_pol[i].str_table_len);
+					} else {
+						prop_print_arr(&props[i]);
+					}
 				}
 			} else {
 				if (props_pol[i].str_table) {
 					INFP("    %.*s: %s", (int)props_pol[i].name.len, props_pol[i].name.data, props_pol[i].str_table[props[i].mask].data);
 				} else {
-					INFP("    %.*s: '%.*s'", (int)props_pol[i].name.len, props_pol[i].name.data, (int)props[i].value.val.len,
-					     props[i].value.val.data);
+					if (props[i].value.val.data) {
+						INFP("    %.*s: '%.*s'", (int)props_pol[i].name.len, props_pol[i].name.data, (int)props[i].value.val.len,
+						     props[i].value.val.data);
+					}
 				}
 			}
 		}

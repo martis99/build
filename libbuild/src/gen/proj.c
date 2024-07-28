@@ -12,10 +12,10 @@ static const prop_pol_t s_proj_props[] = {
 	[PROJ_PROP_NAME]      = { .name = STRS("NAME") },
 	[PROJ_PROP_TYPE]      = { .name = STRS("TYPE"), .str_table = s_proj_types, .str_table_len = __PROJ_TYPE_MAX },
 	[PROJ_PROP_LANGS]     = { .name = STRS("LANGS"), .str_table = s_langs, .str_table_len = __LANG_MAX, .flags = PPF_ARR },
-	[PROJ_PROP_SOURCE]    = { .name = STRS("SOURCE"), .flags = PPF_ARR | PPF_DIR },
+	[PROJ_PROP_SOURCE]    = { .name = STRS("SOURCE"), .flags = PPF_DIR },
 	[PROJ_PROP_URL]	      = { .name = STRS("URL") },
 	[PROJ_PROP_FORMAT]    = { .name = STRS("FORMAT") },
-	[PROJ_PROP_INCLUDE]   = { .name = STRS("INCLUDE"), .flags = PPF_ARR | PPF_DIR },
+	[PROJ_PROP_INCLUDE]   = { .name = STRS("INCLUDE"), .flags = PPF_DIR },
 	[PROJ_PROP_ENCLUDE]   = { .name = STRS("ENCLUDE"), .flags = PPF_DIR },
 	[PROJ_PROP_DEPENDS]   = { .name = STRS("DEPENDS"), .flags = PPF_ARR },
 	[PROJ_PROP_DDEPENDS]  = { .name = STRS("DDEPENDS"), .flags = PPF_ARR },
@@ -102,39 +102,31 @@ int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_dir, const path_t
 	}
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) {
-		const arr_t *sources = &proj->props[PROJ_PROP_SOURCE].arr;
+		prop_str_t *source = &proj->props[PROJ_PROP_SOURCE].value;
 
-		for (uint i = 0; i < sources->cnt; i++) {
-			prop_str_t *source = arr_get(sources, i);
-
-			path_t path = { 0 };
-			path_init(&path, proj->dir.path, proj->dir.len);
-			if (path_child(&path, source->val.data, source->val.len) == NULL) {
+		path_t path = { 0 };
+		path_init(&path, proj->dir.path, proj->dir.len);
+		if (path_child(&path, source->val.data, source->val.len) == NULL) {
+			ret++;
+		} else {
+			if (!folder_exists(path.path)) {
+				ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, (int)path.len, path.path);
 				ret++;
-			} else {
-				if (!folder_exists(path.path)) {
-					ERR_LOGICS("source folder does not exists '%.*s'", source->path, source->line, source->col, (int)path.len, path.path);
-					ret++;
-				}
 			}
 		}
 	}
 
 	if (proj->props[PROJ_PROP_INCLUDE].flags & PROP_SET) {
-		const arr_t *includes = &proj->props[PROJ_PROP_INCLUDE].arr;
+		prop_str_t *include = &proj->props[PROJ_PROP_INCLUDE].value;
 
-		for (uint i = 0; i < includes->cnt; i++) {
-			prop_str_t *include = arr_get(includes, i);
-
-			path_t path = { 0 };
-			path_init(&path, proj->dir.path, proj->dir.len);
-			if (path_child(&path, include->val.data, include->val.len) == NULL) {
+		path_t path = { 0 };
+		path_init(&path, proj->dir.path, proj->dir.len);
+		if (path_child(&path, include->val.data, include->val.len) == NULL) {
+			ret++;
+		} else {
+			if (!folder_exists(path.path)) {
+				ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, (int)path.len, path.path);
 				ret++;
-			} else {
-				if (!folder_exists(path.path)) {
-					ERR_LOGICS("include folder does not exists '%.*s'", include->path, include->line, include->col, (int)path.len, path.path);
-					ret++;
-				}
 			}
 		}
 	}
@@ -150,7 +142,7 @@ int proj_read(build_t *build, proj_t *proj, const pathv_t *sln_dir, const path_t
 
 void proj_print(proj_t *proj)
 {
-	/*INFP("Project\n"
+	INFP("Project\n"
 	     "    Path   : %.*s\n"
 	     "    Dir    : %.*s\n"
 	     "    Rel    : %.*s\n"
@@ -172,27 +164,43 @@ void proj_print(proj_t *proj)
 	const proj_dep_t *dep;
 	const proj_t **dproj;
 
-	INFP("%s", "    Depends:");
-	arr_foreach(&proj->depends, dep)
-	{
-		INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
+	if (proj->depends.cnt > 0) {
+		INFP("%s", "    Depends:");
+		arr_foreach(&proj->depends, dep)
+		{
+			INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
+		}
 	}
 
-	INFP("%s", "    All depends:");
-	arr_foreach(&proj->all_depends, dep)
-	{
-		INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
+	if (proj->all_depends.cnt > 0) {
+		INFP("%s", "    All depends:");
+		arr_foreach(&proj->all_depends, dep)
+		{
+			INFP("        %.*s (%s)", (int)dep->proj->name.len, dep->proj->name.data, dep->link_type == LINK_TYPE_SHARED ? "shared" : "static");
+		}
 	}
 
-	INFP("%s", "    Includes:");
-	arr_foreach(&proj->includes, dproj)
-	{
-		INFP("        %.*s", (int)(*dproj)->name.len, (*dproj)->name.data);
-	}*/
+	if (proj->includes.cnt > 0) {
+		INFP("%s", "    Includes:");
+		arr_foreach(&proj->includes, dproj)
+		{
+			INFP("        %.*s", (int)(*dproj)->name.len, (*dproj)->name.data);
+		}
+	}
 
-	//printf("\nConfig\n");
-	//pgc_print(&proj->pgc, PRINT_DST_STD());
-	printf("\nConfig (resolved)\n");
+	if (proj->header) {
+		INFP("   Header: %.*s", (int)proj->header->name.len, proj->header->name.data);
+	}
+
+	if (proj->includes.cnt > 0) {
+		INFP("%s", "    Files:");
+		arr_foreach(&proj->files, dproj)
+		{
+			INFP("        %.*s", (int)(*dproj)->name.len, (*dproj)->name.data);
+		}
+	}
+
+	printf("\nConfig\n");
 	pgc_print(&proj->pgcr, PRINT_DST_STD());
 	printf("\n");
 
@@ -216,4 +224,5 @@ void proj_free(proj_t *proj)
 	arr_free(&proj->depends);
 	arr_free(&proj->all_depends);
 	arr_free(&proj->includes);
+	arr_free(&proj->files);
 }

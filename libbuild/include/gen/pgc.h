@@ -36,6 +36,9 @@ typedef enum pgc_file_type_e {
 	__PGC_FILE_TYPE_MAX,
 } pgc_file_type_t;
 
+#define F_PGC_FILE_BIN (1 << PGC_FILE_BIN)
+#define F_PGC_FILE_ELF (1 << PGC_FILE_ELF)
+
 typedef enum pgc_intdir_type_e {
 	PGC_INTDIR_OBJECT,
 	PGC_INTDIR_STATIC,
@@ -64,7 +67,16 @@ typedef enum pgc_build_type_e {
 #define F_PGC_BUILD_BIN	   (1 << PGC_BUILD_BIN)
 #define F_PGC_BUILD_FAT12  (1 << PGC_BUILD_FAT12)
 
+static const char *s_file_type_str[] = {
+	[PGC_FILE_ELF] = "ELF",
+	[PGC_FILE_BIN] = "BIN",
+};
+
+#define F_PGC_FILE_ELF (1 << PGC_FILE_ELF)
+#define F_PGC_FILE_BIN (1 << PGC_FILE_BIN)
+
 typedef enum pgc_link_type_e {
+	PGC_LINK_UNKNOWN,
 	PGC_LINK_STATIC,
 	PGC_LINK_SHARED,
 	__PGC_LINK_TYPE_MAX,
@@ -76,6 +88,7 @@ typedef enum pgc_lib_type_e {
 } pgc_lib_type_t;
 
 typedef enum pgc_scope_e {
+	PGC_SCOPE_UNKNOWN,
 	PGC_SCOPE_PRIVATE,
 	PGC_SCOPE_PUBLIC,
 } pgc_scope_t;
@@ -85,7 +98,6 @@ typedef enum pgc_str_e {
 	PGC_STR_OUTDIR,
 	PGC_STR_COVDIR,
 	PGC_STR_ARGS,
-	PGC_STR_LDFLAGS,
 	PGC_STR_HEADER,
 	PGC_STR_CWD,
 	PGC_STR_SIZE,
@@ -104,9 +116,12 @@ typedef enum pgc_arr_e {
 	PGC_ARR_INCLUDES,
 	PGC_ARR_LIBS,
 	PGC_ARR_DEPENDS,
+	PGC_ARR_DEFINES,
+	PGC_ARR_LDFLAGS,
 	PGC_ARR_FILES,
+	PGC_ARR_FLAGS,
 	PGC_ARR_REQUIRES,
-	PGC_ARR_COPYFILES, //TODO: copyfiles for each build type
+	PGC_ARR_COPYFILES,
 	__PGC_ARR_MAX,
 } pgc_arr_t;
 
@@ -116,23 +131,16 @@ typedef enum pgc_target_str_e {
 	PGC_TARGET_STR_RUN_DBG,
 	PGC_TARGET_STR_ARTIFACT,
 	__PGC_TARGET_STR_MAX,
-} pgc_build_str_t;
+} pgc_target_str_t;
 
 typedef enum pgc_intdir_str_e {
 	PGC_INTDIR_STR_INTDIR,
-	PGC_INTDIR_STR_DEFINES,
 	__PGC_INTDIR_STR_MAX,
 } pgc_intdir_str_t;
-
-typedef enum pgc_src_str_e {
-	PGC_SRC_STR_FLAGS,
-	__PGC_SRC_STR_MAX,
-} pgc_src_str_t;
 
 typedef struct pgc_s {
 	str_t str[__PGC_STR_MAX];
 	arr_t arr[__PGC_ARR_MAX];
-	str_t src[__PGC_SRC_STR_MAX][__PGC_SRC_TYPE_MAX];
 	str_t intdir[__PGC_INTDIR_STR_MAX][__PGC_INTDIR_TYPE_MAX];
 	str_t target[__PGC_TARGET_STR_MAX][__PGC_BUILD_TYPE_MAX];
 	int builds;
@@ -148,19 +156,19 @@ uint pgc_get_config(const pgc_t *pgc, str_t name);
 uint pgc_add_header(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_src(pgc_t *pgc, str_t dir, int exts);
 uint pgc_add_include(pgc_t *pgc, str_t dir, pgc_scope_t scope);
-void pgc_add_flag(pgc_t *pgc, str_t flag, int exts);
-void pgc_add_define(pgc_t *pgc, str_t define, int intdirs);
-void pgc_add_ldflag(pgc_t *pgc, str_t ldflag);
-uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, pgc_link_type_t link_type, pgc_lib_type_t lib_type);
+uint pgc_add_flag(pgc_t *pgc, str_t flag, int exts);
+uint pgc_add_define(pgc_t *pgc, str_t define, int intdirs);
+uint pgc_add_ldflag(pgc_t *pgc, str_t ldflag);
+uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, int intdirs, pgc_link_type_t link_type, pgc_lib_type_t lib_type);
 uint pgc_add_depend(pgc_t *pgc, str_t depend);
 void pgc_set_cwd(pgc_t *pgc, str_t cwd);
 void pgc_set_run(pgc_t *pgc, str_t run, int builds);
 void pgc_set_run_debug(pgc_t *pgc, str_t run, int builds);
-uint pgc_add_file(pgc_t *pgc, str_t path, int ext);
+uint pgc_add_file(pgc_t *pgc, str_t path, int exts);
 uint pgc_add_require(pgc_t *pgc, str_t require);
-uint pgc_add_copyfile(pgc_t *pgc, str_t path);
+uint pgc_add_copyfile(pgc_t *pgc, str_t path, int intdirs);
 
-pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt);
+pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt, char path_sep);
 
 int pgc_print(const pgc_t *pgc, print_dst_t dst);
 

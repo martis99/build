@@ -35,7 +35,7 @@ TEST(t_pgc_add_arch)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_arch(&pgc, STRH("x86_64")), 2);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "ARCHS\n"
 			"    x86_64\n");
@@ -78,7 +78,7 @@ TEST(t_pgc_add_config)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_config(&pgc, STRH("Debug")), 2);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "CONFIGS\n"
 			"    Debug\n");
@@ -118,12 +118,12 @@ TEST(t_pgc_add_header)
 	mem_oom(1);
 	EXPECT_EQ(pgc_add_header(&pgc, str_null(), 0), PGC_END);
 	mem_oom(0);
-	EXPECT_EQ(pgc_add_header(&pgc, STRH("include/"), 0), 1);
+	EXPECT_EQ(pgc_add_header(&pgc, STRH("include/"), F_PGC_HEADER_H), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "HEADERS\n"
-			"    include/ (0x0000)\n");
+			"    include/ (H)\n");
 
 	pgc_free(&pgc);
 
@@ -142,12 +142,12 @@ TEST(t_pgc_add_src)
 	mem_oom(1);
 	EXPECT_EQ(pgc_add_src(&pgc, str_null(), 0), PGC_END);
 	mem_oom(0);
-	EXPECT_EQ(pgc_add_src(&pgc, STRH("src/"), 0), 1);
+	EXPECT_EQ(pgc_add_src(&pgc, STRH("src/"), F_PGC_SRC_C), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "SRCS\n"
-			"    src/ (0x0000)\n");
+			"    src/ (C)\n");
 
 	pgc_free(&pgc);
 
@@ -168,7 +168,7 @@ TEST(t_pgc_add_include)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_include(&pgc, STRH("include/"), PGC_SCOPE_PRIVATE), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    include/ (PRIVATE)\n");
@@ -189,12 +189,11 @@ TEST(t_pgc_add_flag)
 	pgc_add_flag(&pgc, STR("-Wall"), F_PGC_SRC_C);
 	pgc_add_flag(&pgc, STR("-Wextra"), F_PGC_SRC_C);
 
-	EXPECT_STRN(pgc.src[PGC_SRC_STR_FLAGS][PGC_SRC_C].data, "-Wall -Wextra", 13);
-
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "FLAGS\n"
-			"    C: -Wall -Wextra\n");
+			"    -Wall (C)\n"
+			"    -Wextra (C)\n");
 
 	pgc_free(&pgc);
 
@@ -209,15 +208,14 @@ TEST(t_pgc_add_define)
 	pgc_init(&pgc);
 
 	pgc_add_define(NULL, str_null(), F_PGC_INTDIR_OBJECT);
-	pgc_add_define(&pgc, STR("DEBUG"), F_PGC_INTDIR_OBJECT);
-	pgc_add_define(&pgc, STR("UNICODE"), F_PGC_INTDIR_OBJECT);
+	pgc_add_define(&pgc, STRH("DEBUG"), F_PGC_INTDIR_OBJECT);
+	pgc_add_define(&pgc, STRH("UNICODE"), F_PGC_INTDIR_OBJECT);
 
-	EXPECT_STRN(pgc.intdir[PGC_INTDIR_STR_DEFINES][PGC_INTDIR_OBJECT].data, "-DDEBUG -DUNICODE", 13);
-
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEFINES\n"
-			"    OBJECT: -DDEBUG -DUNICODE\n");
+			"    DEBUG (OBJECT)\n"
+			"    UNICODE (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -232,14 +230,14 @@ TEST(t_pgc_add_ldflag)
 	pgc_init(&pgc);
 
 	pgc_add_ldflag(NULL, str_null());
-	pgc_add_ldflag(&pgc, STR("-lm"));
-	pgc_add_ldflag(&pgc, STR("-lpthread"));
+	pgc_add_ldflag(&pgc, STRH("-lm"));
+	pgc_add_ldflag(&pgc, STRH("-lpthread"));
 
-	EXPECT(str_eq(pgc.str[PGC_STR_LDFLAGS], STR("-lm -lpthread")));
-
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "LDFLAGS: -lm -lpthread\n");
+	EXPECT_STR(buf, "LDFLAGS\n"
+			"    -lm\n"
+			"    -lpthread\n");
 
 	pgc_free(&pgc);
 
@@ -253,16 +251,16 @@ TEST(t_pgc_add_lib)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_lib(NULL, str_null(), str_null(), PGC_LINK_STATIC, PGC_LIB_INT), PGC_END);
-	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), str_null(), PGC_LINK_STATIC, PGC_LIB_INT), 0);
+	EXPECT_EQ(pgc_add_lib(NULL, str_null(), str_null(), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT), PGC_END);
+	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), str_null(), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT), 0);
 	mem_oom(1);
-	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), str_null(), PGC_LINK_STATIC, PGC_LIB_INT), PGC_END);
+	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), str_null(), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT), PGC_END);
 	mem_oom(0);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    (STATIC, INT)\n");
+			"    (OBJECT, STATIC, INT)\n");
 
 	pgc_free(&pgc);
 
@@ -276,12 +274,12 @@ TEST(t_pgc_add_lib_dir)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_lib(&pgc, STRH("libs/"), str_null(), PGC_LINK_STATIC, PGC_LIB_INT), 0);
+	EXPECT_EQ(pgc_add_lib(&pgc, STRH("libs/"), str_null(), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT), 0);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: libs/ (STATIC, INT)\n");
+			"    dir: libs/ (OBJECT, STATIC, INT)\n");
 
 	pgc_free(&pgc);
 
@@ -295,12 +293,12 @@ TEST(t_pgc_add_lib_name)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), STRH("a"), PGC_LINK_STATIC, PGC_LIB_INT), 0);
+	EXPECT_EQ(pgc_add_lib(&pgc, str_null(), STRH("a"), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT), 0);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    name: a (STATIC, INT)\n");
+			"    name: a (OBJECT, STATIC, INT)\n");
 
 	pgc_free(&pgc);
 
@@ -321,7 +319,7 @@ TEST(t_pgc_add_depend)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_depend(&pgc, STRH("lib")), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEPENDS\n"
 			"    lib\n");
@@ -343,7 +341,7 @@ TEST(t_pgc_set_cwd)
 
 	EXPECT_STRN(pgc.str[PGC_STR_CWD].data, "test", 4);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "CWD: test\n");
 
@@ -364,7 +362,7 @@ TEST(t_pgc_set_run)
 
 	EXPECT_STRN(pgc.target[PGC_TARGET_STR_RUN][PGC_BUILD_EXE].data, "$(TARGET)", 9);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "RUN\n"
 			"    EXE: $(TARGET)\n");
@@ -386,7 +384,7 @@ TEST(t_pgc_set_run_debug)
 
 	EXPECT_STRN(pgc.target[PGC_TARGET_STR_RUN_DBG][PGC_BUILD_EXE].data, "$(TARGET_DEBUG)", 15);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "RUN_DBG\n"
 			"    EXE: $(TARGET_DEBUG)\n");
@@ -403,18 +401,18 @@ TEST(t_pgc_add_file)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_file(NULL, str_null(), PGC_FILE_BIN), PGC_END);
-	EXPECT_EQ(pgc_add_file(&pgc, str_null(), PGC_FILE_BIN), 0);
-	EXPECT_EQ(pgc_add_file(&pgc, str_null(), PGC_FILE_BIN), 1);
+	EXPECT_EQ(pgc_add_file(NULL, str_null(), F_PGC_FILE_BIN), PGC_END);
+	EXPECT_EQ(pgc_add_file(&pgc, str_null(), F_PGC_FILE_BIN), 0);
+	EXPECT_EQ(pgc_add_file(&pgc, str_null(), F_PGC_FILE_BIN), 1);
 	mem_oom(1);
-	EXPECT_EQ(pgc_add_file(&pgc, str_null(), PGC_FILE_BIN), PGC_END);
+	EXPECT_EQ(pgc_add_file(&pgc, str_null(), F_PGC_FILE_BIN), PGC_END);
 	mem_oom(0);
-	EXPECT_EQ(pgc_add_file(&pgc, STRH("src/file.bin"), 0), 2);
+	EXPECT_EQ(pgc_add_file(&pgc, STRH("src/file.bin"), F_PGC_FILE_BIN), 2);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "FILES\n"
-			"    src/file.bin (0x0000)\n");
+			"    src/file.bin (BIN)\n");
 
 	pgc_free(&pgc);
 
@@ -435,7 +433,7 @@ TEST(t_pgc_add_require)
 	mem_oom(0);
 	EXPECT_EQ(pgc_add_require(&pgc, STRH("g++")), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "REQUIRES\n"
 			"    g++\n");
@@ -452,17 +450,17 @@ TEST(t_pgc_add_copyfile)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_copyfile(NULL, str_null()), PGC_END);
-	EXPECT_EQ(pgc_add_copyfile(&pgc, str_null()), 0);
+	EXPECT_EQ(pgc_add_copyfile(NULL, str_null(), F_PGC_INTDIR_OBJECT), PGC_END);
+	EXPECT_EQ(pgc_add_copyfile(&pgc, str_null(), F_PGC_INTDIR_OBJECT), 0);
 	mem_oom(1);
-	EXPECT_EQ(pgc_add_copyfile(&pgc, str_null()), PGC_END);
+	EXPECT_EQ(pgc_add_copyfile(&pgc, str_null(), F_PGC_INTDIR_OBJECT), PGC_END);
 	mem_oom(0);
-	EXPECT_EQ(pgc_add_copyfile(&pgc, STRH("lib.so")), 1);
+	EXPECT_EQ(pgc_add_copyfile(&pgc, STRH("lib.so"), F_PGC_INTDIR_OBJECT), 1);
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    lib.so\n");
+			"    lib.so (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -478,7 +476,7 @@ TEST(t_pgc_print)
 
 	EXPECT_EQ(pgc_print(NULL, PRINT_DST_NONE()), 0);
 
-	char buf[2048] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "");
 
@@ -496,9 +494,9 @@ TEST(t_pgc_replace_vars)
 
 	pgc_t pgcr = { 0 };
 
-	EXPECT_EQ(pgc_replace_vars(NULL, NULL, NULL, NULL, 0), NULL);
-	EXPECT_EQ(pgc_replace_vars(&pgc, NULL, NULL, NULL, 0), NULL);
-	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, NULL, NULL, 0), &pgcr);
+	EXPECT_EQ(pgc_replace_vars(NULL, NULL, NULL, NULL, 0, '/'), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, NULL, NULL, NULL, 0, '/'), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, NULL, NULL, 0, '/'), &pgcr);
 
 	pgc_free(&pgc);
 
@@ -517,9 +515,9 @@ TEST(t_pgc_replace_vars_str)
 	pgc_t pgcr = { 0 };
 	str_t from = STR("$(PROJNAME)");
 	str_t to   = STR("name");
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "NAME: name\n");
 
@@ -542,7 +540,7 @@ TEST(t_pgc_replace_vars_arr)
 	str_t from = STR("$(ARCH)");
 	str_t to   = STR("x86_64");
 	mem_oom(1);
-	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/'), NULL);
 	mem_oom(0);
 
 	pgc_free(&pgcr);
@@ -564,11 +562,11 @@ TEST(t_pgc_replace_vars_arr_str)
 	str_t from = STR("$(ARCH)");
 	str_t to   = STR("x86_64");
 	mem_oom(1);
-	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/'), NULL);
 	mem_oom(0);
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "ARCHS\n"
 			"    x86_64\n");
@@ -586,20 +584,20 @@ TEST(t_pgc_replace_vars_arr_str_flag)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	pgc_add_header(&pgc, STRH("$(DIR)"), 0);
+	pgc_add_header(&pgc, STRH("$(DIR)"), F_PGC_HEADER_H);
 
 	pgc_t pgcr = { 0 };
 	str_t from = STR("$(DIR)");
 	str_t to   = STR("include/");
 	mem_oom(1);
-	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1), NULL);
+	EXPECT_EQ(pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/'), NULL);
 	mem_oom(0);
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "HEADERS\n"
-			"    include/ (0x0000)\n");
+			"    include/ (H)\n");
 
 	pgc_free(&pgcr);
 	pgc_free(&pgc);
@@ -620,9 +618,9 @@ TEST(t_pgc_replace_vars_arr_include)
 	str_t from = STR("$(DIR)");
 	str_t to   = STR("include/");
 
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    include/ (PRIVATE)\n");
@@ -640,7 +638,7 @@ TEST(t_pgc_replace_vars_arr_lib)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	pgc_add_lib(&pgc, STRH("$(DIR)"), STRH("$(NAME)"), PGC_LINK_STATIC, PGC_LIB_INT);
+	pgc_add_lib(&pgc, STRH("$(DIR)"), STRH("$(NAME)"), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT);
 
 	pgc_t pgcr   = { 0 };
 	str_t from[] = {
@@ -651,12 +649,12 @@ TEST(t_pgc_replace_vars_arr_lib)
 		STR("libs/"),
 		STR("a"),
 	};
-	pgc_replace_vars(&pgc, &pgcr, from, to, 2);
+	pgc_replace_vars(&pgc, &pgcr, from, to, 2, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: libs/ name: a (STATIC, INT)\n");
+			"    dir: libs/ name: a (OBJECT, STATIC, INT)\n");
 
 	pgc_free(&pgcr);
 	pgc_free(&pgc);
@@ -671,17 +669,17 @@ TEST(t_pgc_replace_vars_src)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	pgc.src[PGC_SRC_STR_FLAGS][PGC_SRC_C] = STR("-m$(BITS)");
+	pgc_add_flag(&pgc, STR("-m$(BITS)"), F_PGC_SRC_C);
 
 	pgc_t pgcr = { 0 };
 	str_t from = STR("$(BITS)");
 	str_t to   = STR("64");
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "FLAGS\n"
-			"    C: -m64\n");
+			"    -m64 (C)\n");
 
 	pgc_free(&pgcr);
 	pgc_free(&pgc);
@@ -701,9 +699,9 @@ TEST(t_pgc_replace_vars_intdir)
 	pgc_t pgcr = { 0 };
 	str_t from = STR("$(INTDIR)");
 	str_t to   = STR("bin");
-	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1);
+	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "INTDIR\n"
 			"    OBJECT: bin\n");
@@ -732,9 +730,9 @@ TEST(t_pgc_replace_vars_target)
 		STR("bin/projects/test/"),
 		STR("test"),
 	};
-	pgc_replace_vars(&pgc, &pgcr, from, to, 2);
+	pgc_replace_vars(&pgc, &pgcr, from, to, 2, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "RUN\n"
 			"    EXE: bin/projects/test/test\n");
@@ -763,9 +761,9 @@ TEST(t_pgc_replace_vars_slash)
 		STR("bin\\projects\\test\\"),
 		STR("test"),
 	};
-	pgc_replace_vars(&pgc, &pgcr, from, to, 2);
+	pgc_replace_vars(&pgc, &pgcr, from, to, 2, '/');
 
-	char buf[1024] = { 0 };
+	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "RUN\n"
 			"    EXE: bin/projects/test/test\n");

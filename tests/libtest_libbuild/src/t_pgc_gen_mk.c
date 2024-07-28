@@ -121,8 +121,44 @@
 	"" CONFIG_BITS ""        \
 	"\n"
 
+#define CONFIG_NASM_S            \
+	"LDFLAGS_S :=\n"         \
+	"NASM_CONFIG_FLAGS :=\n" \
+	"\n"                     \
+	"RM += -r\n"             \
+	"\n"                     \
+	"" CONFIG_BITS ""        \
+	"\n"
+
+#define CONFIG_NASM_D            \
+	"LDFLAGS_D :=\n"         \
+	"NASM_CONFIG_FLAGS :=\n" \
+	"\n"                     \
+	"RM += -r\n"             \
+	"\n"                     \
+	"" CONFIG_BITS ""        \
+	"\n"
+
 #define CONFIG                  \
 	"LDFLAGS :=\n"          \
+	"GCC_CONFIG_FLAGS :=\n" \
+	"\n"                    \
+	"RM += -r\n"            \
+	"\n"                    \
+	"" CONFIG_BITS ""       \
+	"\n"
+
+#define CONFIG_S                \
+	"LDFLAGS_S :=\n"        \
+	"GCC_CONFIG_FLAGS :=\n" \
+	"\n"                    \
+	"RM += -r\n"            \
+	"\n"                    \
+	"" CONFIG_BITS ""       \
+	"\n"
+
+#define CONFIG_D                \
+	"LDFLAGS_D :=\n"        \
 	"GCC_CONFIG_FLAGS :=\n" \
 	"\n"                    \
 	"RM += -r\n"            \
@@ -203,7 +239,7 @@
 #define TARGET_ASM_D                                                  \
 	"$(TARGET_D): $(OBJ_ASM_D)\n"                                 \
 	"\t@mkdir -p $(@D)\n"                                         \
-	"\t@$(TCC) -m$(BITS) -shared $(OBJ_ASM_D) $(LDFLAGS) -o $@\n" \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_ASM_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
 #define TARGET_S                                          \
@@ -221,7 +257,7 @@
 #define TARGET_S_D                                                  \
 	"$(TARGET_D): $(OBJ_S_D)\n"                                 \
 	"\t@mkdir -p $(@D)\n"                                       \
-	"\t@$(TCC) -m$(BITS) -shared $(OBJ_S_D) $(LDFLAGS) -o $@\n" \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_S_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
 #define TARGET_C                                          \
@@ -236,10 +272,10 @@
 	"\t@ar rcs $@ $(OBJ_C_S)\n" \
 	"\n"
 
-#define TARGET_C_D                                                  \
-	"$(TARGET_D): $(OBJ_C_D)\n"                                 \
-	"\t@mkdir -p $(@D)\n"                                       \
-	"\t@$(TCC) -m$(BITS) -shared $(OBJ_C_D) $(LDFLAGS) -o $@\n" \
+#define TARGET_C_D                                                    \
+	"$(TARGET_D): $(OBJ_C_D)\n"                                   \
+	"\t@mkdir -p $(@D)\n"                                         \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_C_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
 #define TARGET_CPP                                          \
@@ -254,10 +290,10 @@
 	"\t@ar rcs $@ $(OBJ_CPP_S)\n" \
 	"\n"
 
-#define TARGET_CPP_D                                                  \
-	"$(TARGET_D): $(OBJ_CPP_D)\n"                                 \
-	"\t@mkdir -p $(@D)\n"                                         \
-	"\t@$(TCC) -m$(BITS) -shared $(OBJ_CPP_D) $(LDFLAGS) -o $@\n" \
+#define TARGET_CPP_D                                                    \
+	"$(TARGET_D): $(OBJ_CPP_D)\n"                                   \
+	"\t@mkdir -p $(@D)\n"                                           \
+	"\t@$(TCC) -m$(BITS) -shared $(OBJ_CPP_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
 #define ASM_BIN                                                                           \
@@ -762,7 +798,7 @@ TEST(t_pgc_gen_mk_libs)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_EXE_VARS ""
 			"\n"
-			"LDFLAGS := -Llibs/ -Llibs/ -l:lib.a -Llibs/ -l:lib.a -Llibs/ -Wl,-rpath,. -l:lib.so -Llibs/ -l:lib.so\n"
+			"LDFLAGS := -Llibs/ -l:lib.a -Llibs/ -l:lib.a -Llibs/ -Wl,-rpath,. -l:lib.so -Llibs/ -l:lib.so\n"
 			"GCC_CONFIG_FLAGS :=\n"
 			"\n"
 			"RM += -r\n"
@@ -936,7 +972,7 @@ TEST(t_pgc_gen_mk_coverage_static)
 			"COV += $(patsubst %.c, $(COVDIR)%.gcda, $(SRC_C))\n"
 			"TARGET_S := $(OUTDIR)test.a\n"
 			"\n"
-			"" CONFIG ""
+			"" CONFIG_S ""
 			"ifeq ($(COVERAGE), true)\n"
 			"GCC_CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
 			"endif\n"
@@ -983,7 +1019,7 @@ TEST(t_pgc_gen_mk_coverage_shared)
 			"COV += $(patsubst %.c, $(COVDIR)%.gcda, $(SRC_C))\n"
 			"TARGET_D := $(OUTDIR)test.so\n"
 			"\n"
-			"" CONFIG ""
+			"" CONFIG_D ""
 			"ifeq ($(COVERAGE), true)\n"
 			"GCC_CONFIG_FLAGS += --coverage -fprofile-abs-path\n"
 			"endif\n"
@@ -1059,7 +1095,7 @@ TEST(t_pgc_gen_mk_defines_static)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_STATIC_VARS ""
 			"DEFINES_S := -DDEBUG -DVERSION=1\n"
-			"" CONFIG ""
+			"" CONFIG_S ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -1093,7 +1129,7 @@ TEST(t_pgc_gen_mk_defines_shared)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_SHARED_VARS ""
 			"DEFINES_D := -DDEBUG -DVERSION=1\n"
-			"" CONFIG ""
+			"" CONFIG_D ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"
@@ -1127,16 +1163,16 @@ TEST(t_pgc_gen_mk_copyfiles)
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "RM += -r\n"
 			"\n"
-			".PHONY: all check copyfiles static clean\n"
+			".PHONY: all check copyfiles_s static clean\n"
 			"\n"
 			"all: static\n"
 			"\n"
 			"check:\n"
 			"\n"
-			"copyfiles:\n"
+			"copyfiles_s:\n"
 			"\t@cp lib.so .\n"
 			"\n"
-			"static: check copyfiles\n"
+			"static: check copyfiles_s\n"
 			"\n"
 			"clean:\n"
 			"\t@$(RM)\n"
@@ -1334,7 +1370,7 @@ TEST(t_pgc_gen_mk_artifact_lib)
 	char buf[2048] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_STATIC_VARS ""
-			"" CONFIG ""
+			"" CONFIG_S ""
 			".PHONY: all check static artifact_s artifact clean\n"
 			"\n"
 			"all: static\n"
@@ -1804,7 +1840,7 @@ TEST(t_pgc_gen_mk_nasm_static)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" ASM_STATIC_VARS ""
-			"" CONFIG_NASM ""
+			"" CONFIG_NASM_S ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -1837,7 +1873,7 @@ TEST(t_pgc_gen_mk_nasm_shared)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" ASM_SHARED_VARS ""
-			"" CONFIG_NASM ""
+			"" CONFIG_NASM_D ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"
@@ -1905,7 +1941,7 @@ TEST(t_pgc_gen_mk_asm_static)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" S_STATIC_VARS ""
-			"" CONFIG ""
+			"" CONFIG_S ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -1938,7 +1974,7 @@ TEST(t_pgc_gen_mk_asm_shared)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" S_SHARED_VARS ""
-			"" CONFIG ""
+			"" CONFIG_D ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"
@@ -2006,7 +2042,7 @@ TEST(t_pgc_gen_mk_c_static)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_STATIC_VARS ""
-			"" CONFIG ""
+			"" CONFIG_S ""
 			"" CONFIG_DEBUG ""
 			".PHONY: all check static clean\n"
 			"\n"
@@ -2040,7 +2076,7 @@ TEST(t_pgc_gen_mk_c_shared)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" C_SHARED_VARS ""
-			"" CONFIG ""
+			"" CONFIG_D ""
 			"" CONFIG_DEBUG ""
 			".PHONY: all check shared clean\n"
 			"\n"
@@ -2109,7 +2145,7 @@ TEST(t_pgc_gen_mk_cpp_static)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" CPP_STATIC_VARS ""
-			"" CONFIG ""
+			"" CONFIG_S ""
 			".PHONY: all check static clean\n"
 			"\n"
 			"all: static\n"
@@ -2142,7 +2178,7 @@ TEST(t_pgc_gen_mk_cpp_shared)
 	char buf[1024] = { 0 };
 	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "" CPP_SHARED_VARS ""
-			"" CONFIG ""
+			"" CONFIG_D ""
 			".PHONY: all check shared clean\n"
 			"\n"
 			"all: shared\n"

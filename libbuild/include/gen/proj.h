@@ -167,7 +167,9 @@ typedef enum link_type_e {
 	LINK_TYPE_SHARED,
 } link_type_t;
 
-typedef struct proj_s {
+typedef struct proj_s proj_t;
+
+struct proj_s {
 	path_t path;
 	pathv_t dir;
 	pathv_t rel_dir;
@@ -182,6 +184,8 @@ typedef struct proj_s {
 	arr_t depends;
 	arr_t all_depends;
 	arr_t includes;
+	const proj_t *header;
+	arr_t files;
 	const struct dir_s *parent;
 	pgc_t pgc;
 	pgc_t pgcr;
@@ -189,7 +193,7 @@ typedef struct proj_s {
 		make_t make;
 		cmake_t cmake;
 	} gen;
-} proj_t;
+};
 
 typedef struct proj_dep_s {
 	const proj_t *proj;

@@ -2,7 +2,7 @@
 
 #include "gen/mk/make.h"
 #include "gen/mk/pgc_gen_mk.h"
-#include "gen/proj_gen.h"
+#include "gen/proj_gen_pgc.h"
 #include "mk_proj.h"
 
 #include "common.h"
@@ -91,10 +91,10 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj = *(proj_t **)pproj;
 
-		proj_gen(proj, &sln->projects, sln->props, &proj->pgc);
+		proj_gen_pgc(proj, sln->props, &proj->pgc);
 
 		mk_proj_get_vars(proj, vars);
-		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX);
+		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX, '/');
 
 		make_init(&proj->gen.make, 8, 8, 8);
 		pgc_gen_mk(&proj->pgc, &proj->gen.make);
@@ -150,7 +150,8 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 
 			buf_len = export->val.len;
 			mem_cpy(CSTR(buf), export->val.data, export->val.len);
-			buf_len = cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), proj->pgcr.str[PGC_STR_OUTDIR].data, proj->pgcr.str[PGC_STR_OUTDIR].len, NULL);
+			buf_len =
+				cstr_replace(buf, sizeof(buf), buf_len, CSTR("$(OUTDIR)"), proj->pgcr.str[PGC_STR_OUTDIR].data, proj->pgcr.str[PGC_STR_OUTDIR].len, NULL);
 
 			if (first) {
 				make_add_act(&make, make_create_empty(&make));

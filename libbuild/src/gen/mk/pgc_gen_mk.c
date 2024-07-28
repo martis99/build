@@ -22,7 +22,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	arr_foreach(&pgc->arr[PGC_ARR_HEADERS], header)
 	{
 		for (pgc_header_type_t ext = 0; ext < __PGC_HEADER_TYPE_MAX; ext++) {
-			if ((header->flags & (1 << ext)) == 0) {
+			if ((header->flags & (1 << ext)) == 0 || header->str.data == NULL) {
 				continue;
 			}
 
@@ -81,11 +81,13 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	static struct {
 		str_t name;
 		str_t defines;
+		str_t ldflags;
 		const char *flags;
+		str_t copyfiles;
 	} intdir_c[] = {
-		[PGC_INTDIR_OBJECT] = { STRS("INTDIR"), STRS("DEFINES"), " -c" },
-		[PGC_INTDIR_STATIC] = { STRS("INTDIR_S"), STRS("DEFINES_S"), " -c" },
-		[PGC_INTDIR_SHARED] = { STRS("INTDIR_D"), STRS("DEFINES_D"), " -c -fPIC" },
+		[PGC_INTDIR_OBJECT] = { STRS("INTDIR"), STRS("DEFINES"), STRS("LDFLAGS"), " -c", STRS("copyfiles") },
+		[PGC_INTDIR_STATIC] = { STRS("INTDIR_S"), STRS("DEFINES_S"), STRS("LDFLAGS_S"), " -c", STRS("copyfiles_s") },
+		[PGC_INTDIR_SHARED] = { STRS("INTDIR_D"), STRS("DEFINES_D"), STRS("LDFLAGS_D"), " -c -fPIC", STRS("copyfiles_d") },
 	};
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
@@ -224,7 +226,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	} target_c[] = {
 		[PGC_BUILD_EXE]	   = { STRS("TARGET"),	     "",     STRS("compile"), PGC_INTDIR_OBJECT, STRS("run"),		 STRS("artifact"),	 STRS("@$(TCC) -m$(BITS)"),			   STRS(" $(LDFLAGS) -o $@"), 1 },
 		[PGC_BUILD_STATIC] = { STRS("TARGET_S"),     ".a",   STRS("static"),  PGC_INTDIR_STATIC, STRS("run_s"),		 STRS("artifact_s"),	 STRS("@ar rcs $@"),				   STRS(""),		      0 },
-		[PGC_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  PGC_INTDIR_SHARED, STRS("run_d"),		 STRS("artifact_d"),	 STRS("@$(TCC) -m$(BITS) -shared"),		   STRS(" $(LDFLAGS) -o $@"), 1 },
+		[PGC_BUILD_SHARED] = { STRS("TARGET_D"),     ".so",  STRS("shared"),  PGC_INTDIR_SHARED, STRS("run_d"),		 STRS("artifact_d"),	 STRS("@$(TCC) -m$(BITS) -shared"),		   STRS(" $(LDFLAGS_D) -o $@"), 1 },
 		[PGC_BUILD_ELF]	   = { STRS("TARGET_ELF"),   ".elf", STRS("elf"),     PGC_INTDIR_OBJECT, STRS("run_elf"),	 STRS("artifact_elf"),	 STRS("@$(TCC) -m$(BITS) -shared -ffreestanding"), STRS(" $(LDFLAGS) -o $@"), 1 }, 
 		[PGC_BUILD_BIN]	   = { STRS("TARGET_BIN"),   ".bin", STRS("bin"),     PGC_INTDIR_OBJECT, STRS("run_bin"),	 STRS("artifact_bin"),	 STRS(""),					   STRS(""),		      0 }, 
 		[PGC_BUILD_FAT12]  = { STRS("TARGET_FAT12"), ".img", STRS("fat12"),   __PGC_INTDIR_TYPE_MAX,  STRS("run_fat12"), STRS("artifact_fat12"), STRS(""),					   STRS(""),		      0 },
@@ -280,11 +282,22 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		includes = make_add_act(make, make_create_var(make, STR("INCLUDES"), MAKE_VAR_INST));
 
 		int first = 1;
-		const str_t *include;
+		const pgc_str_flags_t *include;
 		arr_foreach(&pgc->arr[PGC_ARR_INCLUDES], include)
 		{
-			make_var_add_val(make, includes, MSTR(strf(first ? "-I%.*s" : "-I%.*s", include->len, include->data)));
-			first = 0;
+			if (include->str.data == NULL) {
+				continue;
+			}
+
+			switch (include->flags) {
+			case PGC_SCOPE_PRIVATE:
+			case PGC_SCOPE_PUBLIC:
+				make_var_add_val(make, includes, MSTR(strf(first ? "-I%.*s" : "-I%.*s", include->str.len, include->str.data)));
+				first = 0;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -296,14 +309,25 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	};
 
 	for (pgc_src_type_t s = 0; s < __PGC_SRC_TYPE_MAX; s++) {
-		if (!obj_ext[s] || pgc->src[PGC_SRC_STR_FLAGS][s].len == 0) {
+		if (!obj_ext[s]) {
 			continue;
 		}
 
 		is_flags = 1;
 
-		flags[s] = make_add_act(make, make_create_var(make, src_c[s].flags, MAKE_VAR_INST));
-		make_var_add_val(make, flags[s], MSTR(str_cpy(pgc->src[PGC_SRC_STR_FLAGS][s])));
+		const pgc_str_flags_t *flag;
+		arr_foreach(&pgc->arr[PGC_ARR_FLAGS], flag)
+		{
+			if (!(flag->flags & (1 << s)) || flag->str.data == NULL) {
+				continue;
+			}
+
+			if (flags[s] == MAKE_END) {
+				flags[s] = make_add_act(make, make_create_var(make, src_c[s].flags, MAKE_VAR_INST));
+			}
+
+			make_var_add_val(make, flags[s], MSTR(str_cpy(flag->str)));
+		}
 	}
 
 	make_var_t defines[] = {
@@ -313,45 +337,86 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	};
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
-		if (intdir[i] == MAKE_END || pgc->intdir[PGC_INTDIR_STR_DEFINES][i].len == 0) {
+		if (intdir[i] == MAKE_END) {
 			continue;
 		}
 
 		is_flags = 1;
 
-		defines[i] = make_add_act(make, make_create_var(make, intdir_c[i].defines, MAKE_VAR_INST));
-		make_var_add_val(make, defines[i], MSTR(str_cpy(pgc->intdir[PGC_INTDIR_STR_DEFINES][i])));
+		const pgc_str_flags_t *define;
+		arr_foreach(&pgc->arr[PGC_ARR_DEFINES], define)
+		{
+			if (!(define->flags & (1 << i)) || define->str.data == NULL) {
+				continue;
+			}
+
+			if (defines[i] == MAKE_END) {
+				defines[i] = make_add_act(make, make_create_var(make, intdir_c[i].defines, MAKE_VAR_INST));
+			}
+
+			make_var_add_val(make, defines[i], MSTR(strf("-D%.*s", define->str.len, define->str.data)));
+		}
 	}
 
 	if (is_obj) {
-		is_flags = 1;
-
-		const make_var_t ldflags = make_add_act(make, make_create_var(make, STR("LDFLAGS"), MAKE_VAR_INST));
-
-		int first = 1;
-
-		const pgc_lib_data_t *lib;
-		arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
-		{
-			if (lib->dir.data) {
-				make_var_add_val(make, ldflags, MSTR(strf("-L%.*s", lib->dir.len, lib->dir.data)));
+		for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
+			if (intdir[i] == MAKE_END) {
+				continue;
 			}
 
-			if (lib->name.data) {
-				if (lib->link_type == PGC_LINK_SHARED) {
-					if (first) {
-						make_var_add_val(make, ldflags, MSTR(strf("-Wl,-rpath,.")));
-						first = 0;
+			is_flags = 1;
+
+			const make_var_t ldflags = make_add_act(make, make_create_var(make, intdir_c[i].ldflags, MAKE_VAR_INST));
+
+			int first = 1;
+
+			const pgc_lib_data_t *lib;
+			arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
+			{
+				if (!(lib->intdirs && (1 << i))) {
+					continue;
+				}
+
+				if (lib->dir.data) {
+					switch (lib->link_type) {
+					case PGC_LINK_STATIC:
+					case PGC_LINK_SHARED:
+						make_var_add_val(make, ldflags, MSTR(strf("-L%.*s", lib->dir.len, lib->dir.data)));
+						break;
+					default:
+						break;
 					}
-					make_var_add_val(make, ldflags, MSTR(strf("-l:%.*s.so", lib->name.len, lib->name.data)));
-				} else {
-					make_var_add_val(make, ldflags, MSTR(strf("-l:%.*s.a", lib->name.len, lib->name.data)));
+				}
+
+				if (lib->name.data) {
+					switch (lib->link_type) {
+					case PGC_LINK_STATIC:
+						make_var_add_val(make, ldflags, MSTR(strf("-l:%.*s.a", lib->name.len, lib->name.data)));
+						break;
+					case PGC_LINK_SHARED:
+						if (first) {
+							make_var_add_val(make, ldflags, MSTR(strf("-Wl,-rpath,.")));
+							first = 0;
+						}
+						make_var_add_val(make, ldflags, MSTR(strf("-l:%.*s.so", lib->name.len, lib->name.data)));
+						break;
+					default:
+						break;
+					}
 				}
 			}
-		}
 
-		if (pgc->str[PGC_STR_LDFLAGS].len > 0) {
-			make_var_add_val(make, ldflags, MSTR(str_cpy(pgc->str[PGC_STR_LDFLAGS])));
+			if (pgc->arr[PGC_ARR_LDFLAGS].cnt > 0) {
+				const str_t *ldflag;
+				arr_foreach(&pgc->arr[PGC_ARR_LDFLAGS], ldflag)
+				{
+					if (ldflag->data == NULL) {
+						continue;
+					}
+
+					make_var_add_val(make, ldflags, MSTR(str_cpy(*ldflag)));
+				}
+			}
 		}
 	}
 
@@ -469,25 +534,40 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	const str_t *require;
 	arr_foreach(&pgc->arr[PGC_ARR_REQUIRES], require)
 	{
+		if (require->data == NULL) {
+			continue;
+		}
+
 		make_if_t if_dpkg = make_rule_add_act(make, check,
 						      make_create_if(make, MSTR(str_null()),
 								     MSTR(strf("$(shell apt list --installed 2>/dev/null | grep %.*s/)", require->len, require->data))));
 		make_if_add_true_act(make, if_dpkg, make_create_cmd(make, MCMD(strf("sudo apt-get install %.*s -y", require->len, require->data))));
 	}
 
-	make_rule_t copyfiles = MAKE_END;
-	if (pgc->arr[PGC_ARR_COPYFILES].cnt > 0) {
-		copyfiles = make_add_act(make, make_create_rule(make, MRULE(MSTR(STR("copyfiles"))), 0));
+	make_var_t copyfiles[] = {
+		[PGC_INTDIR_OBJECT] = MAKE_END,
+		[PGC_INTDIR_STATIC] = MAKE_END,
+		[PGC_INTDIR_SHARED] = MAKE_END,
+	};
 
-		const str_t *copyfile;
+	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {
+		const pgc_str_flags_t *copyfile;
 		arr_foreach(&pgc->arr[PGC_ARR_COPYFILES], copyfile)
 		{
-			make_rule_add_act(make, copyfiles, make_create_cmd(make, MCMD(strf("@cp %.*s .", copyfile->len, copyfile->data))));
+			if (!(copyfile->flags & (1 << i)) || copyfile->str.data == NULL) {
+				continue;
+			}
+
+			if (copyfiles[i] == MAKE_END) {
+				copyfiles[i] = make_add_act(make, make_create_rule(make, MRULE(MSTR(intdir_c[i].copyfiles)), 0));
+			}
+
+			make_rule_add_act(make, copyfiles[i], make_create_cmd(make, MCMD(strf("@cp %.*s .", copyfile->str.len, copyfile->str.data))));
 		}
 	}
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if ((target[b] == MAKE_END && copyfiles == MAKE_END) || ((pgc->builds & (1 << b)) == 0)) {
+		if ((target[b] == MAKE_END && copyfiles[target_c[b].intdir] == MAKE_END) || ((pgc->builds & (1 << b)) == 0)) {
 			continue;
 		}
 
@@ -495,8 +575,8 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 
 		const make_rule_t compile = make_add_act(make, make_create_rule(make, MRULE(MSTR(target_c[b].act)), 0));
 		make_rule_add_depend(make, compile, MRULE(MSTR(STR("check"))));
-		if (copyfiles != MAKE_END) {
-			make_rule_add_depend(make, compile, MRULE(MSTR(STR("copyfiles"))));
+		if (copyfiles[target_c[b].intdir] != MAKE_END) {
+			make_rule_add_depend(make, compile, MRULE(MSTR(intdir_c[target_c[b].intdir].copyfiles)));
 		}
 
 		if (target[b] != MAKE_END) {
@@ -544,19 +624,27 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 			const pgc_lib_data_t *lib;
 			arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
 			{
-				if (lib->name.data == NULL) {
+				if (!(lib->intdirs & (1 << target_c[b].intdir)) || lib->name.data == NULL) {
 					continue;
 				}
 
-				str_t tmp = strz(16);
-				if (lib->dir.data) {
-					str_cat(&tmp, lib->dir);
+				switch (lib->link_type) {
+				case PGC_LINK_SHARED:
+				case PGC_LINK_STATIC: {
+					str_t tmp = strz(16);
+					if (lib->dir.data) {
+						str_cat(&tmp, lib->dir);
+					}
+
+					str_cat(&tmp, lib->name);
+					str_cat(&tmp, lib->link_type == PGC_LINK_SHARED ? STR(".so") : STR(".a"));
+
+					make_rule_add_depend(make, target_rule[b], MRULE(MSTR(tmp)));
+					break;
 				}
-
-				str_cat(&tmp, lib->name);
-				str_cat(&tmp, lib->link_type == PGC_LINK_SHARED ? STR(".so") : STR(".a"));
-
-				make_rule_add_depend(make, target_rule[b], MRULE(MSTR(tmp)));
+				default:
+					break;
+				}
 			}
 
 			str_cat(&cmd, target_c[b].cmdr);
@@ -599,20 +687,24 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 			const pgc_str_flags_t *file;
 			arr_foreach(&pgc->arr[PGC_ARR_FILES], file)
 			{
-				make_rule_add_depend(make, target_rule[PGC_BUILD_BIN], MRULE(MSTR(str_cpy(file->str))));
-				switch (file->flags) {
-				case PGC_FILE_BIN:
+				if (file->str.data == NULL) {
+					continue;
+				}
+
+				if (file->flags & F_PGC_FILE_BIN || file->flags & F_PGC_FILE_ELF) {
+					make_rule_add_depend(make, target_rule[PGC_BUILD_BIN], MRULE(MSTR(str_cpy(file->str))));
+				}
+				if (file->flags & F_PGC_FILE_BIN) {
 					make_rule_add_act(make, target_rule[PGC_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@dd if=%.*s status=none >> $@", file->str.len, file->str.data))));
-					break;
+				}
 
-				case PGC_FILE_ELF:
+				if (file->flags & F_PGC_FILE_ELF) {
 					make_rule_add_act(make, target_rule[PGC_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@objcopy -O binary -j .text %.*s %.*s.bin", file->str.len, file->str.data,
 											  file->str.len, file->str.data))));
 					make_rule_add_act(make, target_rule[PGC_BUILD_BIN],
 							  make_create_cmd(make, MCMD(strf("@dd if=%.*s.bin status=none >> $@", file->str.len, file->str.data))));
-					break;
 				}
 			}
 
@@ -634,6 +726,10 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		const pgc_str_flags_t *file;
 		arr_foreach(&pgc->arr[PGC_ARR_FILES], file)
 		{
+			if (file->str.data == NULL || !(file->flags & (F_PGC_FILE_BIN | F_PGC_FILE_ELF))) {
+				continue;
+			}
+
 			make_rule_add_depend(make, target_rule[PGC_BUILD_FAT12], MRULE(MSTR(str_cpy(file->str))));
 		}
 
@@ -948,6 +1044,10 @@ static make_t *pgc_gen_mk_remote(const pgc_t *pgc, make_t *make)
 	const str_t *require;
 	arr_foreach(&pgc->arr[PGC_ARR_REQUIRES], require)
 	{
+		if (require->data == NULL) {
+			continue;
+		}
+
 		make_if_t if_dpkg = make_rule_add_act(make, check,
 						      make_create_if(make, MSTR(str_null()),
 								     MSTR(strf("$(shell apt list --installed 2>/dev/null | grep %.*s/)", require->len, require->data))));

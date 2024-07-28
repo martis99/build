@@ -3,7 +3,7 @@
 #include "cm_dir.h"
 #include "cm_proj.h"
 #include "gen/cm/pgc_gen_cm.h"
-#include "gen/proj_gen.h"
+#include "gen/proj_gen_pgc.h"
 
 #include "common.h"
 
@@ -140,10 +140,10 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 	{
 		proj_t *proj = *(proj_t **)pproj;
 
-		proj_gen(proj, &sln->projects, sln->props, &proj->pgc);
+		proj_gen_pgc(proj, sln->props, &proj->pgc);
 
 		cm_proj_get_vars(proj, vars);
-		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX);
+		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX, '/');
 
 		cmake_init(&proj->gen.cmake, 16, 8, 16);
 		pgc_gen_cm(&proj->pgc, &proj->gen.cmake);

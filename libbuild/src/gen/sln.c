@@ -17,8 +17,8 @@ static const prop_pol_t s_sln_props[] = {
 	[SLN_PROP_ARCHS]   = { .name = STRS("ARCHS"), .flags = PPF_ARR },
 	[SLN_PROP_CHARSET] = { .name = STRS("CHARSET"), .str_table = s_charsets, .str_table_len = __CHARSET_MAX },
 	[SLN_PROP_FLAGS]  = { .name = STRS("CFLAGS"), .str_table = s_flags, .str_table_len = __FLAG_MAX, .flags = PPF_ARR },
-	[SLN_PROP_OUTDIR]  = { .name = STRS("OUTDIR"), .def = STRS("$(SLNDIR)bin\\$(ARCH)-$(CONFIG)\\$(PROJDIR)")},
-	[SLN_PROP_INTDIR]  = { .name = STRS("INTDIR"), .def = STRS("$(SLNDIR)bin\\$(ARCH)-$(CONFIG)\\$(PROJDIR)int\\")},
+	[SLN_PROP_OUTDIR]  = { .name = STRS("OUTDIR"), .def = STRS("$(SLNDIR)bin/$(ARCH)-$(CONFIG)/$(PROJDIR)")},
+	[SLN_PROP_INTDIR]  = { .name = STRS("INTDIR"), .def = STRS("$(SLNDIR)bin/$(ARCH)-$(CONFIG)/$(PROJDIR)int/")},
 };
 
 typedef struct read_dir_data_s {
@@ -187,6 +187,45 @@ static void calculate_includes(proj_t *proj, sln_t *sln)
 	get_all_includes(&proj->includes, proj, &sln->projects);
 }
 
+static void calculate_header(proj_t *proj, sln_t *sln)
+{
+	if (!(proj->props[PROJ_PROP_HEADER].flags & PROP_SET)) {
+		return;
+	}
+
+	const str_t *hname = &proj->props[PROJ_PROP_HEADER].value.val;
+
+	const proj_t *hproj = NULL;
+	if (dict_get(&sln->projects, hname->data, hname->len, (void **)&hproj)) {
+		ERR("header project doesn't exist: '%.*s'", (int)hname->len, hname->data);
+		return;
+	}
+
+	proj->header = hproj;
+}
+
+static void calculate_files(proj_t *proj, sln_t *sln)
+{
+	if (!(proj->props[PROJ_PROP_FILES].flags & PROP_SET)) {
+		return;
+	}
+
+	const arr_t *files = &proj->props[PROJ_PROP_FILES].arr;
+	arr_init(&proj->files, files->cap, sizeof(proj_t *));
+
+	const prop_str_t *file;
+	arr_foreach(files, file)
+	{
+		const proj_t *fproj = NULL;
+		if (dict_get(&sln->projects, file->val.data, file->val.len, (void **)&fproj)) {
+			ERR("file project doesn't exist: '%.*s'", (int)file->val.len, file->val.data);
+			continue;
+		}
+
+		*(const proj_t **)arr_get(&proj->files, arr_add(&proj->files)) = fproj;
+	}
+}
+
 static void calculate_build_older(arr_t *arr, const proj_t *proj, dict_t *projects)
 {
 	const proj_dep_t *dep;
@@ -282,6 +321,8 @@ int sln_read(sln_t *sln, const path_t *path)
 	dict_foreach(&sln->projects, pair)
 	{
 		calculate_includes(pair->value, sln);
+		calculate_header(pair->value, sln);
+		calculate_files(pair->value, sln);
 	}
 
 	arr_init(&sln->build_order, sln->projects.count, sizeof(proj_t *));
@@ -342,6 +383,7 @@ void sln_free(sln_t *sln)
 	dict_foreach(&sln->projects, pair)
 	{
 		proj_t *proj = pair->value;
+		pgc_free(&proj->pgcr);
 		pgc_free(&proj->pgc);
 	}
 

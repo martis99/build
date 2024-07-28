@@ -137,9 +137,17 @@ json_t *pgc_gen_vc_launch(const pgc_t *pgc, json_t *json, json_val_t configs)
 		const str_t *arch;
 		arr_foreach(&pgc->arr[PGC_ARR_ARCHS], arch)
 		{
+			if (arch->data == NULL) {
+				continue;
+			}
+
 			const str_t *conf;
 			arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
 			{
+				if (conf->data == NULL) {
+					continue;
+				}
+
 				if ((str_eq(*conf, STR("Debug")) && pgc->target[PGC_TARGET_STR_RUN_DBG][b].data) || pgc->target[PGC_TARGET_STR_RUN][b].data ||
 				    b == PGC_BUILD_EXE) {
 					pgc_gen_vc_launch_cppdbg(pgc, json, configs, b, *arch, *conf);

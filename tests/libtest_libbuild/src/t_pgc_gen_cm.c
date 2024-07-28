@@ -329,7 +329,7 @@ TEST(t_pgc_gen_cm_libs)
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
 			"add_executable(test ${test_SOURCE})\n"
-			"target_link_directories(test PRIVATE libs/ libs/ libs/ libs/ libs/)\n"
+			"target_link_directories(test PRIVATE libs/ libs/ libs/ libs/)\n"
 			"target_link_libraries(test PRIVATE lib_s -l:lib.a -l:lib.so -l:lib.so)\n"
 			"" TARGET_PROPERTIES "");
 

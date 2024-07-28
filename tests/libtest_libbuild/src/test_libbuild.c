@@ -17,6 +17,7 @@ STEST(t_pgc_gen_cm);
 STEST(t_pgc_gen_mk);
 STEST(t_pgc_gen_vc_tasks);
 STEST(t_pgc_gen_vc_launch);
+STEST(t_proj_gen_pgc);
 STEST(t_cm);
 STEST(t_mk);
 STEST(t_vc);
@@ -32,6 +33,7 @@ TEST(tests)
 	RUN(t_pgc_gen_mk);
 	RUN(t_pgc_gen_vc_tasks);
 	RUN(t_pgc_gen_vc_launch);
+	RUN(t_proj_gen_pgc);
 	//RUN(t_cm);
 	//RUN(t_mk);
 	//RUN(t_vc);
@@ -41,7 +43,7 @@ TEST(tests)
 
 int test_libbuild()
 {
-	//t_run(test_cutils, 0);
+	t_run(test_cutils, 0);
 	tests();
 
 	return 0;

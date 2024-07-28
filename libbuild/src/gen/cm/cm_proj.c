@@ -1,7 +1,7 @@
 #include "cm_proj.h"
 
 #include "gen/cm/pgc_gen_cm.h"
-#include "gen/proj_gen.h"
+#include "gen/proj_gen_pgc.h"
 #include "gen/sln.h"
 
 #include "common.h"

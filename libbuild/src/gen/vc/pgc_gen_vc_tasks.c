@@ -70,9 +70,17 @@ json_t *pgc_gen_vc_tasks(const pgc_t *pgc, json_t *json, json_val_t tasks)
 		const str_t *arch;
 		arr_foreach(&pgc->arr[PGC_ARR_ARCHS], arch)
 		{
+			if (arch->data == NULL) {
+				continue;
+			}
+
 			const str_t *conf;
 			arr_foreach(&pgc->arr[PGC_ARR_CONFIGS], conf)
 			{
+				if (conf->data == NULL) {
+					continue;
+				}
+
 				pgc_gen_vc_task(pgc, json, tasks, b, *arch, *conf);
 			}
 		}

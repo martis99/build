@@ -43,6 +43,7 @@ void pgc_gen_require(pgc_t *pgc)
 {
 	pgc_init(pgc);
 
+	pgc_add_require(pgc, str_null());
 	pgc_add_require(pgc, STRH("package"));
 }
 
@@ -62,6 +63,8 @@ void pgc_gen_headers(pgc_t *pgc)
 
 	pgc->str[PGC_STR_NAME] = STRH("test");
 
+	pgc_add_header(pgc, str_null(), F_PGC_HEADER_H);
+	pgc_add_header(pgc, STRH("src/"), 0);
 	pgc_add_header(pgc, STRH("src/"), F_PGC_HEADER_H);
 }
 
@@ -75,6 +78,8 @@ void pgc_gen_includes(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+	pgc_add_include(pgc, str_null(), PGC_SCOPE_PRIVATE);
+	pgc_add_include(pgc, STRH("src/"), PGC_SCOPE_UNKNOWN);
 	pgc_add_include(pgc, STRH("src/"), PGC_SCOPE_PRIVATE);
 	pgc_add_include(pgc, STRH("include/"), PGC_SCOPE_PUBLIC);
 }
@@ -89,6 +94,8 @@ void pgc_gen_flags(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+	pgc_add_flag(pgc, str_null(), F_PGC_SRC_C);
+	pgc_add_flag(pgc, STR("-Wall"), 0);
 	pgc_add_flag(pgc, STR("-Wall"), F_PGC_SRC_C);
 	pgc_add_flag(pgc, STR("-Wextra"), F_PGC_SRC_C);
 }
@@ -106,6 +113,7 @@ void pgc_gen_ldflags(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+	pgc_add_ldflag(pgc, str_null());
 	pgc_add_ldflag(pgc, STR("-lm"));
 	pgc_add_ldflag(pgc, STR("-lpthread"));
 }
@@ -123,11 +131,13 @@ void pgc_gen_libs(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
-	pgc_add_lib(pgc, STRH("libs/"), str_null(), PGC_LINK_STATIC, PGC_LIB_INT);
-	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), PGC_LINK_STATIC, PGC_LIB_INT);
-	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), PGC_LINK_STATIC, PGC_LIB_EXT);
-	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), PGC_LINK_SHARED, PGC_LIB_INT);
-	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), PGC_LINK_SHARED, PGC_LIB_EXT);
+	pgc_add_lib(pgc, str_null(), str_null(), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), 0, PGC_LINK_STATIC, PGC_LIB_INT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), F_PGC_INTDIR_OBJECT, PGC_LINK_UNKNOWN, PGC_LIB_INT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_INT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), F_PGC_INTDIR_OBJECT, PGC_LINK_STATIC, PGC_LIB_EXT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), F_PGC_INTDIR_OBJECT, PGC_LINK_SHARED, PGC_LIB_INT);
+	pgc_add_lib(pgc, STRH("libs/"), STRH("lib"), F_PGC_INTDIR_OBJECT, PGC_LINK_SHARED, PGC_LIB_EXT);
 }
 
 void pgc_gen_depends(pgc_t *pgc)
@@ -143,6 +153,7 @@ void pgc_gen_depends(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
+	pgc_add_depend(pgc, str_null());
 	pgc_add_depend(pgc, STRH("dep"));
 }
 
@@ -207,8 +218,10 @@ void pgc_gen_defines_exe(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
-	pgc_add_define(pgc, STR("DEBUG"), F_PGC_INTDIR_OBJECT);
-	pgc_add_define(pgc, STR("VERSION=1"), F_PGC_INTDIR_OBJECT);
+	pgc_add_define(pgc, str_null(), F_PGC_INTDIR_OBJECT);
+	pgc_add_define(pgc, STRH("DEBUG"), 0);
+	pgc_add_define(pgc, STRH("DEBUG"), F_PGC_INTDIR_OBJECT);
+	pgc_add_define(pgc, STRH("VERSION=1"), F_PGC_INTDIR_OBJECT);
 }
 
 void pgc_gen_defines_static(pgc_t *pgc)
@@ -224,8 +237,8 @@ void pgc_gen_defines_static(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
-	pgc_add_define(pgc, STR("DEBUG"), F_PGC_INTDIR_STATIC);
-	pgc_add_define(pgc, STR("VERSION=1"), F_PGC_INTDIR_STATIC);
+	pgc_add_define(pgc, STRH("DEBUG"), F_PGC_INTDIR_STATIC);
+	pgc_add_define(pgc, STRH("VERSION=1"), F_PGC_INTDIR_STATIC);
 }
 
 void pgc_gen_defines_shared(pgc_t *pgc)
@@ -241,8 +254,8 @@ void pgc_gen_defines_shared(pgc_t *pgc)
 
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
-	pgc_add_define(pgc, STR("DEBUG"), F_PGC_INTDIR_SHARED);
-	pgc_add_define(pgc, STR("VERSION=1"), F_PGC_INTDIR_SHARED);
+	pgc_add_define(pgc, STRH("DEBUG"), F_PGC_INTDIR_SHARED);
+	pgc_add_define(pgc, STRH("VERSION=1"), F_PGC_INTDIR_SHARED);
 }
 
 void pgc_gen_copyfiles(pgc_t *pgc)
@@ -253,7 +266,9 @@ void pgc_gen_copyfiles(pgc_t *pgc)
 
 	pgc->builds = F_PGC_BUILD_STATIC;
 
-	pgc_add_copyfile(pgc, STRH("lib.so"));
+	pgc_add_copyfile(pgc, str_null(), F_PGC_INTDIR_STATIC);
+	pgc_add_copyfile(pgc, STRH("lib.so"), 0);
+	pgc_add_copyfile(pgc, STRH("lib.so"), F_PGC_INTDIR_STATIC);
 }
 
 void pgc_gen_run(pgc_t *pgc)
@@ -365,8 +380,10 @@ void pgc_gen_bin_files(pgc_t *pgc)
 
 	pgc->builds = F_PGC_BUILD_BIN;
 
-	pgc_add_file(pgc, STRH("file.bin"), PGC_FILE_BIN);
-	pgc_add_file(pgc, STRH("file.elf"), PGC_FILE_ELF);
+	pgc_add_file(pgc, str_null(), F_PGC_FILE_BIN);
+	pgc_add_file(pgc, STRH("file.bin"), 0);
+	pgc_add_file(pgc, STRH("file.bin"), F_PGC_FILE_BIN);
+	pgc_add_file(pgc, STRH("file.elf"), F_PGC_FILE_ELF);
 
 	pgc->str[PGC_STR_SIZE] = STRH("1024");
 }
@@ -413,8 +430,10 @@ void pgc_gen_fat12(pgc_t *pgc)
 
 	pgc->builds = F_PGC_BUILD_FAT12;
 
-	pgc_add_file(pgc, STRH("file.bin"), PGC_FILE_BIN);
-	pgc_add_file(pgc, STRH("file.elf"), PGC_FILE_ELF);
+	pgc_add_file(pgc, str_null(), F_PGC_FILE_BIN);
+	pgc_add_file(pgc, STRH("file.bin"), 0);
+	pgc_add_file(pgc, STRH("file.bin"), F_PGC_FILE_BIN);
+	pgc_add_file(pgc, STRH("file.elf"), F_PGC_FILE_ELF);
 
 	pgc->str[PGC_STR_SIZE] = STRH("1024");
 }
@@ -431,7 +450,7 @@ void pgc_gen_fat12_header(pgc_t *pgc)
 
 	pgc->builds = F_PGC_BUILD_FAT12;
 
-	pgc_add_file(pgc, STRH("file.elf"), PGC_FILE_ELF);
+	pgc_add_file(pgc, STRH("file.elf"), F_PGC_FILE_ELF);
 }
 
 void pgc_gen_archs(pgc_t *pgc)
@@ -445,6 +464,7 @@ void pgc_gen_archs(pgc_t *pgc)
 
 	pgc->builds = F_PGC_BUILD_EXE;
 
+	pgc_add_arch(pgc, str_null());
 	pgc_add_arch(pgc, STRH("x86_64"));
 	pgc_add_arch(pgc, STRH("i386"));
 	pgc_add_config(pgc, STRH("Debug"));
@@ -463,6 +483,7 @@ void pgc_gen_configs(pgc_t *pgc)
 	pgc->builds = F_PGC_BUILD_EXE;
 
 	pgc_add_arch(pgc, STRH("x86_64"));
+	pgc_add_config(pgc, str_null());
 	pgc_add_config(pgc, STRH("Debug"));
 	pgc_add_config(pgc, STRH("Release"));
 	pgc_add_src(pgc, STRH("src/"), F_PGC_SRC_C);
@@ -678,5 +699,6 @@ void pgc_gen_url(pgc_t *pgc)
 	pgc->str[PGC_STR_TARGETS] = STRH("all-gcc");
 	pgc->str[PGC_STR_OUTDIR]  = STRH("$(SLNDIR)bin/$(ARCH)/test/");
 
+	pgc_add_require(pgc, str_null());
 	pgc_add_require(pgc, STRH("g++"));
 }
