@@ -1,9 +1,5 @@
 #include "mk_proj.h"
 
-#include "gen/mk/pgc_gen_mk.h"
-#include "gen/proj_gen_pgc.h"
-#include "gen/sln.h"
-
 #include "common.h"
 
 str_t *mk_proj_get_vars(const proj_t *proj, str_t *vars)

@@ -67,7 +67,9 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 	};
 	// clang-format on
 
-	pgc->builds = type_c[proj->props[PROJ_PROP_TYPE].mask].builds;
+	if (proj->props[PROJ_PROP_TYPE].flags & PROP_SET) {
+		pgc->builds = type_c[proj->props[PROJ_PROP_TYPE].mask].builds;
+	}
 
 	const prop_t *outdir = &proj->props[PROJ_PROP_OUTDIR];
 	if (outdir->flags & PROP_SET) {
@@ -207,7 +209,8 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 				continue;
 			}
 
-			pgc_add_include(pgc, str_cpy(inc->str), PGC_SCOPE_PRIVATE);
+			resolve_path(rel, inc->str, &buf);
+			pgc_add_include(pgc, str_cpy(buf), PGC_SCOPE_PRIVATE);
 		}
 	}
 
@@ -216,7 +219,7 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 
 		for (uint k = 0; k < defines->cnt; k++) {
 			const prop_str_t *define = arr_get(defines, k);
-			pgc_add_define(pgc, str_cpy(define->val), F_PGC_INTDIR_OBJECT | F_PGC_BUILD_STATIC | F_PGC_INTDIR_SHARED);
+			pgc_add_define(pgc, str_cpy(define->val), F_PGC_INTDIR_OBJECT | F_PGC_INTDIR_STATIC | F_PGC_INTDIR_SHARED);
 		}
 	}
 
@@ -241,15 +244,27 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 	const proj_dep_t *dep;
 	arr_foreach(&proj->all_depends, dep)
 	{
-		if (dep->proj->props[PROJ_PROP_TYPE].mask != PROJ_TYPE_LIB || dep->link_type != LINK_TYPE_SHARED || dep->proj->name.data == NULL) {
+		if (dep->proj->name.data == NULL) {
 			continue;
 		}
 
-		//TODO: cleanup
-		str_t define = strz(dep->proj->name.len + 5);
-		str_to_upper(dep->proj->name, &define);
-		str_cat(&define, STR("_DLL"));
-		pgc_add_define(pgc, define, F_PGC_INTDIR_SHARED);
+		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && dep->link_type == LINK_TYPE_SHARED) {
+			//TODO: cleanup
+			str_t define = strz(dep->proj->name.len + 5);
+			str_to_upper(dep->proj->name, &define);
+			str_cat(&define, STR("_DLL"));
+			pgc_add_define(pgc, define, F_PGC_INTDIR_SHARED);
+			continue;
+		}
+
+		if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_EXE) {
+			//TODO: cleanup
+			str_t define = strz(dep->proj->name.len + 5);
+			str_to_upper(dep->proj->name, &define);
+			str_cat(&define, STR("_DLL"));
+			pgc_add_define(pgc, define, F_PGC_INTDIR_OBJECT);
+			continue;
+		}
 	}
 
 	if (proj->props[PROJ_PROP_SOURCE].flags & PROP_SET && proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && proj->name.data) {
@@ -261,11 +276,13 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 	}
 
 	//Add project dependencies which can't be added, because there is no target
-	//If project is not external, add external dependencies
+	//If project is not external, add external and shared dependencies
 	//If project is external, add all dependencies
 	arr_foreach(&proj->depends, dep)
 	{
-		if (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) || !(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET)) {
+		if (!(proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) ||
+		    (!(dep->proj->props[PROJ_PROP_SOURCE].flags & PROP_SET) ||
+		     (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB && dep->link_type == LINK_TYPE_SHARED))) {
 			if (dep->proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
 				if (dep->link_type == LINK_TYPE_STATIC) {
 					pgc_add_depend(pgc, strf("%.*s_s", dep->proj->name.len, dep->proj->name.data));
@@ -331,6 +348,13 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 
 	str_t rel = strc(proj->rel_dir.path, proj->rel_dir.len);
 
+	const prop_str_t *enclude;
+	arr_foreach(&proj->props[PROJ_PROP_ENCLUDE].arr, enclude)
+	{
+		resolve_path(rel, enclude->val, &buf);
+		pgc_add_include(pgc, str_cpy(enclude->val), PGC_SCOPE_PUBLIC);
+	}
+
 	const prop_t *lib = &proj->props[PROJ_PROP_LIB];
 	if (lib->flags & PROP_SET) {
 		resolve_path(rel, STR(""), &buf);
@@ -394,7 +418,22 @@ static int gen_source(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 	const prop_str_t *copyfile;
 	arr_foreach(&proj->props[PROJ_PROP_COPYFILES].arr, copyfile)
 	{
-		pgc_add_copyfile(pgc, str_cpy(copyfile->val), F_PGC_INTDIR_OBJECT);
+		resolve_path(rel, copyfile->val, &buf);
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			pgc_add_copyfile(pgc, str_cpy(buf), F_PGC_INTDIR_STATIC);
+		} else {
+			pgc_add_copyfile(pgc, str_cpy(buf), F_PGC_INTDIR_OBJECT);
+		}
+	}
+
+	arr_foreach(&proj->props[PROJ_PROP_DCOPYFILES].arr, copyfile)
+	{
+		resolve_path(rel, copyfile->val, &buf);
+		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
+			pgc_add_copyfile(pgc, str_cpy(buf), F_PGC_INTDIR_SHARED);
+		} else {
+			pgc_add_copyfile(pgc, str_cpy(buf), F_PGC_INTDIR_OBJECT);
+		}
 	}
 
 	if (proj->header) {
@@ -476,7 +515,6 @@ static int gen_url(const proj_t *proj, pgc_t *pgc)
 	return 0;
 }
 
-//TODO: Get rid of projects
 //TODO: Get rid of sln_props
 int proj_gen_pgc(const proj_t *proj, const prop_t *sln_props, pgc_t *pgc)
 {

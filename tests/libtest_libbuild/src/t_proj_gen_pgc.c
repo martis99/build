@@ -659,6 +659,9 @@ TEST(t_proj_gen_pgc_link_object)
 		.link_type = LINK_TYPE_SHARED,
 	};
 
+	proj.props[PROJ_PROP_TYPE].flags = PROP_SET;
+	proj.props[PROJ_PROP_TYPE].mask	 = PROJ_TYPE_EXE;
+
 	dproj.props[PROJ_PROP_TYPE].flags	= PROP_SET;
 	dproj.props[PROJ_PROP_TYPE].mask	= PROJ_TYPE_EXE;
 	dproj.props[PROJ_PROP_NAME].flags	= PROP_SET;
@@ -674,7 +677,8 @@ TEST(t_proj_gen_pgc_link_object)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "");
+	EXPECT_STR(buf, "DEFINES\n"
+			"    TEST_DLL (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -911,7 +915,9 @@ TEST(t_proj_gen_pgc_depend_exe_int_shared)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "INCLUDES\n"
-			"    src/ (PRIVATE)\n");
+			"    src/ (PRIVATE)\n"
+			"DEPENDS\n"
+			"    test_d\n");
 
 	pgc_free(&pgc);
 
@@ -1157,6 +1163,37 @@ TEST(t_proj_gen_pgc_shared_ext)
 	pgc_free(&pgc);
 
 	arr_free(&proj.all_depends);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_enclude)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.props[PROJ_PROP_ENCLUDE].flags = PROP_SET;
+	arr_init(&proj.props[PROJ_PROP_ENCLUDE].arr, 1, sizeof(prop_str_t));
+
+	prop_str_t *enclude = arr_get(&proj.props[PROJ_PROP_ENCLUDE].arr, arr_add(&proj.props[PROJ_PROP_ENCLUDE].arr));
+
+	enclude->val = STR("include/");
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "INCLUDES\n"
+			"    include/ (PUBLIC)\n");
+
+	pgc_free(&pgc);
+
+	arr_free(&proj.props[PROJ_PROP_ENCLUDE].arr);
 
 	END;
 }
@@ -1464,7 +1501,7 @@ TEST(t_proj_gen_pgc_require)
 	END;
 }
 
-TEST(t_proj_gen_pgc_copyfile)
+TEST(t_proj_gen_pgc_copyfile_lib)
 {
 	START;
 
@@ -1488,11 +1525,110 @@ TEST(t_proj_gen_pgc_copyfile)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    file (OBJECT)\n");
+			"    $(SLNDIR)file (STATIC)\n");
 
 	pgc_free(&pgc);
 
 	arr_free(&proj.props[PROJ_PROP_COPYFILES].arr);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_copyfile_exe)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.props[PROJ_PROP_TYPE].flags      = PROP_SET;
+	proj.props[PROJ_PROP_TYPE].mask	      = PROJ_TYPE_EXE;
+	proj.props[PROJ_PROP_COPYFILES].flags = PROP_SET;
+	arr_init(&proj.props[PROJ_PROP_COPYFILES].arr, 1, sizeof(prop_str_t));
+
+	prop_str_t *copyfile = arr_get(&proj.props[PROJ_PROP_COPYFILES].arr, arr_add(&proj.props[PROJ_PROP_COPYFILES].arr));
+
+	copyfile->val = STR("file");
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "COPYFILES\n"
+			"    $(SLNDIR)file (OBJECT)\n");
+
+	pgc_free(&pgc);
+
+	arr_free(&proj.props[PROJ_PROP_COPYFILES].arr);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_dcopyfile_lib)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.props[PROJ_PROP_TYPE].flags       = PROP_SET;
+	proj.props[PROJ_PROP_TYPE].mask	       = PROJ_TYPE_LIB;
+	proj.props[PROJ_PROP_DCOPYFILES].flags = PROP_SET;
+	arr_init(&proj.props[PROJ_PROP_DCOPYFILES].arr, 1, sizeof(prop_str_t));
+
+	prop_str_t *copyfile = arr_get(&proj.props[PROJ_PROP_DCOPYFILES].arr, arr_add(&proj.props[PROJ_PROP_DCOPYFILES].arr));
+
+	copyfile->val = STR("file");
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "COPYFILES\n"
+			"    $(SLNDIR)file (SHARED)\n");
+
+	pgc_free(&pgc);
+
+	arr_free(&proj.props[PROJ_PROP_DCOPYFILES].arr);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_dcopyfile_exe)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.props[PROJ_PROP_TYPE].flags       = PROP_SET;
+	proj.props[PROJ_PROP_TYPE].mask	       = PROJ_TYPE_EXE;
+	proj.props[PROJ_PROP_DCOPYFILES].flags = PROP_SET;
+	arr_init(&proj.props[PROJ_PROP_DCOPYFILES].arr, 1, sizeof(prop_str_t));
+
+	prop_str_t *copyfile = arr_get(&proj.props[PROJ_PROP_DCOPYFILES].arr, arr_add(&proj.props[PROJ_PROP_DCOPYFILES].arr));
+
+	copyfile->val = STR("file");
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "COPYFILES\n"
+			"    $(SLNDIR)file (OBJECT)\n");
+
+	pgc_free(&pgc);
+
+	arr_free(&proj.props[PROJ_PROP_DCOPYFILES].arr);
 
 	END;
 }
@@ -1915,6 +2051,7 @@ STEST(t_proj_gen_pgc)
 	RUN(t_proj_gen_pgc_shared_lib);
 	RUN(t_proj_gen_pgc_static_ext);
 	RUN(t_proj_gen_pgc_shared_ext);
+	RUN(t_proj_gen_pgc_enclude);
 	RUN(t_proj_gen_pgc_lib);
 	RUN(t_proj_gen_pgc_exe_dlib);
 	RUN(t_proj_gen_pgc_lib_dlib);
@@ -1924,7 +2061,10 @@ STEST(t_proj_gen_pgc)
 	RUN(t_proj_gen_pgc_libdir_rel);
 	RUN(t_proj_gen_pgc_ldflags);
 	RUN(t_proj_gen_pgc_require);
-	RUN(t_proj_gen_pgc_copyfile);
+	RUN(t_proj_gen_pgc_copyfile_lib);
+	RUN(t_proj_gen_pgc_copyfile_exe);
+	RUN(t_proj_gen_pgc_dcopyfile_lib);
+	RUN(t_proj_gen_pgc_dcopyfile_exe);
 	RUN(t_proj_gen_pgc_header);
 	RUN(t_proj_gen_pgc_files);
 	RUN(t_proj_gen_pgc_wdir);

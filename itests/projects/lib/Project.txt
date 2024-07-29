@@ -4,4 +4,5 @@ LANGS = C
 SOURCE = src
 INCLUDE = include
 DEPENDS = ext, liblib
+DDEPENDS = ext, liblib
 INCLUDES = ext, liblib

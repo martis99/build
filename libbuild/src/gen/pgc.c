@@ -57,9 +57,10 @@ static const char *s_src_type_str[] = {
 };
 
 static const char *s_intdir_type_str[] = {
-	[PGC_INTDIR_OBJECT] = "OBJECT",
-	[PGC_INTDIR_STATIC] = "STATIC",
-	[PGC_INTDIR_SHARED] = "SHARED",
+	[PGC_INTDIR_UNKNOWN] = "UNKNOWN",
+	[PGC_INTDIR_OBJECT]  = "OBJECT",
+	[PGC_INTDIR_STATIC]  = "STATIC",
+	[PGC_INTDIR_SHARED]  = "SHARED",
 };
 
 static const char *s_intdir_str_str[] = {
@@ -527,6 +528,8 @@ pgc_t *pgc_replace_vars(const pgc_t *src, pgc_t *dst, const str_t *src_vars, con
 	if (src == NULL || dst == NULL) {
 		return NULL;
 	}
+
+	dst->builds = src->builds;
 
 	for (pgc_str_t i = 0; i < __PGC_STR_MAX; i++) {
 		if (src->str[i].data == NULL || src->str[i].len == 0) {

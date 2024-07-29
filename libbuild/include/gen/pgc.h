@@ -40,6 +40,7 @@ typedef enum pgc_file_type_e {
 #define F_PGC_FILE_ELF (1 << PGC_FILE_ELF)
 
 typedef enum pgc_intdir_type_e {
+	PGC_INTDIR_UNKNOWN,
 	PGC_INTDIR_OBJECT,
 	PGC_INTDIR_STATIC,
 	PGC_INTDIR_SHARED,

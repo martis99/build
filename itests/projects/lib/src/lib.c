@@ -1,5 +1,6 @@
 #include "lib.h"
 
+#include "extlib.h"
 #include "liblib.h"
 
 #include <stdio.h>
@@ -13,7 +14,7 @@ int dlib_args(int argc, char **argv)
 
 	int ret = 0;
 
-	if (liblib_args(argc, argv)) {
+	if (dextlib_args(argc, argv)) {
 		ret = 1;
 	}
 
@@ -38,15 +39,7 @@ int lib_args(int argc, char **argv)
 		ret = 1;
 	}
 
-	if (dextlib_args(argc, argv)) {
-		ret = 1;
-	}
-
 	if (liblib_args(argc, argv)) {
-		ret = 1;
-	}
-
-	if (dliblib_args(argc, argv)) {
 		ret = 1;
 	}
 

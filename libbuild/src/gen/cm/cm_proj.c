@@ -1,9 +1,5 @@
 #include "cm_proj.h"
 
-#include "gen/cm/pgc_gen_cm.h"
-#include "gen/proj_gen_pgc.h"
-#include "gen/sln.h"
-
 #include "common.h"
 
 str_t *cm_proj_get_vars(const proj_t *proj, str_t *vars)
@@ -31,7 +27,7 @@ int cm_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 		return 1;
 	}
 
-	MSG("generating project: %s", gen_path.path);
+	log_info("build", "proj", NULL, "generating project: %s", gen_path.path);
 
 	FILE *file = file_open(gen_path.path, "w");
 	if (file == NULL) {
@@ -43,11 +39,10 @@ int cm_proj_gen(proj_t *proj, const dict_t *projects, const prop_t *sln_props)
 	file_close(file);
 
 	if (len == 0) {
-		ERR("generating project: %s failed", gen_path.path);
+		log_error("build", "proj", NULL, "failed to generate project: %s", gen_path.path);
 		return 1;
 	}
 
-	SUC("generating project: %s success", gen_path.path);
 	return 0;
 }
 

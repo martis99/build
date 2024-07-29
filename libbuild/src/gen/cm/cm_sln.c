@@ -146,7 +146,7 @@ int cm_sln_gen(sln_t *sln, const path_t *path)
 		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX, '/');
 
 		cmake_init(&proj->gen.cmake, 16, 8, 16);
-		pgc_gen_cm(&proj->pgc, &proj->gen.cmake);
+		pgc_gen_cm(&proj->pgcr, &proj->gen.cmake);
 
 		ret |= cm_proj_gen(proj, &sln->projects, sln->props);
 	}

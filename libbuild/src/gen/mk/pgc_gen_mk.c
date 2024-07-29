@@ -73,9 +73,10 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	}
 
 	make_var_t intdir[] = {
-		[PGC_INTDIR_OBJECT] = MAKE_END,
-		[PGC_INTDIR_STATIC] = MAKE_END,
-		[PGC_INTDIR_SHARED] = MAKE_END,
+		[PGC_INTDIR_UNKNOWN] = MAKE_END,
+		[PGC_INTDIR_OBJECT]  = MAKE_END,
+		[PGC_INTDIR_STATIC]  = MAKE_END,
+		[PGC_INTDIR_SHARED]  = MAKE_END,
 	};
 
 	static struct {
@@ -102,6 +103,12 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	}
 
 	make_var_t obj[][__PGC_SRC_TYPE_MAX] = {
+		[PGC_INTDIR_UNKNOWN] = {
+			[PGC_SRC_NASM] = MAKE_END,
+			[PGC_SRC_S]   = MAKE_END,
+			[PGC_SRC_C]   = MAKE_END,
+			[PGC_SRC_CPP] = MAKE_END,
+		},
 		[PGC_INTDIR_OBJECT] = {
 			[PGC_SRC_NASM] = MAKE_END,
 			[PGC_SRC_S]   = MAKE_END,
@@ -234,7 +241,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	// clang-format on
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (pgc->target[PGC_TARGET_STR_TARGET][b].data == NULL) {
+		if (pgc->target[PGC_TARGET_STR_TARGET][b].data == NULL || (!obj_intdir[target_c[b].intdir] && pgc->arr[PGC_ARR_FILES].cnt == 0)) {
 			continue;
 		}
 
@@ -331,9 +338,10 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	}
 
 	make_var_t defines[] = {
-		[PGC_INTDIR_OBJECT] = MAKE_END,
-		[PGC_INTDIR_STATIC] = MAKE_END,
-		[PGC_INTDIR_SHARED] = MAKE_END,
+		[PGC_INTDIR_UNKNOWN] = MAKE_END,
+		[PGC_INTDIR_OBJECT]  = MAKE_END,
+		[PGC_INTDIR_STATIC]  = MAKE_END,
+		[PGC_INTDIR_SHARED]  = MAKE_END,
 	};
 
 	for (pgc_intdir_type_t i = 0; i < __PGC_INTDIR_TYPE_MAX; i++) {

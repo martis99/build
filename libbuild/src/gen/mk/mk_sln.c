@@ -97,7 +97,7 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX, '/');
 
 		make_init(&proj->gen.make, 8, 8, 8);
-		pgc_gen_mk(&proj->pgc, &proj->gen.make);
+		pgc_gen_mk(&proj->pgcr, &proj->gen.make);
 
 		ret |= mk_proj_gen(proj, &sln->projects, sln->props);
 	}
