@@ -183,7 +183,7 @@ DLIBCPP: test"
 	fi
 }
 
-rm -rf itests/bin itests/tmp
+rm -rf itests/bin itests/tmp itests/.vscode
 
 printf "[Build] Generating Makefiles\n"
 mkdir -p itests/tmp/build/mk

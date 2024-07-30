@@ -95,7 +95,9 @@ typedef enum pgc_scope_e {
 } pgc_scope_t;
 
 typedef enum pgc_str_e {
-	PGC_STR_NAME,
+	PGC_STR_DIR,
+	PGC_STR_RELDIR,
+	PGC_STR_GUID,
 	PGC_STR_OUTDIR,
 	PGC_STR_COVDIR,
 	PGC_STR_ARGS,
@@ -135,6 +137,7 @@ typedef enum pgc_target_str_e {
 } pgc_target_str_t;
 
 typedef enum pgc_intdir_str_e {
+	PGC_INTDIR_STR_NAME,
 	PGC_INTDIR_STR_INTDIR,
 	__PGC_INTDIR_STR_MAX,
 } pgc_intdir_str_t;
@@ -161,8 +164,7 @@ uint pgc_add_flag(pgc_t *pgc, str_t flag, int exts);
 uint pgc_add_define(pgc_t *pgc, str_t define, int intdirs);
 uint pgc_add_ldflag(pgc_t *pgc, str_t ldflag);
 uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, int intdirs, pgc_link_type_t link_type, pgc_lib_type_t lib_type);
-uint pgc_add_depend(pgc_t *pgc, str_t depend);
-void pgc_set_cwd(pgc_t *pgc, str_t cwd);
+uint pgc_add_depend(pgc_t *pgc, str_t name, str_t guid, str_t rel_dir, int builds);
 void pgc_set_run(pgc_t *pgc, str_t run, int builds);
 void pgc_set_run_debug(pgc_t *pgc, str_t run, int builds);
 uint pgc_add_file(pgc_t *pgc, str_t path, int exts);

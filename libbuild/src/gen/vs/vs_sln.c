@@ -1,16 +1,100 @@
 #include "gen/vs/vs_sln.h"
 
-#include "vs_proj.h"
-
 #include "gen/dir.h"
+#include "gen/proj.h"
+#include "gen/proj_gen_pgc.h"
+#include "gen/vs/pgc_gen_vs_proj.h"
+#include "gen/vs/pgc_gen_vs_user.h"
 
 #include "common.h"
+
+str_t *vs_proj_get_vars(const proj_t *proj, str_t *vars)
+{
+	vars[PROJ_VAR_SLNDIR]	= STR("$(SolutionDir)");
+	vars[PROJ_VAR_PROJDIR]	= strf("$(SolutionDir)%.*s", proj->rel_dir.len, proj->rel_dir.path);
+	vars[PROJ_VAR_PROJNAME] = strc(proj->name.data, proj->name.len);
+	vars[PROJ_VAR_CONFIG]	= STR("$(Configuration)");
+	vars[PROJ_VAR_ARCH]	= STR("$(PlatformTarget)");
+	return vars;
+}
 
 int vs_sln_gen(sln_t *sln, const path_t *path)
 {
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
+	}
+
+	str_t vars[__PROJ_VAR_MAX] = { 0 };
+
+	int ret = 0;
+	const proj_t **pproj;
+	arr_foreach(&sln->build_order, pproj)
+	{
+		proj_t *proj = *(proj_t **)pproj;
+
+		proj_gen_pgc(proj, sln->props, &proj->pgc);
+
+		vs_proj_get_vars(proj, vars);
+		pgc_replace_vars(&proj->pgc, &proj->pgcr, s_proj_vars, vars, __PROJ_VAR_MAX, '/');
+
+		for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
+			if (!(proj->pgcr.builds & (1 << b))) {
+				continue;
+			}
+
+			str_t guid = proj->pgcr.str[PGC_STR_GUID];
+			if (b == PGC_BUILD_SHARED) {
+				proj->pgcr.str[PGC_STR_GUID] = strc(proj->guid2, sizeof(proj->guid2) - 1);
+			}
+
+			xml_init(&proj->gen.xml, 256, 256);
+			xml_tag_t xproj = pgc_gen_vs_proj(&proj->pgcr, &proj->gen.xml, b);
+
+			path_t gen_path = { 0 };
+			path_init(&gen_path, proj->dir.path, proj->dir.len);
+
+			if (!folder_exists(gen_path.path)) {
+				folder_create(gen_path.path);
+			}
+
+			if (path_child(&gen_path, proj->name.data, proj->name.len) == NULL) {
+				return 1;
+			}
+
+			if (path_child_s(&gen_path, CSTR("vcxproj"), '.') == NULL) {
+				return 1;
+			}
+
+			FILE *file = file_open(gen_path.path, "w");
+			if (file == NULL) {
+				return 1;
+			}
+
+			xml_print(&proj->gen.xml, xproj, PRINT_DST_FILE(file));
+			file_close(file);
+			xml_free(&proj->gen.xml);
+
+			if (b == PGC_BUILD_SHARED) {
+				proj->pgcr.str[PGC_STR_GUID] = guid;
+			}
+
+			xml_init(&proj->gen.xml, 256, 256);
+			xml_tag_t xuser = pgc_gen_vs_user(&proj->pgcr, &proj->gen.xml);
+
+			path_t gen_path_user = gen_path;
+			path_child_s(&gen_path_user, CSTR("user"), '.');
+
+			file = file_open(gen_path_user.path, "w");
+			if (file == NULL) {
+				return 1;
+			}
+
+			ret |= xml_print(&proj->gen.xml, xuser, PRINT_DST_FILE(file)) == 0;
+
+			file_close(file);
+			xml_free(&proj->gen.xml);
+		}
 	}
 
 	path_t cmake_path = *path;
@@ -28,8 +112,6 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 	}
 
 	MSG("generating solution: %s", cmake_path.path);
-
-	int ret = 0;
 
 	c_fprintf(file, "Microsoft Visual Studio Solution File, Format Version 12.00\n"
 			"# Visual Studio Version 17\n"
@@ -171,16 +253,6 @@ int vs_sln_gen(sln_t *sln, const path_t *path)
 		SUC("generating solution: %s success", cmake_path.path);
 	} else {
 		ERR("generating solution: %s failed", cmake_path.path);
-	}
-
-	dict_foreach(&sln->projects, pair)
-	{
-		proj_t *proj = pair->value;
-
-		ret |= vs_proj_gen(proj, &sln->projects, sln->props, 0);
-		if (proj->props[PROJ_PROP_TYPE].mask == PROJ_TYPE_LIB) {
-			ret |= vs_proj_gen(pair->value, &sln->projects, sln->props, 1);
-		}
 	}
 
 	return ret;

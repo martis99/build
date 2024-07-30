@@ -4,7 +4,9 @@
 
 // clang-format off
 static const char *s_str_str[] = {
-	[PGC_STR_NAME]	  = "NAME",
+	[PGC_STR_DIR]	  = "DIR",
+	[PGC_STR_RELDIR]  = "RELDIR",
+	[PGC_STR_GUID]	  = "GUID",
 	[PGC_STR_OUTDIR]  = "OUTDIR",
 	[PGC_STR_COVDIR]  = "COVDIR",
 	[PGC_STR_ARGS]	  = "ARGS",
@@ -64,6 +66,7 @@ static const char *s_intdir_type_str[] = {
 };
 
 static const char *s_intdir_str_str[] = {
+	[PGC_INTDIR_STR_NAME]	= "NAME",
 	[PGC_INTDIR_STR_INTDIR] = "INTDIR",
 };
 
@@ -79,6 +82,7 @@ typedef enum pgc_arr_cfg_e {
 	PGC_ARR_FLAG,
 	PGC_ARR_INCLUDE,
 	PGC_ARR_LIB,
+	PGC_ARR_DEPEND,
 } pgc_arr_cfg_t;
 
 // clang-format off
@@ -87,18 +91,18 @@ struct {
 	const char **tbl;
 	int tbl_cnt;
 } s_arr_cfg[] = {
-	[PGC_ARR_ARCHS]	    = { PGC_ARR_STR, NULL },
-	[PGC_ARR_CONFIGS]   = { PGC_ARR_STR, NULL },
+	[PGC_ARR_ARCHS]	    = { PGC_ARR_STR },
+	[PGC_ARR_CONFIGS]   = { PGC_ARR_STR },
 	[PGC_ARR_HEADERS]   = { PGC_ARR_FLAG, s_header_type_str, __PGC_HEADER_TYPE_MAX },
 	[PGC_ARR_SRCS]	    = { PGC_ARR_FLAG, s_src_type_str, __PGC_SRC_TYPE_MAX },
-	[PGC_ARR_INCLUDES]  = { PGC_ARR_INCLUDE, NULL },
+	[PGC_ARR_INCLUDES]  = { PGC_ARR_INCLUDE },
 	[PGC_ARR_LIBS]	    = { PGC_ARR_LIB, s_intdir_type_str, __PGC_INTDIR_TYPE_MAX },
-	[PGC_ARR_DEPENDS]   = { PGC_ARR_STR, NULL },
+	[PGC_ARR_DEPENDS]   = { PGC_ARR_DEPEND, s_build_type_str, __PGC_BUILD_TYPE_MAX, },
 	[PGC_ARR_DEFINES]   = { PGC_ARR_FLAG, s_intdir_type_str, __PGC_INTDIR_TYPE_MAX },
-	[PGC_ARR_LDFLAGS]   = { PGC_ARR_STR, NULL },
+	[PGC_ARR_LDFLAGS]   = { PGC_ARR_STR },
 	[PGC_ARR_FILES]	    = { PGC_ARR_FLAG, s_file_type_str, __PGC_FILE_TYPE_MAX },
 	[PGC_ARR_FLAGS]	    = { PGC_ARR_FLAG, s_src_type_str, __PGC_SRC_TYPE_MAX },
-	[PGC_ARR_REQUIRES]  = { PGC_ARR_STR, NULL },
+	[PGC_ARR_REQUIRES]  = { PGC_ARR_STR },
 	[PGC_ARR_COPYFILES] = { PGC_ARR_FLAG, s_intdir_type_str, __PGC_INTDIR_TYPE_MAX },
 };
 // clang-format on
@@ -267,7 +271,61 @@ static int pgc_lib_dprint(void *ptr, pgc_arr_t arr, print_dst_t dst)
 	return dst.off - off;
 }
 
-static struct {
+static void pgc_depend_replace(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt, char path_sep)
+{
+	pgc_depend_data_t *data = ptr;
+
+	data->name = strn(data->name.data, data->name.len, 256);
+	str_replaces(&data->name, src_vars, dst_vars, vars_cnt);
+	convert_slash(data->name, path_sep);
+
+	data->guid = str_cpy(data->guid);
+
+	data->rel_dir = strn(data->rel_dir.data, data->rel_dir.len, 256);
+	str_replaces(&data->rel_dir, src_vars, dst_vars, vars_cnt);
+	convert_slash(data->rel_dir, path_sep);
+}
+
+static void pgc_depend_free(void *ptr)
+{
+	pgc_depend_data_t *lib = ptr;
+	str_free(&lib->name);
+	str_free(&lib->guid);
+	str_free(&lib->rel_dir);
+}
+
+static int pgc_depend_dprint(void *ptr, pgc_arr_t arr, print_dst_t dst)
+{
+	pgc_depend_data_t *lib = ptr;
+
+	if (!lib->builds) {
+		return 0;
+	}
+
+	int off = dst.off;
+
+	dst.off += dprintf(dst, "    ");
+
+	if (lib->name.data) {
+		dst.off += dprintf(dst, "name: %.*s ", lib->name.len, lib->name.data);
+	}
+
+	if (lib->guid.data) {
+		dst.off += dprintf(dst, "guid: %.*s ", lib->guid.len, lib->guid.data);
+	}
+
+	if (lib->rel_dir.data) {
+		dst.off += dprintf(dst, "rel_dir: %.*s ", lib->rel_dir.len, lib->rel_dir.data);
+	}
+
+	dst.off += dprintf(dst, "(");
+	dst.off += print_flags(lib->builds, s_arr_cfg[arr].tbl, s_arr_cfg[arr].tbl_cnt, dst);
+	dst.off += dprintf(dst, ")\n");
+
+	return dst.off - off;
+}
+
+static const struct {
 	size_t size;
 	void (*replace)(void *ptr, const str_t *src_vars, const str_t *dst_vars, size_t vars_cnt, char path_sep);
 	int (*dprint)(void *ptr, pgc_arr_t arr, print_dst_t dst);
@@ -277,6 +335,7 @@ static struct {
 	[PGC_ARR_FLAG]	  = { sizeof(pgc_str_flags_t), pgc_str_flag_replace, pgc_str_flag_dprint, pgc_str_flag_free },
 	[PGC_ARR_INCLUDE] = { sizeof(pgc_str_flags_t), pgc_str_flag_replace, pgc_include_dprint, pgc_str_flag_free },
 	[PGC_ARR_LIB]	  = { sizeof(pgc_lib_data_t), pgc_lib_replace, pgc_lib_dprint, pgc_lib_free },
+	[PGC_ARR_DEPEND]  = { sizeof(pgc_depend_data_t), pgc_depend_replace, pgc_depend_dprint, pgc_depend_free },
 };
 
 pgc_t *pgc_init(pgc_t *pgc)
@@ -464,18 +523,27 @@ uint pgc_add_lib(pgc_t *pgc, str_t dir, str_t name, int intdirs, pgc_link_type_t
 	return id;
 }
 
-uint pgc_add_depend(pgc_t *pgc, str_t depend)
-{
-	return add_str(pgc, PGC_ARR_DEPENDS, depend);
-}
-
-void pgc_set_cwd(pgc_t *pgc, str_t cwd)
+uint pgc_add_depend(pgc_t *pgc, str_t name, str_t guid, str_t rel_dir, int builds)
 {
 	if (pgc == NULL) {
-		return;
+		return PGC_END;
 	}
 
-	pgc->str[PGC_STR_CWD] = cwd;
+	uint id = arr_add(&pgc->arr[PGC_ARR_DEPENDS]);
+
+	pgc_depend_data_t *data = arr_get(&pgc->arr[PGC_ARR_DEPENDS], id);
+	if (data == NULL) {
+		return PGC_END;
+	}
+
+	*data = (pgc_depend_data_t){
+		.name	 = name,
+		.guid	 = guid,
+		.rel_dir = rel_dir,
+		.builds	 = builds,
+	};
+
+	return id;
 }
 
 void pgc_set_run(pgc_t *pgc, str_t run, int builds)

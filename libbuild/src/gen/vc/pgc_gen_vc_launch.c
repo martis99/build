@@ -7,7 +7,7 @@
 static json_val_t add_launch_header(const pgc_t *pgc, json_t *json, json_val_t confs, str_t type, pgc_build_type_t b, str_t arch, str_t config)
 {
 	// clang-format off
-	static struct {
+	static const struct {
 		str_t act;
 		str_t run;
 	} target_c[] = {
@@ -20,7 +20,7 @@ static json_val_t add_launch_header(const pgc_t *pgc, json_t *json, json_val_t c
 	};
 	// clang-format on
 
-	str_t name = pgc->str[PGC_STR_NAME];
+	str_t name = pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT];
 
 	const json_val_t conf = json_add_val(json, confs, str_null(), JSON_OBJ());
 	json_add_val(json, conf, STR("name"), JSON_STR(strf(NAME_FMT, NAME_ARGS(target_c[b].run, name, arch, config))));
@@ -40,7 +40,7 @@ static json_t *pgc_gen_vc_launch_cppdbg(const pgc_t *pgc, json_t *json, json_val
 	const json_val_t conf = add_launch_header(pgc, json, confs, STR("cppdbg"), b, arch, config);
 
 	str_cat(&tmp, pgc->str[PGC_STR_OUTDIR]);
-	str_cat(&tmp, pgc->str[PGC_STR_NAME]);
+	str_cat(&tmp, pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT]);
 
 	json_add_val(json, conf, STR("program"), JSON_STR(str_cpy(tmp)));
 
@@ -100,7 +100,7 @@ static json_t *pgc_gen_vc_launch_cppdbg(const pgc_t *pgc, json_t *json, json_val
 static json_t *pgc_gen_vc_launch_f5anything(const pgc_t *pgc, json_t *json, json_val_t confs, pgc_build_type_t b, str_t arch, str_t config)
 {
 	// clang-format off
-	static struct {
+	static const struct {
 		str_t act;
 	} target_c[] = {
 		[PGC_BUILD_EXE]	   = { STRS("compile") },
@@ -112,7 +112,7 @@ static json_t *pgc_gen_vc_launch_f5anything(const pgc_t *pgc, json_t *json, json
 	};
 	// clang-format on
 
-	str_t name = pgc->str[PGC_STR_NAME];
+	str_t name = pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT];
 
 	const json_val_t conf = json_add_val(json, confs, str_null(), JSON_OBJ());
 	json_add_val(json, conf, STR("name"), JSON_STR(strf(NAME_FMT, NAME_ARGS(target_c[b].act, name, arch, config))));
@@ -130,7 +130,7 @@ json_t *pgc_gen_vc_launch(const pgc_t *pgc, json_t *json, json_val_t configs)
 	}
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (pgc->str[PGC_STR_OUTDIR].data == NULL || pgc->str[PGC_STR_NAME].data == NULL || (pgc->builds & (1 << b)) == 0) {
+		if (pgc->str[PGC_STR_OUTDIR].data == NULL || pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT].data == NULL || (pgc->builds & (1 << b)) == 0) {
 			continue;
 		}
 

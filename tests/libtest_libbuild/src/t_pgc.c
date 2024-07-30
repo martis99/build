@@ -312,38 +312,17 @@ TEST(t_pgc_add_depend)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	EXPECT_EQ(pgc_add_depend(NULL, str_null()), PGC_END);
-	EXPECT_EQ(pgc_add_depend(&pgc, str_null()), 0);
+	EXPECT_EQ(pgc_add_depend(NULL, str_null(), str_null(), str_null(), 0), PGC_END);
+	EXPECT_EQ(pgc_add_depend(&pgc, str_null(), str_null(), str_null(), 0), 0);
 	mem_oom(1);
-	EXPECT_EQ(pgc_add_depend(&pgc, str_null()), PGC_END);
+	EXPECT_EQ(pgc_add_depend(&pgc, str_null(), str_null(), str_null(), 0), PGC_END);
 	mem_oom(0);
-	EXPECT_EQ(pgc_add_depend(&pgc, STRH("lib")), 1);
+	EXPECT_EQ(pgc_add_depend(&pgc, STRH("lib"), STRH("0000"), STRH("projects/test/"), F_PGC_BUILD_EXE), 1);
 
 	char buf[64] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEPENDS\n"
-			"    lib\n");
-
-	pgc_free(&pgc);
-
-	END;
-}
-
-TEST(t_pgc_set_cwd)
-{
-	START;
-
-	pgc_t pgc = { 0 };
-	pgc_init(&pgc);
-
-	pgc_set_cwd(NULL, str_null());
-	pgc_set_cwd(&pgc, STRH("test"));
-
-	EXPECT_STRN(pgc.str[PGC_STR_CWD].data, "test", 4);
-
-	char buf[64] = { 0 };
-	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "CWD: test\n");
+			"    name: lib guid: 0000 rel_dir: projects/test/ (EXE)\n");
 
 	pgc_free(&pgc);
 
@@ -510,16 +489,16 @@ TEST(t_pgc_replace_vars_str)
 	pgc_t pgc = { 0 };
 	pgc_init(&pgc);
 
-	pgc.str[PGC_STR_NAME] = STR("$(PROJNAME)");
+	pgc.str[PGC_STR_CWD] = STR("$(PROJDIR)");
 
 	pgc_t pgcr = { 0 };
-	str_t from = STR("$(PROJNAME)");
-	str_t to   = STR("name");
+	str_t from = STR("$(PROJDIR)");
+	str_t to   = STR("dir");
 	pgc_replace_vars(&pgc, &pgcr, &from, &to, 1, '/');
 
 	char buf[64] = { 0 };
 	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: name\n");
+	EXPECT_STR(buf, "CWD: dir\n");
 
 	pgc_free(&pgcr);
 	pgc_free(&pgc);
@@ -662,6 +641,37 @@ TEST(t_pgc_replace_vars_arr_lib)
 	END;
 }
 
+TEST(t_pgc_replace_vars_arr_depend)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_init(&pgc);
+
+	pgc_add_depend(&pgc, STRH("$(NAME)"), STRH("0000"), STRH("$(DIR)"), F_PGC_BUILD_EXE);
+
+	pgc_t pgcr   = { 0 };
+	str_t from[] = {
+		STR("$(NAME)"),
+		STR("$(DIR)"),
+	};
+	str_t to[] = {
+		STR("a"),
+		STR("libs/"),
+	};
+	pgc_replace_vars(&pgc, &pgcr, from, to, 2, '/');
+
+	char buf[64] = { 0 };
+	pgc_print(&pgcr, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "DEPENDS\n"
+			"    name: a guid: 0000 rel_dir: libs/ (EXE)\n");
+
+	pgc_free(&pgcr);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_replace_vars_src)
 {
 	START;
@@ -792,7 +802,6 @@ STEST(t_pgc)
 	RUN(t_pgc_add_lib_dir);
 	RUN(t_pgc_add_lib_name);
 	RUN(t_pgc_add_depend);
-	RUN(t_pgc_set_cwd);
 	RUN(t_pgc_set_run);
 	RUN(t_pgc_set_run_debug);
 	RUN(t_pgc_add_file);
@@ -805,6 +814,7 @@ STEST(t_pgc)
 	RUN(t_pgc_replace_vars_arr_str_flag);
 	RUN(t_pgc_replace_vars_arr_include);
 	RUN(t_pgc_replace_vars_arr_lib);
+	RUN(t_pgc_replace_vars_arr_depend);
 	RUN(t_pgc_replace_vars_src);
 	RUN(t_pgc_replace_vars_intdir);
 	RUN(t_pgc_replace_vars_target);

@@ -5,7 +5,7 @@
 str_t *mk_proj_get_vars(const proj_t *proj, str_t *vars)
 {
 	vars[PROJ_VAR_SLNDIR]	= STR("$(SLNDIR)");
-	vars[PROJ_VAR_PROJDIR]	= strc(proj->rel_dir.path, proj->rel_dir.len);
+	vars[PROJ_VAR_PROJDIR]	= strf("$(SLNDIR)%.*s", proj->rel_dir.len, proj->rel_dir.path);
 	vars[PROJ_VAR_PROJNAME] = strc(proj->name.data, proj->name.len);
 	vars[PROJ_VAR_CONFIG]	= STR("$(CONFIG)");
 	vars[PROJ_VAR_ARCH]	= STR("$(ARCH)");

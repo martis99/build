@@ -11,7 +11,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 	};
 
 	// clang-format off
-	static struct {
+	static const struct {
 		const char *lang;
 		const char *ext;
 	} src_c[] = {
@@ -19,18 +19,6 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 		[PGC_SRC_S]    = { "ASM",      "S" },
 		[PGC_SRC_C]    = { "C",        "c" },
 		[PGC_SRC_CPP]  = { "CXX",      "cpp" },
-	};
-
-	static struct {
-		str_t postfix;
-		pgc_intdir_type_t intdir;
-	} target_c[] = {
-		[PGC_BUILD_EXE]	   = { STRS(""),   PGC_INTDIR_OBJECT },
-		[PGC_BUILD_STATIC] = { STRS("_s"), PGC_INTDIR_STATIC },
-		[PGC_BUILD_SHARED] = { STRS("_d"), PGC_INTDIR_SHARED },
-		[PGC_BUILD_ELF]	   = { STRS(""),   PGC_INTDIR_OBJECT },
-		[PGC_BUILD_BIN]	   = { STRS(""),   PGC_INTDIR_OBJECT },
-		[PGC_BUILD_FAT12]  = { STRS(""),   __PGC_INTDIR_TYPE_MAX  },
 	};
 	// clang-format on
 
@@ -54,8 +42,12 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 
 	uint sources = CMAKE_END;
 
-	if (pgc->str[PGC_STR_NAME].data && (pgc->arr[PGC_ARR_HEADERS].cnt > 0 || pgc->arr[PGC_ARR_SRCS].cnt > 0)) {
-		sources = cmake_file(cmake, CMAKE_FILE_GLOB_RECURSE, strf("%.*s_SOURCE", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data));
+	if (pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT].data && (pgc->arr[PGC_ARR_HEADERS].cnt > 0 || pgc->arr[PGC_ARR_SRCS].cnt > 0)) {
+		str_t name = strz(pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT].len + sizeof("_SOURCE"));
+		str_cat(&name, pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT]);
+		str_cat(&name, STR("_SOURCE"));
+
+		sources = cmake_file(cmake, CMAKE_FILE_GLOB_RECURSE, name);
 
 		const pgc_str_flags_t *header;
 		arr_foreach(&pgc->arr[PGC_ARR_HEADERS], header)
@@ -89,71 +81,38 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 	}
 
 	for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-		if (pgc->str[PGC_STR_NAME].data == NULL || (pgc->builds & (1 << b)) == 0) {
+		str_t name = pgc->intdir[PGC_INTDIR_STR_NAME][s_build_c[b].intdir];
+
+		if (name.data == NULL || (pgc->builds & (1 << b)) == 0) {
 			continue;
 		}
 
-		switch (b) {
-		case PGC_BUILD_EXE:
-			if (is_src) {
-				target[b] = cmake_add_exe(cmake,
-							  strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-							       target_c[b].postfix.data),
-							  sources);
+		if (is_src) {
+			switch (b) {
+			case PGC_BUILD_EXE:
+			case PGC_BUILD_BIN:
+			case PGC_BUILD_ELF:
+				target[b] = cmake_add_exe(cmake, str_cpy(name), sources);
+				break;
+			case PGC_BUILD_STATIC:
+				target[b] = cmake_add_lib(cmake, str_cpy(name), CMAKE_LIB_STATIC, sources);
+				break;
+			case PGC_BUILD_SHARED:
+				target[b] = cmake_add_lib(cmake, str_cpy(name), CMAKE_LIB_SHARED, sources);
+				break;
+			default:
+				target[b] = cmake_add_custom_target(cmake, str_cpy(name));
+				break;
 			}
-			break;
-		case PGC_BUILD_STATIC:
-			if (is_src) {
-				target[b] = cmake_add_lib(cmake,
-							  strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-							       target_c[b].postfix.data),
-							  CMAKE_LIB_STATIC, sources);
-			} else {
-				target[b] = cmake_add_custom_target(cmake, strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data,
-										target_c[b].postfix.len, target_c[b].postfix.data));
-			}
-			break;
-		case PGC_BUILD_SHARED:
-			if (is_src) {
-				target[b] = cmake_add_lib(cmake,
-							  strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-							       target_c[b].postfix.data),
-							  CMAKE_LIB_SHARED, sources);
-			} else {
-				target[b] = cmake_add_custom_target(cmake, strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data,
-										target_c[b].postfix.len, target_c[b].postfix.data));
-			}
-			break;
-		case PGC_BUILD_BIN:
-			if (is_src) {
-				target[b] = cmake_add_exe(cmake,
-							  strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-							       target_c[b].postfix.data),
-							  sources);
-			} else {
-				target[b] = cmake_add_custom_target(cmake, strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data,
-										target_c[b].postfix.len, target_c[b].postfix.data));
-			}
-			break;
-		case PGC_BUILD_ELF:
-			if (is_src) {
-				target[b] = cmake_add_lib(cmake,
-							  strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-							       target_c[b].postfix.data),
-							  CMAKE_LIB_STATIC, sources);
-			}
-			break;
-		default:
-			target[b] = cmake_add_custom_target(cmake, strf("%.*s%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data, target_c[b].postfix.len,
-									target_c[b].postfix.data));
-			break;
+		} else {
+			target[b] = cmake_add_custom_target(cmake, str_cpy(name));
 		}
 
 		if (target[b] != CMAKE_END && pgc->arr[PGC_ARR_COPYFILES].cnt > 0) {
 			const pgc_str_flags_t *copyfile;
 			arr_foreach(&pgc->arr[PGC_ARR_COPYFILES], copyfile)
 			{
-				if (!(copyfile->flags & (1 << target_c[b].intdir)) || copyfile->str.data == NULL) {
+				if (!(copyfile->flags & (1 << s_build_c[b].intdir)) || copyfile->str.data == NULL) {
 					continue;
 				}
 
@@ -166,14 +125,14 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 		if (target[b] != CMAKE_END && (pgc->arr[PGC_ARR_DEPENDS].cnt > 0)) {
 			uint depends = cmake_add_depends(cmake, target[b]);
 
-			const str_t *depend;
+			const pgc_depend_data_t *depend;
 			arr_foreach(&pgc->arr[PGC_ARR_DEPENDS], depend)
 			{
-				if (depend->data == NULL) {
+				if (depend->name.data == NULL) {
 					continue;
 				}
 
-				cmake_cmd_add_str(cmake, depends, str_cpy(*depend));
+				cmake_cmd_add_str(cmake, depends, str_cpy(depend->name));
 			}
 		}
 
@@ -183,7 +142,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			const pgc_str_flags_t *define;
 			arr_foreach(&pgc->arr[PGC_ARR_DEFINES], define)
 			{
-				if (!(define->flags & (1 << target_c[b].intdir)) || define->str.data == NULL) {
+				if (!(define->flags & (1 << s_build_c[b].intdir)) || define->str.data == NULL) {
 					continue;
 				}
 
@@ -254,7 +213,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			const pgc_lib_data_t *lib;
 			arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
 			{
-				if (!(lib->intdirs & (1 << target_c[b].intdir)) || lib->dir.data == NULL) {
+				if (!(lib->intdirs & (1 << s_build_c[b].intdir)) || lib->dir.data == NULL) {
 					continue;
 				}
 
@@ -275,7 +234,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			const pgc_lib_data_t *lib;
 			arr_foreach(&pgc->arr[PGC_ARR_LIBS], lib)
 			{
-				if (!(lib->intdirs & (1 << target_c[b].intdir)) || lib->name.data == NULL) {
+				if (!(lib->intdirs & (1 << s_build_c[b].intdir)) || lib->name.data == NULL) {
 					continue;
 				}
 
@@ -334,7 +293,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 			}
 
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_BUILD_RPATH, STR("\".\""));
-			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_OUTPUT_NAME, str_cpy(pgc->str[PGC_STR_NAME]));
+			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_OUTPUT_NAME, str_cpy(pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT]));
 			cmake_add_target_prop(cmake, props, CMAKE_TARGET_PROP_PREFIX, STR("\"\""));
 		}
 	}
@@ -344,7 +303,7 @@ cmake_t *pgc_gen_cm_local(const pgc_t *pgc, cmake_t *cmake)
 
 cmake_t *pgc_gen_cm_remote(const pgc_t *pgc, cmake_t *cmake)
 {
-	cmake_add_custom_target(cmake, strf("%.*s", pgc->str[PGC_STR_NAME].len, pgc->str[PGC_STR_NAME].data));
+	cmake_add_custom_target(cmake, str_cpy(pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT]));
 
 	return cmake;
 }

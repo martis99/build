@@ -236,9 +236,9 @@
 	"\t@ar rcs $@ $(OBJ_ASM_S)\n" \
 	"\n"
 
-#define TARGET_ASM_D                                                  \
-	"$(TARGET_D): $(OBJ_ASM_D)\n"                                 \
-	"\t@mkdir -p $(@D)\n"                                         \
+#define TARGET_ASM_D                                                    \
+	"$(TARGET_D): $(OBJ_ASM_D)\n"                                   \
+	"\t@mkdir -p $(@D)\n"                                           \
 	"\t@$(TCC) -m$(BITS) -shared $(OBJ_ASM_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
@@ -254,9 +254,9 @@
 	"\t@ar rcs $@ $(OBJ_S_S)\n" \
 	"\n"
 
-#define TARGET_S_D                                                  \
-	"$(TARGET_D): $(OBJ_S_D)\n"                                 \
-	"\t@mkdir -p $(@D)\n"                                       \
+#define TARGET_S_D                                                    \
+	"$(TARGET_D): $(OBJ_S_D)\n"                                   \
+	"\t@mkdir -p $(@D)\n"                                         \
 	"\t@$(TCC) -m$(BITS) -shared $(OBJ_S_D) $(LDFLAGS_D) -o $@\n" \
 	"\n"
 
@@ -1619,6 +1619,40 @@ TEST(t_pgc_gen_mk_fat12)
 	END;
 }
 
+TEST(t_pgc_gen_mk_fat12_src)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_fat12_src(&pgc);
+
+	make_t make = { 0 };
+	make_init(&make, 8, 8, 8);
+
+	pgc_gen_mk(&pgc, &make);
+
+	char buf[1024] = { 0 };
+	make_print(&make, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "SRC_C := $(shell find src/ -name '*.c')\n"
+			"\n"
+			"RM += -r\n"
+			"\n"
+			".PHONY: all check clean\n"
+			"\n"
+			"all:\n"
+			"\n"
+			"check:\n"
+			"\n"
+			"clean:\n"
+			"\t@$(RM)\n"
+			"\n");
+
+	make_free(&make);
+	pgc_free(&pgc);
+
+	END;
+}
+
 TEST(t_pgc_gen_mk_fat12_header)
 {
 	START;
@@ -2289,6 +2323,7 @@ STEST(t_pgc_gen_mk)
 	RUN(t_pgc_gen_mk_bin_run);
 	RUN(t_pgc_gen_mk_elf);
 	RUN(t_pgc_gen_mk_fat12);
+	RUN(t_pgc_gen_mk_fat12_src);
 	RUN(t_pgc_gen_mk_fat12_header);
 	RUN(t_pgc_gen_mk_archs);
 	RUN(t_pgc_gen_mk_configs);

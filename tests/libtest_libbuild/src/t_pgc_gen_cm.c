@@ -757,7 +757,7 @@ TEST(t_pgc_gen_cm_elf)
 	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
 			"\n"
-			"add_library(test STATIC ${test_SOURCE})\n"
+			"add_executable(test ${test_SOURCE})\n"
 			"" TARGET_PROPERTIES "");
 
 	cmake_free(&cmake);
@@ -781,6 +781,31 @@ TEST(t_pgc_gen_cm_fat12)
 	char buf[2048] = { 0 };
 	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "add_custom_target(test)\n"
+			"" TARGET_PROPERTIES "");
+
+	cmake_free(&cmake);
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_pgc_gen_cm_fat12_src)
+{
+	START;
+
+	pgc_t pgc = { 0 };
+	pgc_gen_fat12_src(&pgc);
+
+	cmake_t cmake = { 0 };
+	cmake_init(&cmake, 8, 8, 8);
+
+	pgc_gen_cm(&pgc, &cmake);
+
+	char buf[2048] = { 0 };
+	cmake_print(&cmake, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "file(GLOB_RECURSE test_SOURCE src/*.c)\n"
+			"\n"
+			"add_custom_target(test)\n"
 			"" TARGET_PROPERTIES "");
 
 	cmake_free(&cmake);
@@ -1253,6 +1278,7 @@ STEST(t_pgc_gen_cm)
 	RUN(t_pgc_gen_cm_bin_run);
 	RUN(t_pgc_gen_cm_elf);
 	RUN(t_pgc_gen_cm_fat12);
+	RUN(t_pgc_gen_cm_fat12_src);
 	RUN(t_pgc_gen_cm_fat12_header);
 	RUN(t_pgc_gen_cm_archs);
 	RUN(t_pgc_gen_cm_configs);

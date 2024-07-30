@@ -34,7 +34,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	}
 
 	// clang-format off
-	static struct {
+	static const struct {
 		str_t name;
 		str_t flags;
 		const char *ext;
@@ -79,7 +79,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		[PGC_INTDIR_SHARED]  = MAKE_END,
 	};
 
-	static struct {
+	static const struct {
 		str_t name;
 		str_t defines;
 		str_t ldflags;
@@ -132,7 +132,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 	int obj_ext[__PGC_SRC_TYPE_MAX]	      = { 0 };
 	int obj_intdir[__PGC_INTDIR_TYPE_MAX] = { 0 };
 
-	static struct {
+	static const struct {
 		str_t name;
 	} obj_ext_c[][__PGC_SRC_TYPE_MAX] = {
 		[PGC_INTDIR_OBJECT] = {
@@ -220,7 +220,7 @@ make_t *pgc_gen_mk_local(const pgc_t *pgc, make_t *make)
 		[PGC_BUILD_FAT12]  = MAKE_END,
 	};
 
-	static struct {
+	static const struct {
 		str_t name;
 		const char *ext;
 		str_t act;
@@ -1000,9 +1000,9 @@ static make_t *pgc_gen_mk_remote(const pgc_t *pgc, make_t *make)
 	}
 
 	make_var_t name = MAKE_END;
-	if (pgc->str[PGC_STR_NAME].data) {
+	if (pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT].data) {
 		name = make_add_act(make, make_create_var(make, STR("NAME"), MAKE_VAR_INST));
-		make_var_add_val(make, name, MSTR(str_cpy(pgc->str[PGC_STR_NAME])));
+		make_var_add_val(make, name, MSTR(str_cpy(pgc->intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT])));
 	}
 
 	make_var_t format = MAKE_END;

@@ -5,7 +5,7 @@
 str_t *cm_proj_get_vars(const proj_t *proj, str_t *vars)
 {
 	vars[PROJ_VAR_SLNDIR]	= STR("${CMAKE_SOURCE_DIR}/");
-	vars[PROJ_VAR_PROJDIR]	= strc(proj->rel_dir.path, proj->rel_dir.len);
+	vars[PROJ_VAR_PROJDIR]	= strf("${CMAKE_SOURCE_DIR}/%.*s", proj->rel_dir.len, proj->rel_dir.path);
 	vars[PROJ_VAR_PROJNAME] = strc(proj->name.data, proj->name.len);
 	vars[PROJ_VAR_CONFIG]	= STR("${CMAKE_BUILD_TYPE}");
 	vars[PROJ_VAR_ARCH]	= STR("${ARCH}");

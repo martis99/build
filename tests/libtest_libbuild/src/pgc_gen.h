@@ -31,6 +31,7 @@ void pgc_gen_bin_files(pgc_t *pgc);
 void pgc_gen_bin_run(pgc_t *pgc);
 void pgc_gen_elf(pgc_t *pgc);
 void pgc_gen_fat12(pgc_t *pgc);
+void pgc_gen_fat12_src(pgc_t *pgc);
 void pgc_gen_fat12_header(pgc_t *pgc);
 void pgc_gen_archs(pgc_t *pgc);
 void pgc_gen_configs(pgc_t *pgc);

@@ -2,6 +2,7 @@
 
 #include "gen/mk/make.h"
 #include "gen/mk/pgc_gen_mk.h"
+#include "gen/pgc_common.h"
 #include "gen/proj_gen_pgc.h"
 #include "mk_proj.h"
 
@@ -78,6 +79,19 @@ static void add_util_action(make_t *make, const dict_t *projects, const proj_t *
 
 int mk_sln_gen(sln_t *sln, const path_t *path)
 {
+	// clang-format off
+	static const struct {
+		str_t run;
+	} build_c[] = {
+		[PGC_BUILD_EXE]	   = { STRS("/run") },
+		[PGC_BUILD_STATIC] = { STRS("/run_s") },
+		[PGC_BUILD_SHARED] = { STRS("/run_d") },
+		[PGC_BUILD_ELF]	   = { STRS("/run_elf") },
+		[PGC_BUILD_BIN]	   = { STRS("/run_bin" ) },
+		[PGC_BUILD_FAT12]  = { STRS("/run_fat12") },
+	};
+	// clang-format on
+
 	if (!folder_exists(path->path)) {
 		ERR("folder does not exists: %.*s", (int)path->len, path->path);
 		return 1;
@@ -225,27 +239,15 @@ int mk_sln_gen(sln_t *sln, const path_t *path)
 			add_compile_action(&make, &sln->projects, proj, all, 1);
 		}
 
-		// clang-format off
-		static struct {
-			str_t run;
-		} target_c[] = {
-			[PGC_BUILD_EXE]	   = { STRS("/run") },
-			[PGC_BUILD_STATIC] = { STRS("/run_s") },
-			[PGC_BUILD_SHARED] = { STRS("/run_d") },
-			[PGC_BUILD_ELF]	   = { STRS("/run_elf") },
-			[PGC_BUILD_BIN]	   = { STRS("/run_bin" ) },
-			[PGC_BUILD_FAT12]  = { STRS("/run_fat12") },
-		};
-		// clang-format on
-
 		for (pgc_build_type_t b = 0; b < __PGC_BUILD_TYPE_MAX; b++) {
-			if (proj->pgc.str[PGC_STR_OUTDIR].data == NULL || proj->pgc.str[PGC_STR_NAME].data == NULL || (proj->pgc.builds & (1 << b)) == 0) {
+			if (proj->pgc.str[PGC_STR_OUTDIR].data == NULL || proj->pgc.intdir[PGC_INTDIR_STR_NAME][s_build_c[b].intdir].data == NULL ||
+			    (proj->pgc.builds & (1 << b)) == 0) {
 				continue;
 			}
 
 			if ((pgc_get_config(&proj->pgc, STR("Debug")) != PGC_END && proj->pgc.target[PGC_TARGET_STR_RUN_DBG][b].data) ||
 			    proj->pgc.target[PGC_TARGET_STR_RUN][b].data || b == PGC_BUILD_EXE) {
-				add_run_action(&make, &sln->projects, proj, target_c[b].run);
+				add_run_action(&make, &sln->projects, proj, build_c[b].run);
 			}
 		}
 

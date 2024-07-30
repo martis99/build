@@ -36,6 +36,10 @@ TEST(t_proj_gen_pgc_filename)
 	pgc_t pgc	 = { 0 };
 	prop_t sln_props = { 0 };
 
+	proj.props[PROJ_PROP_TYPE].flags	 = PROP_SET;
+	proj.props[PROJ_PROP_TYPE].mask		 = PROJ_TYPE_BIN;
+	proj.props[PROJ_PROP_OUTDIR].flags	 = PROP_SET;
+	proj.props[PROJ_PROP_OUTDIR].value.val	 = STR("$(SLNDIR)");
 	proj.props[PROJ_PROP_FILENAME].flags	 = PROP_SET;
 	proj.props[PROJ_PROP_FILENAME].value.val = STR("test");
 
@@ -45,7 +49,58 @@ TEST(t_proj_gen_pgc_filename)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: test\n");
+	EXPECT_STR(buf, "OUTDIR: $(SLNDIR)\n"
+			"TARGET\n"
+			"    BIN: $(SLNDIR)test.bin\n");
+
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_dir)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.dir = (pathv_t){
+		.path = "$(PROJDIR)",
+		.len  = sizeof("$(PROJDIR)") - 1,
+	};
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "DIR: $(PROJDIR)\n");
+
+	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_guid)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	proj.guid[0] = '0';
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "GUID: 0\n");
 
 	pgc_free(&pgc);
 
@@ -99,8 +154,11 @@ TEST(t_proj_gen_pgc_target_lib)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: test\n"
-			"OUTDIR: $(SLNDIR)\n"
+	EXPECT_STR(buf, "OUTDIR: $(SLNDIR)\n"
+			"NAME\n"
+			"    OBJECT: test\n"
+			"    STATIC: test_s\n"
+			"    SHARED: test_d\n"
 			"TARGET\n"
 			"    STATIC: $(SLNDIR)test.a\n"
 			"    SHARED: $(SLNDIR)test.so\n");
@@ -133,9 +191,10 @@ TEST(t_proj_gen_pgc_target_exe)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: test\n"
-			"OUTDIR: $(SLNDIR)\n"
+	EXPECT_STR(buf, "OUTDIR: $(SLNDIR)\n"
 			"COVDIR: $(SLNDIR)cov/\n"
+			"NAME\n"
+			"    OBJECT: test\n"
 			"TARGET\n"
 			"    EXE: $(SLNDIR)test\n");
 
@@ -229,7 +288,9 @@ TEST(t_proj_gen_pgc_intdir_fat12)
 	char buf[512] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "INCLUDES\n"
-			"    src/ (PRIVATE)\n");
+			"    src/ (PRIVATE)\n"
+			"INTDIR\n"
+			"    OBJECT: $(SLNDIR)\n");
 
 	pgc_free(&pgc);
 
@@ -710,13 +771,53 @@ TEST(t_proj_gen_pgc_build_shared)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: test\n"
-			"INCLUDES\n"
+	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"DEFINES\n"
-			"    TEST_BUILD_DLL (SHARED)\n");
+			"    TEST_BUILD_DLL (SHARED)\n"
+			"NAME\n"
+			"    OBJECT: test\n"
+			"    STATIC: test_s\n"
+			"    SHARED: test_d\n");
 
 	pgc_free(&pgc);
+
+	END;
+}
+
+TEST(t_proj_gen_pgc_depend_ext_none)
+{
+	START;
+
+	proj_t proj	 = { 0 };
+	proj_t dproj	 = { 0 };
+	pgc_t pgc	 = { 0 };
+	prop_t sln_props = { 0 };
+
+	arr_init(&proj.depends, 1, sizeof(proj_dep_t));
+	*(proj_dep_t *)arr_get(&proj.depends, arr_add(&proj.depends)) = (proj_dep_t){
+		.proj	   = &dproj,
+		.link_type = LINK_TYPE_NONE,
+	};
+
+	dproj.props[PROJ_PROP_TYPE].flags     = PROP_SET;
+	dproj.props[PROJ_PROP_TYPE].mask      = PROJ_TYPE_LIB;
+	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
+	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
+
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
+
+	pgc_init(&pgc);
+
+	proj_gen_pgc(&proj, &sln_props, &pgc);
+
+	char buf[256] = { 0 };
+	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
+	EXPECT_STR(buf, "DEPENDS\n");
+
+	pgc_free(&pgc);
+
+	arr_free(&proj.depends);
 
 	END;
 }
@@ -741,7 +842,7 @@ TEST(t_proj_gen_pgc_depend_ext_static)
 	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
 	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -750,7 +851,7 @@ TEST(t_proj_gen_pgc_depend_ext_static)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEPENDS\n"
-			"    test_s\n");
+			"    name: test guid:  rel_dir:  (STATIC)\n");
 
 	pgc_free(&pgc);
 
@@ -779,7 +880,7 @@ TEST(t_proj_gen_pgc_depend_ext_shared)
 	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
 	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -788,7 +889,7 @@ TEST(t_proj_gen_pgc_depend_ext_shared)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEPENDS\n"
-			"    test_d\n");
+			"    name: test guid:  rel_dir:  (SHARED)\n");
 
 	pgc_free(&pgc);
 
@@ -816,7 +917,7 @@ TEST(t_proj_gen_pgc_depend_ext_exe)
 	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
 	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -825,7 +926,7 @@ TEST(t_proj_gen_pgc_depend_ext_exe)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "DEPENDS\n"
-			"    test\n");
+			"    name: test guid:  rel_dir:  (EXE)\n");
 
 	pgc_free(&pgc);
 
@@ -861,7 +962,7 @@ TEST(t_proj_gen_pgc_depend_exe_int_static)
 	dproj.props[PROJ_PROP_SOURCE].flags	= PROP_SET;
 	dproj.props[PROJ_PROP_SOURCE].value.val = STR("src/");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -906,7 +1007,7 @@ TEST(t_proj_gen_pgc_depend_exe_int_shared)
 	dproj.props[PROJ_PROP_SOURCE].flags	= PROP_SET;
 	dproj.props[PROJ_PROP_SOURCE].value.val = STR("src/");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -917,7 +1018,7 @@ TEST(t_proj_gen_pgc_depend_exe_int_shared)
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"DEPENDS\n"
-			"    test_d\n");
+			"    name: test guid:  rel_dir:  (SHARED)\n");
 
 	pgc_free(&pgc);
 
@@ -951,7 +1052,7 @@ TEST(t_proj_gen_pgc_depend_exe_ext_static)
 	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
 	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -962,7 +1063,7 @@ TEST(t_proj_gen_pgc_depend_exe_ext_static)
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"DEPENDS\n"
-			"    test_s\n");
+			"    name: test guid:  rel_dir:  (STATIC)\n");
 
 	pgc_free(&pgc);
 
@@ -996,7 +1097,7 @@ TEST(t_proj_gen_pgc_depend_exe_ext_shared)
 	dproj.props[PROJ_PROP_NAME].flags     = PROP_SET;
 	dproj.props[PROJ_PROP_NAME].value.val = STR("test");
 
-	dproj.name = dproj.props[PROJ_PROP_NAME].value.val;
+	dproj.pgcr.intdir[PGC_INTDIR_STR_NAME][PGC_INTDIR_OBJECT] = dproj.props[PROJ_PROP_NAME].value.val;
 
 	pgc_init(&pgc);
 
@@ -1007,7 +1108,7 @@ TEST(t_proj_gen_pgc_depend_exe_ext_shared)
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"DEPENDS\n"
-			"    test_d\n");
+			"    name: test guid:  rel_dir:  (SHARED)\n");
 
 	pgc_free(&pgc);
 
@@ -1116,7 +1217,7 @@ TEST(t_proj_gen_pgc_static_ext)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
 
 	pgc_free(&pgc);
 
@@ -1156,7 +1257,7 @@ TEST(t_proj_gen_pgc_shared_ext)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
 			"DEFINES\n"
 			"    TEST_DLL (SHARED)\n");
 
@@ -1216,7 +1317,7 @@ TEST(t_proj_gen_pgc_lib)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
 
 	pgc_free(&pgc);
 
@@ -1243,9 +1344,9 @@ TEST(t_proj_gen_pgc_exe_dlib)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
 			"COPYFILES\n"
-			"    $(SLNDIR)test.so (OBJECT)\n");
+			"    $(PROJDIR)test.so (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -1272,7 +1373,7 @@ TEST(t_proj_gen_pgc_lib_dlib)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n");
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n");
 
 	pgc_free(&pgc);
 
@@ -1317,7 +1418,7 @@ TEST(t_proj_gen_pgc_exe_lib_lib)
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, STATIC, EXT)\n");
 
 	pgc_free(&pgc);
 
@@ -1364,11 +1465,11 @@ TEST(t_proj_gen_pgc_exe_lib_dlib)
 	EXPECT_STR(buf, "INCLUDES\n"
 			"    src/ (PRIVATE)\n"
 			"LIBS\n"
-			"    dir: $(SLNDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
+			"    dir: $(PROJDIR) name: test (OBJECT | SHARED, SHARED, EXT)\n"
 			"DEFINES\n"
 			"    TEST_DLL (SHARED)\n"
 			"COPYFILES\n"
-			"    $(SLNDIR)test.so (OBJECT)\n");
+			"    $(PROJDIR)test.so (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -1525,7 +1626,7 @@ TEST(t_proj_gen_pgc_copyfile_lib)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    $(SLNDIR)file (STATIC)\n");
+			"    $(PROJDIR)file (STATIC)\n");
 
 	pgc_free(&pgc);
 
@@ -1558,7 +1659,7 @@ TEST(t_proj_gen_pgc_copyfile_exe)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    $(SLNDIR)file (OBJECT)\n");
+			"    $(PROJDIR)file (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -1591,7 +1692,7 @@ TEST(t_proj_gen_pgc_dcopyfile_lib)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    $(SLNDIR)file (SHARED)\n");
+			"    $(PROJDIR)file (SHARED)\n");
 
 	pgc_free(&pgc);
 
@@ -1624,7 +1725,7 @@ TEST(t_proj_gen_pgc_dcopyfile_exe)
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
 	EXPECT_STR(buf, "COPYFILES\n"
-			"    $(SLNDIR)file (OBJECT)\n");
+			"    $(PROJDIR)file (OBJECT)\n");
 
 	pgc_free(&pgc);
 
@@ -1736,7 +1837,8 @@ TEST(t_proj_gen_pgc_reldir)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "CWD: $(SLNDIR)$(PROJDIR)\n");
+	EXPECT_STR(buf, "RELDIR: $(PROJDIR)\n"
+			"CWD: $(SLNDIR)$(PROJDIR)\n");
 
 	pgc_free(&pgc);
 
@@ -1864,8 +1966,9 @@ TEST(t_proj_gen_pgc_url_name)
 
 	char buf[256] = { 0 };
 	pgc_print(&pgc, PRINT_DST_BUF(buf, sizeof(buf), 0));
-	EXPECT_STR(buf, "NAME: test\n"
-			"URL: url\n");
+	EXPECT_STR(buf, "URL: url\n"
+			"NAME\n"
+			"    OBJECT: test\n");
 
 	pgc_free(&pgc);
 
@@ -2019,6 +2122,8 @@ STEST(t_proj_gen_pgc)
 	SSTART;
 	RUN(t_proj_gen_pgc_empty);
 	RUN(t_proj_gen_pgc_filename);
+	RUN(t_proj_gen_pgc_dir);
+	RUN(t_proj_gen_pgc_guid);
 	RUN(t_proj_gen_pgc_outdir);
 	RUN(t_proj_gen_pgc_target_lib);
 	RUN(t_proj_gen_pgc_target_exe);
@@ -2040,6 +2145,7 @@ STEST(t_proj_gen_pgc)
 	RUN(t_proj_gen_pgc_link_shared);
 	RUN(t_proj_gen_pgc_link_object);
 	RUN(t_proj_gen_pgc_build_shared);
+	RUN(t_proj_gen_pgc_depend_ext_none);
 	RUN(t_proj_gen_pgc_depend_ext_static);
 	RUN(t_proj_gen_pgc_depend_ext_shared);
 	RUN(t_proj_gen_pgc_depend_ext_exe);

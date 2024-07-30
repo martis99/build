@@ -13,6 +13,7 @@
 #include "dict.h"
 #include "path.h"
 #include "str.h"
+#include "xml.h"
 
 typedef enum proj_prop_e {
 	PROJ_PROP_NAME,
@@ -68,11 +69,11 @@ typedef enum proj_var_e {
 
 // clang-format off
 static const str_t s_proj_vars[] = {
-	[PROJ_VAR_SLNDIR]   = STRS("$(SLNDIR)"),
-	[PROJ_VAR_PROJDIR]  = STRS("$(PROJDIR)"),
-	[PROJ_VAR_PROJNAME] = STRS("$(PROJNAME)"),
-	[PROJ_VAR_CONFIG]   = STRS("$(CONFIG)"),
-	[PROJ_VAR_ARCH]	    = STRS("$(ARCH)"),
+	[PROJ_VAR_SLNDIR]     = STRS("$(SLNDIR)"),
+	[PROJ_VAR_PROJDIR]    = STRS("$(PROJDIR)"),
+	[PROJ_VAR_PROJNAME]   = STRS("$(PROJNAME)"),
+	[PROJ_VAR_CONFIG]     = STRS("$(CONFIG)"),
+	[PROJ_VAR_ARCH]	      = STRS("$(ARCH)"),
 };
 // clang-format on
 
@@ -193,6 +194,7 @@ struct proj_s {
 	union {
 		make_t make;
 		cmake_t cmake;
+		xml_t xml;
 	} gen;
 };
 
